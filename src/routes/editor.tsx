@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { DEFAULT_EDITS, cssFilter, renderEdited, blobToDataUrl, type EditSettings } from "@/lib/image-edits";
 import {
@@ -58,7 +59,7 @@ function EditorPage() {
 
   function onFile(file: File | undefined) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toast.error("Please choose an image file");
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
     const reader = new FileReader();
     reader.onload = () => {
       setPhoto(String(reader.result));
@@ -108,8 +109,8 @@ function EditorPage() {
           user_id: user.id,
           title: "Portrait sculpture",
           source_photos: [path],
-          edit_settings: edits as unknown as Record<string, unknown>,
-          config: config as unknown as Record<string, unknown>,
+          edit_settings: edits as unknown as Json,
+          config: config as unknown as Json,
           status: "generating",
         })
         .select("id")
@@ -130,7 +131,7 @@ function EditorPage() {
 
   function goToCheckout() {
     const projectId = sessionStorage.getItem("relievo:project");
-    if (!projectId) return toast.error("Generate a portrait first");
+    if (!projectId) { toast.error("Generate a portrait first"); return; }
     sessionStorage.setItem("relievo:config", JSON.stringify(config));
     void navigate({ to: "/checkout" });
   }
