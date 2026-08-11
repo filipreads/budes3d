@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { quote, sanitizeConfig, type StudioConfig } from "./pricing";
+import type { Json } from "@/integrations/supabase/types";
 
 type GenerateInput = { projectId: string };
 
@@ -100,13 +101,13 @@ export const createOrder = createServerFn({ method: "POST" })
         user_id: userId,
         project_id: project.id,
         delivery_type: config.delivery,
-        config_snapshot: config as unknown as Record<string, unknown>,
-        line_items: priced.lineItems as unknown as Record<string, unknown>[],
+        config_snapshot: config as unknown as Json,
+        line_items: priced.lineItems as unknown as Json,
         subtotal_cents: priced.subtotalCents,
         shipping_cents: priced.shippingCents,
         total_cents: priced.totalCents,
         contact_email: data.contactEmail,
-        shipping_address: config.delivery === "print" ? data.shippingAddress : null,
+        shipping_address: (config.delivery === "print" ? data.shippingAddress : null) as unknown as Json,
       })
       .select("*")
       .single();
@@ -114,7 +115,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     await supabase
       .from("projects")
-      .update({ status: "ordered", approved_at: new Date().toISOString(), config: config as unknown as Record<string, unknown> })
+      .update({ status: "ordered", approved_at: new Date().toISOString(), config: config as unknown as Json })
       .eq("id", project.id)
       .eq("user_id", userId);
 
