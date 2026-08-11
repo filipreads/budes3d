@@ -14,16 +14,229 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      order_downloads: {
+        Row: {
+          created_at: string
+          download_count: number
+          expires_at: string
+          file_format: string
+          id: string
+          label: string
+          order_id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          download_count?: number
+          expires_at?: string
+          file_format?: string
+          id?: string
+          label?: string
+          order_id: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          download_count?: number
+          expires_at?: string
+          file_format?: string
+          id?: string
+          label?: string
+          order_id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_downloads_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          config_snapshot: Json
+          contact_email: string | null
+          created_at: string
+          currency: string
+          delivery_type: string
+          fulfilment_status: string
+          id: string
+          line_items: Json
+          order_number: string
+          payment_status: string
+          project_id: string | null
+          shipping_address: Json | null
+          shipping_cents: number
+          subtotal_cents: number
+          total_cents: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config_snapshot?: Json
+          contact_email?: string | null
+          created_at?: string
+          currency?: string
+          delivery_type?: string
+          fulfilment_status?: string
+          id?: string
+          line_items?: Json
+          order_number?: string
+          payment_status?: string
+          project_id?: string | null
+          shipping_address?: Json | null
+          shipping_cents?: number
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config_snapshot?: Json
+          contact_email?: string | null
+          created_at?: string
+          currency?: string
+          delivery_type?: string
+          fulfilment_status?: string
+          id?: string
+          line_items?: Json
+          order_number?: string
+          payment_status?: string
+          project_id?: string | null
+          shipping_address?: Json | null
+          shipping_cents?: number
+          subtotal_cents?: number
+          total_cents?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          approved_at: string | null
+          config: Json
+          created_at: string
+          edit_settings: Json
+          generation_error: string | null
+          id: string
+          model_provider: string | null
+          model_url: string | null
+          preview_image_url: string | null
+          source_photos: Json
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          config?: Json
+          created_at?: string
+          edit_settings?: Json
+          generation_error?: string | null
+          id?: string
+          model_provider?: string | null
+          model_url?: string | null
+          preview_image_url?: string | null
+          source_photos?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          config?: Json
+          created_at?: string
+          edit_settings?: Json
+          generation_error?: string | null
+          id?: string
+          model_provider?: string | null
+          model_url?: string | null
+          preview_image_url?: string | null
+          source_photos?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "customer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +363,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "customer"],
+    },
   },
 } as const
