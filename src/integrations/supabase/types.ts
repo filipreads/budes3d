@@ -58,6 +58,59 @@ export type Database = {
           },
         ]
       }
+      order_emails: {
+        Row: {
+          body_html: string
+          created_at: string
+          error: string | null
+          id: string
+          locale: string
+          order_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          template: string
+          to_email: string
+          updated_at: string
+        }
+        Insert: {
+          body_html: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          locale?: string
+          order_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          template: string
+          to_email: string
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          locale?: string
+          order_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template?: string
+          to_email?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_emails_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           config_snapshot: Json
