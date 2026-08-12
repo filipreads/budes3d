@@ -1,0 +1,442 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+export type Locale = "en" | "cs";
+
+const STORAGE_KEY = "relievo:locale";
+
+const en = {
+  "nav.home": "Home",
+  "nav.pricing": "Pricing",
+  "nav.studio": "Studio",
+  "nav.account": "Account",
+  "nav.admin": "Admin",
+  "nav.signin": "Sign in",
+  "nav.signout": "Sign out",
+  "nav.cta": "Start a portrait",
+  "nav.menu": "Toggle menu",
+  "nav.language": "Language",
+
+  "footer.tagline":
+    "Portrait photographs turned into sculpted 3D objects — download the file or receive the printed piece, cast and finished by hand.",
+  "footer.studio": "Studio",
+  "footer.support": "Support",
+  "footer.orders": "Your orders",
+  "footer.hours": "Mon–Fri, 9–17 CET",
+  "footer.shipping": "Worldwide shipping",
+  "footer.rights": "All rights reserved.",
+
+  "home.eyebrow": "Photo → sculpture",
+  "home.title": "Your photograph, carved into a three-dimensional portrait.",
+  "home.subtitle":
+    "Upload one portrait. The studio reconstructs it as a sculpted 3D bust you can spin, approve, and take home — as a file, or cast in resin, marble or bronze.",
+  "home.openStudio": "Open the studio",
+  "home.seePricing": "See pricing",
+  "home.priceLine": "Digital files from {digital} · printed pieces from {print}",
+  "home.heroAlt": "Ivory resin portrait bust on a walnut plinth in a dark studio",
+  "home.stepsTitle": "Four steps, about ten minutes",
+  "home.step": "Step {n}",
+  "home.step1.title": "Upload a portrait",
+  "home.step1.body": "One clear, front-facing photo is all the studio needs.",
+  "home.step2.title": "Retouch & frame",
+  "home.step2.body": "Crop, straighten, soften skin and clear the background.",
+  "home.step3.title": "Reconstruct in 3D",
+  "home.step3.body": "Our image-to-3D engine sculpts a full volumetric bust.",
+  "home.step4.title": "Download or print",
+  "home.step4.body": "Take the GLB/STL files, or have the piece cast and shipped.",
+  "home.feature1.title": "Studio-grade reconstruction",
+  "home.feature1.body": "Volumetric geometry with clean topology, ready for printing or animation.",
+  "home.feature2.title": "Approve before you pay",
+  "home.feature2.body": "Rotate, relight and inspect the sculpture in the browser. Regenerate free until it's right.",
+  "home.feature3.title": "Materials that last",
+  "home.feature3.body": "Resin, cast marble, polished bronze or full-colour sandstone, mounted on walnut or marble.",
+  "home.ctaTitle": "Start with a single photograph",
+  "home.ctaBody": "No account needed to try the editor — sign in when you order.",
+  "home.ctaButton": "Create your portrait",
+
+  "pricing.title": "Pricing",
+  "pricing.intro":
+    "Every order includes the 3D reconstruction, unlimited regenerations before approval, and the digital files. Printed pieces add material, finishing and shipping.",
+  "pricing.digital": "Digital",
+  "pricing.perPortrait": "per portrait",
+  "pricing.digital1": "Watertight GLB and STL files",
+  "pricing.digital2": "Print-ready mesh, 4K sculpt detail",
+  "pricing.digital3": "Personal and commercial use",
+  "pricing.digital4": "Instant download after payment",
+  "pricing.startDigital": "Start a digital portrait",
+  "pricing.printed": "Printed sculpture",
+  "pricing.from": "from {price}",
+  "pricing.includes": "includes the digital files · {price} shipping",
+  "pricing.tall": "{label} — {mm}mm tall",
+  "pricing.configure": "Configure a printed piece",
+  "pricing.materials": "Materials",
+  "pricing.finishes": "Finishes",
+  "pricing.plinths": "Plinths",
+  "pricing.extras": "Extras",
+  "pricing.engraving": "Engraving",
+  "pricing.rush": "Rush production",
+  "pricing.shipping": "Shipping",
+
+  "auth.title": "Sign in to Relievo Studio",
+  "auth.subtitle": "Save your portraits, track orders and download your files.",
+
+  "editor.title": "Portrait studio",
+  "editor.step.upload": "Upload",
+  "editor.step.retouch": "Retouch",
+  "editor.step.preview": "3D preview",
+  "editor.step.configure": "Configure",
+  "editor.status.pending": "Waiting",
+  "editor.status.active": "In progress",
+  "editor.status.done": "Done",
+  "editor.status.error": "Failed",
+  "editor.progress": "{done} of {total} steps complete",
+  "editor.uploadPrompt": "Click to upload a portrait photograph",
+  "editor.uploadHint":
+    "Use a sharp, front-facing photo with even light. Faces filling most of the frame reconstruct best.",
+  "editor.uploadHeading": "Upload",
+  "editor.retouchHeading": "Retouch & frame",
+  "editor.zoom": "Zoom",
+  "editor.straighten": "Straighten",
+  "editor.brightness": "Brightness",
+  "editor.contrast": "Contrast",
+  "editor.warmth": "Warmth",
+  "editor.smoothing": "Skin smoothing",
+  "editor.clearBackground": "Clear background with AI",
+  "editor.generate": "Generate 3D portrait",
+  "editor.previewHeading": "Approve the sculpture",
+  "editor.previewBody": "Spin the model, change the lighting and inspect the mesh. Regenerate as often as you like.",
+  "editor.regenerate": "Regenerate",
+  "editor.approve": "Approve & choose product",
+  "editor.configureHeading": "Product details",
+  "editor.printed": "Printed piece",
+  "editor.digital": "Digital file",
+  "editor.size": "Size",
+  "editor.material": "Material",
+  "editor.finish": "Finish",
+  "editor.plinth": "Plinth",
+  "editor.engraving": "Engraving (optional)",
+  "editor.engravingPlaceholder": "Name, date or short line",
+  "editor.rush": "Rush production (5 days)",
+  "editor.quantity": "Quantity",
+  "editor.total": "Total",
+  "editor.checkout": "Continue to checkout",
+  "editor.busy.background": "Clearing the background…",
+  "editor.busy.upload": "Uploading your photograph…",
+  "editor.busy.generate": "Sculpting your portrait…",
+  "editor.busy.finalize": "Preparing the preview…",
+  "editor.toast.bgDone": "Background cleared",
+  "editor.toast.bgFail": "Could not clear the background",
+  "editor.toast.ready": "Your 3D portrait is ready",
+  "editor.toast.genFail": "Generation failed",
+  "editor.toast.imageOnly": "Please choose an image file",
+  "editor.toast.generateFirst": "Generate a portrait first",
+  "editor.downloads": "Downloads",
+  "editor.downloadsBody": "Your approved model is available as GLB and STL from the preview toolbar.",
+
+  "checkout.title": "Checkout",
+  "checkout.email": "Email for receipt and downloads",
+  "checkout.fullName": "Full name",
+  "checkout.address": "Address",
+  "checkout.address2": "Apartment (optional)",
+  "checkout.city": "City",
+  "checkout.postalCode": "Postal code",
+  "checkout.country": "Country",
+  "checkout.digitalNote": "Digital order — your GLB and STL files are unlocked immediately after payment.",
+  "checkout.pay": "Pay {price}",
+  "checkout.paymentNote": "Card processing is not connected yet — this confirms the order in the studio queue.",
+  "checkout.summary": "Order summary",
+  "checkout.signIn": "Sign in to complete your order",
+  "checkout.startFirst": "Start a portrait in the studio first",
+  "checkout.confirmed": "Order {number} confirmed",
+  "checkout.failed": "Checkout failed",
+  "checkout.emailSent": "A receipt is on its way to {email}",
+
+  "account.title": "Your orders",
+  "account.signIn": "Sign in to see your orders",
+  "account.empty": "No orders yet.",
+  "account.create": "Create a portrait",
+  "account.printed": "Printed sculpture",
+  "account.digital": "Digital files",
+  "account.downloads": "Downloads",
+  "account.download": "Download",
+  "account.preparing": "Preparing file…",
+  "account.downloadFailed": "Could not prepare that download",
+
+  "admin.title": "Orders dashboard",
+  "admin.subtitle": "Every customer order, its production state and the generated 3D files.",
+  "admin.denied": "You do not have access to this dashboard.",
+  "admin.loading": "Loading orders…",
+  "admin.empty": "No orders yet.",
+  "admin.order": "Order",
+  "admin.customer": "Customer",
+  "admin.product": "Product",
+  "admin.totalCol": "Total",
+  "admin.payment": "Payment",
+  "admin.production": "Production",
+  "admin.files": "Files",
+  "admin.updated": "Order updated",
+  "admin.updateFailed": "Could not update the order",
+  "admin.revenue": "Paid revenue",
+  "admin.openOrders": "Open orders",
+  "admin.allOrders": "All orders",
+  "admin.emails": "Email log",
+  "admin.emailsEmpty": "No emails yet.",
+  "admin.emailQueued": "queued",
+  "admin.emailSent": "sent",
+  "admin.emailFailed": "failed",
+  "admin.resend": "Resend receipt",
+
+  "status.pending": "pending",
+  "status.paid": "paid",
+  "status.refunded": "refunded",
+  "status.new": "new",
+  "status.in_production": "in production",
+  "status.shipped": "shipped",
+  "status.delivered": "delivered",
+  "status.cancelled": "cancelled",
+} as const;
+
+export type TranslationKey = keyof typeof en;
+
+const cs: Record<TranslationKey, string> = {
+  "nav.home": "Domů",
+  "nav.pricing": "Ceník",
+  "nav.studio": "Studio",
+  "nav.account": "Účet",
+  "nav.admin": "Administrace",
+  "nav.signin": "Přihlásit se",
+  "nav.signout": "Odhlásit se",
+  "nav.cta": "Vytvořit portrét",
+  "nav.menu": "Otevřít menu",
+  "nav.language": "Jazyk",
+
+  "footer.tagline":
+    "Z portrétních fotografií tvoříme sochařské 3D objekty — stáhněte si soubor nebo si nechte poslat ručně dokončený výtisk.",
+  "footer.studio": "Studio",
+  "footer.support": "Podpora",
+  "footer.orders": "Vaše objednávky",
+  "footer.hours": "Po–Pá, 9–17 SEČ",
+  "footer.shipping": "Doprava po celém světě",
+  "footer.rights": "Všechna práva vyhrazena.",
+
+  "home.eyebrow": "Fotografie → socha",
+  "home.title": "Vaše fotografie vytesaná do trojrozměrného portrétu.",
+  "home.subtitle":
+    "Nahrajte jeden portrét. Studio z něj vytvoří sochařskou 3D bustu, kterou si otočíte, schválíte a odnesete domů — jako soubor, nebo odlitou v pryskyřici, mramoru či bronzu.",
+  "home.openStudio": "Otevřít studio",
+  "home.seePricing": "Zobrazit ceník",
+  "home.priceLine": "Digitální soubory od {digital} · tištěné kusy od {print}",
+  "home.heroAlt": "Slonovinová pryskyřicová busta na ořechovém podstavci v tmavém ateliéru",
+  "home.stepsTitle": "Čtyři kroky, přibližně deset minut",
+  "home.step": "Krok {n}",
+  "home.step1.title": "Nahrajte portrét",
+  "home.step1.body": "Stačí jedna ostrá fotografie zepředu.",
+  "home.step2.title": "Retuš a kompozice",
+  "home.step2.body": "Ořízněte, narovnejte, vyhlaďte pleť a odstraňte pozadí.",
+  "home.step3.title": "Rekonstrukce ve 3D",
+  "home.step3.body": "Náš engine z obrázku vymodeluje plnohodnotnou objemovou bustu.",
+  "home.step4.title": "Stáhnout nebo vytisknout",
+  "home.step4.body": "Vezměte si soubory GLB/STL, nebo si nechte kus odlít a poslat.",
+  "home.feature1.title": "Ateliérová kvalita rekonstrukce",
+  "home.feature1.body": "Objemová geometrie s čistou topologií, připravená k tisku i animaci.",
+  "home.feature2.title": "Schválení před platbou",
+  "home.feature2.body": "Otáčejte, nasvěcujte a prohlížejte sochu přímo v prohlížeči. Generujte znovu zdarma.",
+  "home.feature3.title": "Materiály, které vydrží",
+  "home.feature3.body": "Pryskyřice, litý mramor, leštěný bronz nebo barevný pískovec na ořechu či mramoru.",
+  "home.ctaTitle": "Začněte jedinou fotografií",
+  "home.ctaBody": "Pro vyzkoušení editoru není potřeba účet — přihlásíte se až při objednávce.",
+  "home.ctaButton": "Vytvořit portrét",
+
+  "pricing.title": "Ceník",
+  "pricing.intro":
+    "Každá objednávka zahrnuje 3D rekonstrukci, neomezené generování před schválením a digitální soubory. Tištěné kusy navíc zahrnují materiál, dokončení a dopravu.",
+  "pricing.digital": "Digitálně",
+  "pricing.perPortrait": "za portrét",
+  "pricing.digital1": "Vodotěsné soubory GLB a STL",
+  "pricing.digital2": "Síť připravená k tisku, detail 4K",
+  "pricing.digital3": "Osobní i komerční užití",
+  "pricing.digital4": "Okamžité stažení po zaplacení",
+  "pricing.startDigital": "Vytvořit digitální portrét",
+  "pricing.printed": "Tištěná socha",
+  "pricing.from": "od {price}",
+  "pricing.includes": "včetně digitálních souborů · doprava {price}",
+  "pricing.tall": "{label} — výška {mm} mm",
+  "pricing.configure": "Nastavit tištěný kus",
+  "pricing.materials": "Materiály",
+  "pricing.finishes": "Povrchové úpravy",
+  "pricing.plinths": "Podstavce",
+  "pricing.extras": "Doplňky",
+  "pricing.engraving": "Gravírování",
+  "pricing.rush": "Expresní výroba",
+  "pricing.shipping": "Doprava",
+
+  "auth.title": "Přihlášení do Relievo Studia",
+  "auth.subtitle": "Ukládejte portréty, sledujte objednávky a stahujte soubory.",
+
+  "editor.title": "Portrétní studio",
+  "editor.step.upload": "Nahrání",
+  "editor.step.retouch": "Retuš",
+  "editor.step.preview": "3D náhled",
+  "editor.step.configure": "Nastavení",
+  "editor.status.pending": "Čeká",
+  "editor.status.active": "Probíhá",
+  "editor.status.done": "Hotovo",
+  "editor.status.error": "Chyba",
+  "editor.progress": "Dokončeno {done} ze {total} kroků",
+  "editor.uploadPrompt": "Klikněte a nahrajte portrétní fotografii",
+  "editor.uploadHint":
+    "Použijte ostrou fotografii zepředu s rovnoměrným světlem. Nejlépe fungují obličeje vyplňující větší část snímku.",
+  "editor.uploadHeading": "Nahrání",
+  "editor.retouchHeading": "Retuš a kompozice",
+  "editor.zoom": "Přiblížení",
+  "editor.straighten": "Narovnání",
+  "editor.brightness": "Jas",
+  "editor.contrast": "Kontrast",
+  "editor.warmth": "Teplota",
+  "editor.smoothing": "Vyhlazení pleti",
+  "editor.clearBackground": "Odstranit pozadí pomocí AI",
+  "editor.generate": "Vygenerovat 3D portrét",
+  "editor.previewHeading": "Schvalte sochu",
+  "editor.previewBody": "Otáčejte modelem, měňte světlo a prohlédněte si síť. Generovat můžete opakovaně.",
+  "editor.regenerate": "Generovat znovu",
+  "editor.approve": "Schválit a vybrat produkt",
+  "editor.configureHeading": "Detaily produktu",
+  "editor.printed": "Tištěný kus",
+  "editor.digital": "Digitální soubor",
+  "editor.size": "Velikost",
+  "editor.material": "Materiál",
+  "editor.finish": "Povrch",
+  "editor.plinth": "Podstavec",
+  "editor.engraving": "Gravírování (volitelné)",
+  "editor.engravingPlaceholder": "Jméno, datum nebo krátký text",
+  "editor.rush": "Expresní výroba (5 dní)",
+  "editor.quantity": "Množství",
+  "editor.total": "Celkem",
+  "editor.checkout": "Pokračovat k pokladně",
+  "editor.busy.background": "Odstraňuji pozadí…",
+  "editor.busy.upload": "Nahrávám fotografii…",
+  "editor.busy.generate": "Modeluji váš portrét…",
+  "editor.busy.finalize": "Připravuji náhled…",
+  "editor.toast.bgDone": "Pozadí odstraněno",
+  "editor.toast.bgFail": "Pozadí se nepodařilo odstranit",
+  "editor.toast.ready": "Váš 3D portrét je hotový",
+  "editor.toast.genFail": "Generování selhalo",
+  "editor.toast.imageOnly": "Vyberte prosím obrázek",
+  "editor.toast.generateFirst": "Nejdřív vygenerujte portrét",
+  "editor.downloads": "Ke stažení",
+  "editor.downloadsBody": "Schválený model si stáhnete jako GLB a STL z lišty náhledu.",
+
+  "checkout.title": "Pokladna",
+  "checkout.email": "E-mail pro účtenku a soubory",
+  "checkout.fullName": "Jméno a příjmení",
+  "checkout.address": "Adresa",
+  "checkout.address2": "Byt (volitelné)",
+  "checkout.city": "Město",
+  "checkout.postalCode": "PSČ",
+  "checkout.country": "Země",
+  "checkout.digitalNote": "Digitální objednávka — soubory GLB a STL se odemknou ihned po zaplacení.",
+  "checkout.pay": "Zaplatit {price}",
+  "checkout.paymentNote": "Platba kartou zatím není napojená — tímto se objednávka zařadí do fronty studia.",
+  "checkout.summary": "Souhrn objednávky",
+  "checkout.signIn": "Pro dokončení objednávky se přihlaste",
+  "checkout.startFirst": "Nejdřív začněte portrét ve studiu",
+  "checkout.confirmed": "Objednávka {number} potvrzena",
+  "checkout.failed": "Objednávka se nezdařila",
+  "checkout.emailSent": "Účtenku posíláme na {email}",
+
+  "account.title": "Vaše objednávky",
+  "account.signIn": "Pro zobrazení objednávek se přihlaste",
+  "account.empty": "Zatím žádné objednávky.",
+  "account.create": "Vytvořit portrét",
+  "account.printed": "Tištěná socha",
+  "account.digital": "Digitální soubory",
+  "account.downloads": "Ke stažení",
+  "account.download": "Stáhnout",
+  "account.preparing": "Připravuji soubor…",
+  "account.downloadFailed": "Soubor se nepodařilo připravit",
+
+  "admin.title": "Přehled objednávek",
+  "admin.subtitle": "Všechny objednávky zákazníků, jejich stav výroby a vygenerované 3D soubory.",
+  "admin.denied": "K této administraci nemáte přístup.",
+  "admin.loading": "Načítám objednávky…",
+  "admin.empty": "Zatím žádné objednávky.",
+  "admin.order": "Objednávka",
+  "admin.customer": "Zákazník",
+  "admin.product": "Produkt",
+  "admin.totalCol": "Celkem",
+  "admin.payment": "Platba",
+  "admin.production": "Výroba",
+  "admin.files": "Soubory",
+  "admin.updated": "Objednávka aktualizována",
+  "admin.updateFailed": "Objednávku se nepodařilo aktualizovat",
+  "admin.revenue": "Zaplacené tržby",
+  "admin.openOrders": "Otevřené objednávky",
+  "admin.allOrders": "Všechny objednávky",
+  "admin.emails": "Odeslané e-maily",
+  "admin.emailsEmpty": "Zatím žádné e-maily.",
+  "admin.emailQueued": "ve frontě",
+  "admin.emailSent": "odesláno",
+  "admin.emailFailed": "chyba",
+  "admin.resend": "Poslat účtenku znovu",
+
+  "status.pending": "čeká na platbu",
+  "status.paid": "zaplaceno",
+  "status.refunded": "vráceno",
+  "status.new": "nová",
+  "status.in_production": "ve výrobě",
+  "status.shipped": "odesláno",
+  "status.delivered": "doručeno",
+  "status.cancelled": "zrušeno",
+};
+
+const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { en, cs };
+
+type I18nValue = {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
+};
+
+const I18nContext = createContext<I18nValue | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>("en");
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "cs" || stored === "en") {
+      setLocaleState(stored);
+      return;
+    }
+    if (navigator.language?.toLowerCase().startsWith("cs")) setLocaleState("cs");
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  const setLocale = useCallback((next: Locale) => {
+    setLocaleState(next);
+    window.localStorage.setItem(STORAGE_KEY, next);
+  }, []);
+
+  const t = useCallback<I18nValue["t"]>(
+    (key, vars) => {
+      const template = DICTIONARIES[locale][key] ?? en[key] ?? key;
+      if (!vars) return template;
+      return Object.entries(vars).reduce(
+        (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+        template,
+      );
+    },
+    [locale],
+  );
+
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n(): I18nValue {
+  const context = useContext(I18nContext);
+  if (!context) throw new Error("useI18n must be used inside I18nProvider");
+  return context;
+}
