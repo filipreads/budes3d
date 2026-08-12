@@ -146,7 +146,7 @@ function AdminPage() {
                             <DialogTitle>{order.order_number}</DialogTitle>
                           </DialogHeader>
                           <div className="h-[420px]">
-                            <ModelStage modelRef={order.model_url} canDownload />
+                            <ModelStage modelRef={order.model_url} materialId="resin" finishId="matte" canDownload />
                           </div>
                         </DialogContent>
                       </Dialog>
