@@ -15,6 +15,7 @@ import {
   SIZES,
   formatPrice,
 } from "@/lib/pricing";
+import { useI18n } from "@/lib/i18n";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -35,24 +36,24 @@ export const Route = createFileRoute("/pricing")({
 });
 
 function PricingPage() {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-14">
-        <h1 className="font-display text-4xl">Pricing</h1>
+        <h1 className="font-display text-4xl">{t("pricing.title")}</h1>
         <p className="mt-3 max-w-xl text-muted-foreground">
-          Every order includes the 3D reconstruction, unlimited regenerations before approval, and the digital
-          files. Printed pieces add material, finishing and shipping.
+          {t("pricing.intro")}
         </p>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           <Card className="border-border/80">
             <CardContent className="p-7">
-              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Digital</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{t("pricing.digital")}</p>
               <p className="mt-3 font-display text-4xl">{formatPrice(DIGITAL_CENTS)}</p>
-              <p className="mt-1 text-sm text-muted-foreground">per portrait</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("pricing.perPortrait")}</p>
               <ul className="mt-6 space-y-2 text-sm">
-                {["Watertight GLB and STL files", "Print-ready mesh, 4K sculpt detail", "Personal and commercial use", "Instant download after payment"].map(
+                {[t("pricing.digital1"), t("pricing.digital2"), t("pricing.digital3"), t("pricing.digital4")].map(
                   (item) => (
                     <li key={item} className="flex gap-2">
                       <Check className="mt-0.5 size-4 text-primary" /> {item}
@@ -61,38 +62,38 @@ function PricingPage() {
                 )}
               </ul>
               <Button asChild className="mt-7 w-full">
-                <Link to="/editor">Start a digital portrait</Link>
+                <Link to="/editor">{t("pricing.startDigital")}</Link>
               </Button>
             </CardContent>
           </Card>
 
           <Card className="border-primary/40 bg-card">
             <CardContent className="p-7">
-              <p className="text-xs uppercase tracking-[0.22em] text-primary">Printed sculpture</p>
-              <p className="mt-3 font-display text-4xl">from {formatPrice(SIZES[0].cents)}</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-primary">{t("pricing.printed")}</p>
+              <p className="mt-3 font-display text-4xl">{t("pricing.from", { price: formatPrice(SIZES[0].cents) })}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                includes the digital files · {formatPrice(SHIPPING_CENTS)} shipping
+                {t("pricing.includes", { price: formatPrice(SHIPPING_CENTS) })}
               </p>
               <ul className="mt-6 space-y-2 text-sm">
                 {SIZES.map((size) => (
                   <li key={size.id} className="flex justify-between border-b border-border/60 pb-1.5">
                     <span>
-                      {size.label} — {size.heightMm}mm tall
+                      {t("pricing.tall", { label: size.label, mm: size.heightMm })}
                     </span>
                     <span className="text-muted-foreground">{formatPrice(size.cents)}</span>
                   </li>
                 ))}
               </ul>
               <Button asChild className="mt-7 w-full">
-                <Link to="/editor">Configure a printed piece</Link>
+                <Link to="/editor">{t("pricing.configure")}</Link>
               </Button>
             </CardContent>
           </Card>
         </div>
 
         <div className="mt-12 grid gap-5 md:grid-cols-3">
-          <PriceTable title="Materials" rows={MATERIALS.map((m) => [m.label, `×${m.multiplier}`])} />
-          <PriceTable title="Finishes" rows={FINISHES.map((f) => [f.label, `×${f.multiplier}`])} />
+          <PriceTable title={t("pricing.materials")} rows={MATERIALS.map((m) => [m.label, `×${m.multiplier}`])} />
+          <PriceTable title={t("pricing.finishes")} rows={FINISHES.map((f) => [f.label, `×${f.multiplier}`])} />
           <PriceTable
             title="Add-ons"
             rows={[

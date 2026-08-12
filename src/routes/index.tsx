@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import heroBust from "@/assets/hero-bust.jpg";
 import { ArrowRight, Camera, Layers, Sparkles, Truck } from "lucide-react";
 import { formatPrice, DIGITAL_CENTS, SIZES } from "@/lib/pricing";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,13 +30,14 @@ export const Route = createFileRoute("/")({
 });
 
 const STEPS = [
-  { icon: Camera, title: "Upload a portrait", body: "One clear, front-facing photo is all the studio needs." },
-  { icon: Sparkles, title: "Retouch & frame", body: "Crop, straighten, soften skin and clear the background." },
-  { icon: Layers, title: "Reconstruct in 3D", body: "Our image-to-3D engine sculpts a full volumetric bust." },
-  { icon: Truck, title: "Download or print", body: "Take the GLB/STL files, or have the piece cast and shipped." },
-];
+  { icon: Camera, key: "home.step1" },
+  { icon: Sparkles, key: "home.step2" },
+  { icon: Layers, key: "home.step3" },
+  { icon: Truck, key: "home.step4" },
+] as const;
 
 function LandingPage() {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
@@ -43,32 +45,31 @@ function LandingPage() {
         <section className="relative overflow-hidden border-b border-border">
           <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-2 md:py-24">
             <div>
-              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Photo → sculpture</p>
+              <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">{t("home.eyebrow")}</p>
               <h1 className="mt-4 font-display text-4xl leading-[1.05] sm:text-5xl md:text-6xl">
-                Your photograph, carved into a three-dimensional portrait.
+                {t("home.title")}
               </h1>
               <p className="mt-5 max-w-md text-base text-muted-foreground">
-                Upload one portrait. The studio reconstructs it as a sculpted 3D bust you can spin, approve, and
-                take home — as a file, or cast in resin, marble or bronze.
+                {t("home.subtitle")}
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button asChild size="lg">
                   <Link to="/editor">
-                    Open the studio <ArrowRight className="ml-1.5 size-4" />
+                    {t("home.openStudio")} <ArrowRight className="ml-1.5 size-4" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline">
-                  <Link to="/pricing">See pricing</Link>
+                  <Link to="/pricing">{t("home.seePricing")}</Link>
                 </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Digital files from {formatPrice(DIGITAL_CENTS)} · printed pieces from {formatPrice(SIZES[0].cents)}
+                {t("home.priceLine", { digital: formatPrice(DIGITAL_CENTS), print: formatPrice(SIZES[0].cents) })}
               </p>
             </div>
             <div className="relative">
               <img
                 src={heroBust}
-                alt="Ivory resin portrait bust on a walnut plinth in a dark studio"
+                alt={t("home.heroAlt")}
                 width={1408}
                 height={1056}
                 className="w-full rounded-xl border border-border object-cover shadow-2xl"
@@ -78,17 +79,17 @@ function LandingPage() {
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-5 py-16">
-          <h2 className="font-display text-3xl">Four steps, about ten minutes</h2>
+          <h2 className="font-display text-3xl">{t("home.stepsTitle")}</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, index) => (
-              <Card key={step.title} className="bg-card/70">
+              <Card key={step.key} className="bg-card/70">
                 <CardContent className="p-5">
                   <div className="flex size-9 items-center justify-center rounded-md bg-primary/15 text-primary">
                     <step.icon className="size-4" />
                   </div>
-                  <p className="mt-4 text-xs text-muted-foreground">Step {index + 1}</p>
-                  <h3 className="mt-1 font-display text-lg">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{step.body}</p>
+                  <p className="mt-4 text-xs text-muted-foreground">{t("home.step", { n: index + 1 })}</p>
+                  <h3 className="mt-1 font-display text-lg">{t(`${step.key}.title` as TranslationKey)}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{t(`${step.key}.body` as TranslationKey)}</p>
                 </CardContent>
               </Card>
             ))}
@@ -98,24 +99,24 @@ function LandingPage() {
         <section className="border-y border-border bg-stone-deep">
           <div className="mx-auto grid w-full max-w-6xl gap-8 px-5 py-16 md:grid-cols-3">
             {[
-              { title: "Studio-grade reconstruction", body: "Volumetric geometry with clean topology, ready for printing or animation." },
-              { title: "Approve before you pay", body: "Rotate, relight and inspect the sculpture in the browser. Regenerate free until it's right." },
-              { title: "Materials that last", body: "Resin, cast marble, polished bronze or full-colour sandstone, mounted on walnut or marble." },
+              "home.feature1",
+              "home.feature2",
+              "home.feature3",
             ].map((item) => (
-              <div key={item.title}>
-                <h3 className="font-display text-xl">{item.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{item.body}</p>
+              <div key={item}>
+                <h3 className="font-display text-xl">{t(`${item}.title` as TranslationKey)}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{t(`${item}.body` as TranslationKey)}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-4xl px-5 py-20 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl">Start with a single photograph</h2>
-          <p className="mt-3 text-muted-foreground">No account needed to try the editor — sign in when you order.</p>
+          <h2 className="font-display text-3xl sm:text-4xl">{t("home.ctaTitle")}</h2>
+          <p className="mt-3 text-muted-foreground">{t("home.ctaBody")}</p>
           <Button asChild size="lg" className="mt-7">
             <Link to="/editor">
-              Create your portrait <ArrowRight className="ml-1.5 size-4" />
+              {t("home.ctaButton")} <ArrowRight className="ml-1.5 size-4" />
             </Link>
           </Button>
         </section>

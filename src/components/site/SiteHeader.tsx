@@ -1,18 +1,53 @@
 import { Link } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 
-const NAV = [
-  { to: "/", label: "Home" },
-  { to: "/pricing", label: "Pricing" },
-  { to: "/editor", label: "Studio" },
-] as const;
+const NAV: { to: "/" | "/pricing" | "/editor"; labelKey: TranslationKey }[] = [
+  { to: "/", labelKey: "nav.home" },
+  { to: "/pricing", labelKey: "nav.pricing" },
+  { to: "/editor", labelKey: "nav.studio" },
+];
+
+function LanguageSwitcher() {
+  const { locale, setLocale, t } = useI18n();
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-border p-0.5" aria-label={t("nav.language")}>
+      {(["en", "cs"] as Locale[]).map((code) => (
+        <button
+          key={code}
+          onClick={() => setLocale(code)}
+          aria-pressed={locale === code}
+          className={`rounded-full px-2 py-0.5 text-xs uppercase transition-colors ${
+            locale === code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {code}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function SiteHeader() {
   const { user, loading, signOut } = useAuth();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [admin, setAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setAdmin(false); return; }
+    void supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => setAdmin(Boolean(data)));
+  }, [user]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
@@ -24,7 +59,7 @@ export function SiteHeader() {
           <span className="font-display text-lg tracking-tight">Relievo Studio</span>
         </Link>
 
-        <nav className="hidden items-center gap-7 md:flex">
+        <nav className="hidden items-center gap-6 md:flex">
           {NAV.map((item) => (
             <Link
               key={item.to}
@@ -33,37 +68,46 @@ export function SiteHeader() {
               activeProps={{ className: "text-sm text-foreground" }}
               activeOptions={{ exact: item.to === "/" }}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           ))}
           {!loading && user ? (
             <>
               <Link to="/account" className="text-sm text-muted-foreground hover:text-foreground">
-                Account
+                {t("nav.account")}
               </Link>
+              {admin ? (
+                <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
+                  {t("nav.admin")}
+                </Link>
+              ) : null}
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-                Sign out
+                {t("nav.signout")}
               </Button>
             </>
           ) : (
-            <Link to="/auth">
+            <Link to="/auth" search={{ redirect: "" }}>
               <Button variant="ghost" size="sm">
-                Sign in
+                {t("nav.signin")}
               </Button>
             </Link>
           )}
+          <LanguageSwitcher />
           <Link to="/editor">
-            <Button size="sm">Start a portrait</Button>
+            <Button size="sm">{t("nav.cta")}</Button>
           </Link>
         </nav>
 
-        <button
-          className="md:hidden rounded-sm border border-border p-2"
-          aria-label="Toggle menu"
-          onClick={() => setOpen((value) => !value)}
-        >
-          <Menu className="size-4" />
-        </button>
+        <div className="flex items-center gap-2 md:hidden">
+          <LanguageSwitcher />
+          <button
+            className="rounded-sm border border-border p-2"
+            aria-label={t("nav.menu")}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <Menu className="size-4" />
+          </button>
+        </div>
       </div>
 
       {open ? (
@@ -71,21 +115,26 @@ export function SiteHeader() {
           <div className="flex flex-col gap-3">
             {NAV.map((item) => (
               <Link key={item.to} to={item.to} onClick={() => setOpen(false)} className="text-sm">
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ))}
             {user ? (
               <>
                 <Link to="/account" onClick={() => setOpen(false)} className="text-sm">
-                  Account
+                  {t("nav.account")}
                 </Link>
+                {admin ? (
+                  <Link to="/admin" onClick={() => setOpen(false)} className="text-sm">
+                    {t("nav.admin")}
+                  </Link>
+                ) : null}
                 <button className="text-left text-sm text-muted-foreground" onClick={() => void signOut()}>
-                  Sign out
+                  {t("nav.signout")}
                 </button>
               </>
             ) : (
-              <Link to="/auth" onClick={() => setOpen(false)} className="text-sm">
-                Sign in
+              <Link to="/auth" search={{ redirect: "" }} onClick={() => setOpen(false)} className="text-sm">
+                {t("nav.signin")}
               </Link>
             )}
           </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n";
 import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
 import { createOrder, confirmPayment } from "@/lib/studio.functions";
 
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/checkout")({
 function CheckoutPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { t, locale } = useI18n();
   const [config, setConfig] = useState<StudioConfig>(DEFAULT_CONFIG);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -46,7 +48,7 @@ function CheckoutPage() {
   const priced = useMemo(() => quote(config), [config]);
 
   async function pay() {
-    if (!projectId) { toast.error("Start a portrait in the studio first"); return; }
+    if (!projectId) { toast.error(t("checkout.startFirst")); return; }
     setBusy(true);
     try {
       const order = await createOrder({
@@ -54,15 +56,17 @@ function CheckoutPage() {
           projectId,
           config,
           contactEmail: email,
+          locale,
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
-      await confirmPayment({ data: { orderId: order.orderId } });
+      await confirmPayment({ data: { orderId: order.orderId, locale } });
       sessionStorage.removeItem("relievo:project");
-      toast.success(`Order ${order.orderNumber} confirmed`);
+      toast.success(t("checkout.confirmed", { number: order.orderNumber }));
+      toast.message(t("checkout.emailSent", { email }));
       void navigate({ to: "/account" });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Checkout failed");
+      toast.error(error instanceof Error ? error.message : t("checkout.failed"));
     } finally {
       setBusy(false);
     }
@@ -73,9 +77,9 @@ function CheckoutPage() {
       <div className="flex min-h-screen flex-col bg-background">
         <SiteHeader />
         <main className="mx-auto w-full max-w-md flex-1 px-5 py-20 text-center">
-          <h1 className="font-display text-2xl">Sign in to complete your order</h1>
+          <h1 className="font-display text-2xl">{t("checkout.signIn")}</h1>
           <Button className="mt-6" onClick={() => void navigate({ to: "/auth", search: { redirect: "/checkout" } })}>
-            Sign in
+            {t("nav.signin")}
           </Button>
         </main>
       </div>
@@ -88,9 +92,9 @@ function CheckoutPage() {
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-5 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
         <Card>
           <CardContent className="space-y-4 p-6">
-            <h1 className="font-display text-2xl">Checkout</h1>
+            <h1 className="font-display text-2xl">{t("checkout.title")}</h1>
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email for receipt and downloads</Label>
+              <Label htmlFor="email">{t("checkout.email")}</Label>
               <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
             </div>
 
@@ -98,16 +102,16 @@ function CheckoutPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
                   [
-                    ["name", "Full name"],
-                    ["line1", "Address"],
-                    ["line2", "Apartment (optional)"],
-                    ["city", "City"],
-                    ["postalCode", "Postal code"],
-                    ["country", "Country"],
+                    ["name", "checkout.fullName"],
+                    ["line1", "checkout.address"],
+                    ["line2", "checkout.address2"],
+                    ["city", "checkout.city"],
+                    ["postalCode", "checkout.postalCode"],
+                    ["country", "checkout.country"],
                   ] as const
                 ).map(([key, label]) => (
                   <div key={key} className="space-y-1.5">
-                    <Label htmlFor={key}>{label}</Label>
+                    <Label htmlFor={key}>{t(label)}</Label>
                     <Input
                       id={key}
                       value={address[key]}
@@ -118,22 +122,22 @@ function CheckoutPage() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Digital order — your GLB and STL files are unlocked immediately after payment.
+                {t("checkout.digitalNote")}
               </p>
             )}
 
             <Button className="w-full" disabled={busy} onClick={() => void pay()}>
-              Pay {formatPrice(priced.totalCents)}
+              {t("checkout.pay", { price: formatPrice(priced.totalCents) })}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Card processing is not connected yet — this confirms the order in the studio queue.
+              {t("checkout.paymentNote")}
             </p>
           </CardContent>
         </Card>
 
         <Card className="h-fit">
           <CardContent className="p-6 text-sm">
-            <h2 className="font-display text-xl">Order summary</h2>
+            <h2 className="font-display text-xl">{t("checkout.summary")}</h2>
             <div className="mt-4 space-y-1">
               {priced.lineItems.map((item) => (
                 <div key={item.label} className="flex justify-between gap-3">
@@ -142,12 +146,12 @@ function CheckoutPage() {
                 </div>
               ))}
               <div className="flex justify-between gap-3 pt-1">
-                <span className="text-muted-foreground">Shipping</span>
+                <span className="text-muted-foreground">{t("pricing.shipping")}</span>
                 <span>{priced.shippingCents ? formatPrice(priced.shippingCents) : "Free"}</span>
               </div>
             </div>
             <div className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
-              <span>Total</span>
+              <span>{t("editor.total")}</span>
               <span>{formatPrice(priced.totalCents)}</span>
             </div>
           </CardContent>
