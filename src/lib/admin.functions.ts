@@ -25,11 +25,6 @@ export type AdminEmail = {
   created_at: string;
 };
 
-async function assertAdmin(supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> }, userId: string) {
-  const { data } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (data !== true) throw new Error("Forbidden");
-}
-
 export const isAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -43,7 +38,11 @@ export const isAdmin = createServerFn({ method: "GET" })
 export const listAdminOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ orders: AdminOrder[]; emails: AdminEmail[] }> => {
-    await assertAdmin(context.supabase, context.userId);
+    const { data: admin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (admin !== true) throw new Error("Forbidden");
 
     const { data: orders, error } = await context.supabase
       .from("orders")
@@ -113,11 +112,15 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.supabase, context.userId);
+    const { data: admin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (admin !== true) throw new Error("Forbidden");
 
-    const patch: Record<string, string> = {};
-    if (data.paymentStatus) patch["payment_status"] = data.paymentStatus;
-    if (data.fulfilmentStatus) patch["fulfilment_status"] = data.fulfilmentStatus;
+    const patch: { payment_status?: string; fulfilment_status?: string } = {};
+    if (data.paymentStatus) patch.payment_status = data.paymentStatus;
+    if (data.fulfilmentStatus) patch.fulfilment_status = data.fulfilmentStatus;
 
     const { data: order, error } = await context.supabase
       .from("orders")
