@@ -59,6 +59,7 @@ type OrderInput = {
   projectId: string;
   config: StudioConfig;
   contactEmail: string;
+  locale?: "en" | "cs";
   shippingAddress: {
     name: string;
     line1: string;
@@ -136,12 +137,24 @@ export const createOrder = createServerFn({ method: "POST" })
       },
     ]);
 
+    const { sendOrderEmail } = await import("./email.server");
+    await sendOrderEmail({
+      orderId: order.id,
+      toEmail: data.contactEmail,
+      locale: data.locale === "cs" ? "cs" : "en",
+      template: "receipt",
+      orderNumber: order.order_number,
+      deliveryType: order.delivery_type,
+      totalCents: order.total_cents,
+      lineItems: priced.lineItems,
+    });
+
     return { orderId: order.id, orderNumber: order.order_number, totalCents: order.total_cents };
   });
 
 export const confirmPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => {
+  .inputValidator((input: { orderId: string; locale?: "en" | "cs" }) => {
     if (!input?.orderId) throw new Error("orderId required");
     return input;
   })
@@ -153,6 +166,28 @@ export const confirmPayment = createServerFn({ method: "POST" })
       .eq("id", data.orderId)
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
+
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, order_number, delivery_type, total_cents, payment_status, fulfilment_status, contact_email")
+      .eq("id", data.orderId)
+      .single();
+
+    if (order?.contact_email) {
+      const { sendOrderEmail } = await import("./email.server");
+      await sendOrderEmail({
+        orderId: order.id,
+        toEmail: order.contact_email,
+        locale: data.locale === "cs" ? "cs" : "en",
+        template: "status",
+        orderNumber: order.order_number,
+        deliveryType: order.delivery_type,
+        totalCents: order.total_cents,
+        paymentStatus: order.payment_status,
+        fulfilmentStatus: order.fulfilment_status,
+      });
+    }
+
     return { ok: true };
   });
 
