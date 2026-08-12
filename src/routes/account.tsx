@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/pricing";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -34,6 +35,7 @@ type OrderRow = {
 function AccountPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { t } = useI18n();
   const [orders, setOrders] = useState<OrderRow[]>([]);
 
   useEffect(() => {
@@ -50,9 +52,9 @@ function AccountPage() {
       <div className="flex min-h-screen flex-col bg-background">
         <SiteHeader />
         <main className="mx-auto w-full max-w-md flex-1 px-5 py-20 text-center">
-          <h1 className="font-display text-2xl">Sign in to see your orders</h1>
+          <h1 className="font-display text-2xl">{t("account.signIn")}</h1>
           <Button className="mt-6" onClick={() => void navigate({ to: "/auth", search: { redirect: "/account" } })}>
-            Sign in
+            {t("nav.signin")}
           </Button>
         </main>
       </div>
@@ -63,13 +65,13 @@ function AccountPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-12">
-        <h1 className="font-display text-3xl">Your orders</h1>
+        <h1 className="font-display text-3xl">{t("account.title")}</h1>
         {orders.length === 0 ? (
           <Card className="mt-6">
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">No orders yet.</p>
+              <p className="text-muted-foreground">{t("account.empty")}</p>
               <Button asChild className="mt-5">
-                <Link to="/editor">Create a portrait</Link>
+                <Link to="/editor">{t("account.create")}</Link>
               </Button>
             </CardContent>
           </Card>
@@ -81,14 +83,14 @@ function AccountPage() {
                   <div>
                     <p className="font-display text-lg">{order.order_number}</p>
                     <p className="text-sm text-muted-foreground">
-                      {order.delivery_type === "print" ? "Printed sculpture" : "Digital files"} ·{" "}
+                      {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
                       {new Date(order.created_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{formatPrice(order.total_cents)}</p>
                     <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {order.payment_status} · {order.fulfilment_status.replace("_", " ")}
+                      {t(`status.${order.payment_status}` as TranslationKey)} · {t(`status.${order.fulfilment_status}` as TranslationKey)}
                     </p>
                   </div>
                 </CardContent>
