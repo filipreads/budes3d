@@ -193,7 +193,78 @@ const en = {
   "status.shipped": "shipped",
   "status.delivered": "delivered",
   "status.cancelled": "cancelled",
+
+  "nav.help": "Help",
+  "nav.contact": "Contact",
+  "nav.projects": "My projects",
+
+  "account.invoice": "Invoice (PDF)",
+  "account.share": "Share preview",
+  "account.shareCopied": "View-only link copied to clipboard",
+  "account.shareFail": "Could not create the share link",
+  "account.shareOff": "Stop sharing",
+  "account.shareStopped": "Sharing turned off",
+  "account.viewShare": "Open shared view",
+
+  "invoice.title": "INVOICE",
+  "invoice.issuedTo": "Billed to",
+  "invoice.order": "Order",
+  "invoice.date": "Date",
+  "invoice.item": "Item",
+  "invoice.amount": "Amount",
+  "invoice.subtotal": "Subtotal",
+  "invoice.shipping": "Shipping",
+  "invoice.total": "Total",
+  "invoice.paid": "Payment status",
+  "invoice.footer": "Relievo Studio · hello@relievo.studio · Thank you for your order.",
+
+  "projects.title": "My studio projects",
+  "projects.subtitle": "Reopen an upload, review the 3D preview and download files again.",
+  "projects.empty": "No projects yet. Start one in the studio.",
+  "projects.open": "Reopen in studio",
+  "projects.created": "Created",
+  "projects.noModel": "No 3D model yet",
+  "projects.signIn": "Sign in to see your projects.",
+
+  "share.title": "Shared 3D preview",
+  "share.notFound": "This preview link is no longer active.",
+  "share.viewOnly": "View-only preview — shared by Relievo Studio.",
+  "share.cta": "Create your own portrait",
+
+  "help.title": "Help & FAQ",
+  "help.intro": "Answers about orders, downloads, files and shipping. Still stuck? Contact the studio.",
+  "help.q1": "How do I download my 3D files?",
+  "help.a1":
+    "Open Account → your order, or My projects. Every paid order includes GLB and STL downloads for 12 months. You can also export directly from the 3D preview in the studio.",
+  "help.q2": "What file formats do I get?",
+  "help.a2": "A watertight GLB for viewing and animation, and a print-ready STL for 3D printing.",
+  "help.q3": "Where is my invoice?",
+  "help.a3": "Each order on the Account page has an Invoice (PDF) button that generates your receipt instantly.",
+  "help.q4": "Can I share the preview with someone?",
+  "help.a4":
+    "Yes. On the Account page press Share preview to generate a view-only link. Anyone with the link sees the model only — never your personal or payment data. You can turn sharing off any time.",
+  "help.q5": "How long does production and shipping take?",
+  "help.a5":
+    "Digital files are ready immediately. Printed pieces are cast and finished in 5–8 working days, plus shipping. Rush production halves the studio time.",
+  "help.q6": "Can I change or cancel an order?",
+  "help.a6": "Email us within 24 hours of ordering and we will amend or cancel before production starts.",
+  "help.q7": "The 3D result doesn't look right — what now?",
+  "help.a7":
+    "Regenerate free before you approve. Use a sharp, front-facing photo with even light. If it still misses, contact support and we will re-run it manually.",
+  "help.contactCta": "Contact support",
+
+  "contact.title": "Contact the studio",
+  "contact.intro": "Tell us the order number and what you need — we reply within one working day.",
+  "contact.name": "Your name",
+  "contact.email": "Email",
+  "contact.order": "Order number (optional)",
+  "contact.message": "Message",
+  "contact.send": "Send message",
+  "contact.sent": "Thanks — your message is on its way.",
+  "contact.direct": "Prefer email? Write to hello@relievo.studio.",
+  "contact.support": "Support hours: Mon–Fri, 9–17 CET.",
 } as const;
+
 
 export type TranslationKey = keyof typeof en;
 
@@ -386,7 +457,78 @@ const cs: Record<TranslationKey, string> = {
   "status.shipped": "odesláno",
   "status.delivered": "doručeno",
   "status.cancelled": "zrušeno",
+
+  "nav.help": "Nápověda",
+  "nav.contact": "Kontakt",
+  "nav.projects": "Moje projekty",
+
+  "account.invoice": "Faktura (PDF)",
+  "account.share": "Sdílet náhled",
+  "account.shareCopied": "Odkaz jen pro prohlížení zkopírován",
+  "account.shareFail": "Odkaz se nepodařilo vytvořit",
+  "account.shareOff": "Ukončit sdílení",
+  "account.shareStopped": "Sdílení vypnuto",
+  "account.viewShare": "Otevřít sdílený náhled",
+
+  "invoice.title": "FAKTURA",
+  "invoice.issuedTo": "Odběratel",
+  "invoice.order": "Objednávka",
+  "invoice.date": "Datum",
+  "invoice.item": "Položka",
+  "invoice.amount": "Částka",
+  "invoice.subtotal": "Mezisoučet",
+  "invoice.shipping": "Doprava",
+  "invoice.total": "Celkem",
+  "invoice.paid": "Stav platby",
+  "invoice.footer": "Relievo Studio · hello@relievo.studio · Děkujeme za vaši objednávku.",
+
+  "projects.title": "Moje studiové projekty",
+  "projects.subtitle": "Otevřete znovu nahrané fotografie, 3D náhledy a stažené soubory.",
+  "projects.empty": "Zatím žádné projekty. Začněte ve studiu.",
+  "projects.open": "Otevřít ve studiu",
+  "projects.created": "Vytvořeno",
+  "projects.noModel": "Zatím bez 3D modelu",
+  "projects.signIn": "Přihlaste se pro zobrazení projektů.",
+
+  "share.title": "Sdílený 3D náhled",
+  "share.notFound": "Tento odkaz už není aktivní.",
+  "share.viewOnly": "Náhled pouze pro prohlížení — sdíleno studiem Relievo.",
+  "share.cta": "Vytvořte si vlastní portrét",
+
+  "help.title": "Nápověda a časté dotazy",
+  "help.intro": "Odpovědi k objednávkám, stahování, souborům a dopravě. Nenašli jste odpověď? Napište nám.",
+  "help.q1": "Jak si stáhnu 3D soubory?",
+  "help.a1":
+    "Otevřete Účet → vaše objednávka nebo Moje projekty. Každá zaplacená objednávka obsahuje soubory GLB a STL po dobu 12 měsíců. Exportovat lze i přímo z 3D náhledu ve studiu.",
+  "help.q2": "Jaké formáty souborů dostanu?",
+  "help.a2": "Vodotěsný GLB pro prohlížení a animaci a STL připravený k 3D tisku.",
+  "help.q3": "Kde najdu fakturu?",
+  "help.a3": "U každé objednávky na stránce Účet je tlačítko Faktura (PDF), které doklad okamžitě vygeneruje.",
+  "help.q4": "Mohu náhled někomu poslat?",
+  "help.a4":
+    "Ano. Na stránce Účet zvolte Sdílet náhled a vznikne odkaz jen pro prohlížení. Příjemce uvidí pouze model — nikdy vaše osobní ani platební údaje. Sdílení lze kdykoli vypnout.",
+  "help.q5": "Jak dlouho trvá výroba a doprava?",
+  "help.a5":
+    "Digitální soubory jsou hotové ihned. Tištěné kusy odléváme a dokončujeme 5–8 pracovních dnů plus doprava. Expresní výroba čas ve studiu půlí.",
+  "help.q6": "Mohu objednávku změnit nebo zrušit?",
+  "help.a6": "Napište nám do 24 hodin od objednání a objednávku upravíme nebo zrušíme před zahájením výroby.",
+  "help.q7": "3D výsledek nevypadá dobře — co teď?",
+  "help.a7":
+    "Před schválením lze zdarma generovat znovu. Použijte ostrou fotografii zepředu s rovnoměrným světlem. Pokud to nepomůže, ozvěte se a model přegenerujeme ručně.",
+  "help.contactCta": "Kontaktovat podporu",
+
+  "contact.title": "Kontaktujte studio",
+  "contact.intro": "Napište číslo objednávky a co potřebujete — odpovídáme do jednoho pracovního dne.",
+  "contact.name": "Vaše jméno",
+  "contact.email": "E-mail",
+  "contact.order": "Číslo objednávky (nepovinné)",
+  "contact.message": "Zpráva",
+  "contact.send": "Odeslat zprávu",
+  "contact.sent": "Děkujeme — zpráva byla odeslána.",
+  "contact.direct": "Raději e-mailem? Pište na hello@relievo.studio.",
+  "contact.support": "Podpora: Po–Pá, 9–17 SEČ.",
 };
+
 
 const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { en, cs };
 

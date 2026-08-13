@@ -124,6 +124,8 @@ export type Database = {
           order_number: string
           payment_status: string
           project_id: string | null
+          share_enabled: boolean
+          share_token: string | null
           shipping_address: Json | null
           shipping_cents: number
           subtotal_cents: number
@@ -143,6 +145,8 @@ export type Database = {
           order_number?: string
           payment_status?: string
           project_id?: string | null
+          share_enabled?: boolean
+          share_token?: string | null
           shipping_address?: Json | null
           shipping_cents?: number
           subtotal_cents?: number
@@ -162,6 +166,8 @@ export type Database = {
           order_number?: string
           payment_status?: string
           project_id?: string | null
+          share_enabled?: boolean
+          share_token?: string | null
           shipping_address?: Json | null
           shipping_cents?: number
           subtotal_cents?: number
@@ -280,6 +286,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_shared_preview: {
+        Args: { _token: string }
+        Returns: {
+          config_snapshot: Json
+          created_at: string
+          delivery_type: string
+          model_url: string
+          order_number: string
+          project_title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

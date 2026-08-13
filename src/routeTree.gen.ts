@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as EditorRouteImport } from './routes/editor'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as PricingRouteImport } from './routes/pricing'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const EditorRoute = EditorRouteImport.update({
   path: '/editor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
   '/editor': typeof EditorRoute
+  '/help': typeof HelpRoute
   '/pricing': typeof PricingRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
   '/editor': typeof EditorRoute
+  '/help': typeof HelpRoute
   '/pricing': typeof PricingRoute
 }
 export interface FileRoutesById {
@@ -79,15 +87,30 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
   '/editor': typeof EditorRoute
+  '/help': typeof HelpRoute
   '/pricing': typeof PricingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/account' | '/admin' | '/auth' | '/checkout' | '/editor' | '/pricing'
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/auth'
+    | '/checkout'
+    | '/editor'
+    | '/help'
+    | '/pricing'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/account' | '/admin' | '/auth' | '/checkout' | '/editor' | '/pricing'
+    | '/'
+    | '/account'
+    | '/admin'
+    | '/auth'
+    | '/checkout'
+    | '/editor'
+    | '/help'
+    | '/pricing'
   id:
     | '__root__'
     | '/'
@@ -96,6 +119,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/checkout'
     | '/editor'
+    | '/help'
     | '/pricing'
   fileRoutesById: FileRoutesById
 }
@@ -106,6 +130,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CheckoutRoute: typeof CheckoutRoute
   EditorRoute: typeof EditorRoute
+  HelpRoute: typeof HelpRoute
   PricingRoute: typeof PricingRoute
 }
 
@@ -153,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
@@ -170,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CheckoutRoute: CheckoutRoute,
   EditorRoute: EditorRoute,
+  HelpRoute: HelpRoute,
   PricingRoute: PricingRoute,
 }
 export const routeTree = rootRouteImport
