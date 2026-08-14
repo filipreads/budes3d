@@ -25,7 +25,16 @@ import {
   quote,
   type StudioConfig,
 } from "@/lib/pricing";
-import { generateModel, removeBackground } from "@/lib/studio.functions";
+import { generateModel, getGenerationStatus, removeBackground } from "@/lib/studio.functions";
+
+const STAGE_LABEL: Record<string, string> = {
+  queued: "Waiting for a free GPU slot…",
+  preprocessing: "Preparing the portrait…",
+  sculpting: "Sculpting the 3D geometry…",
+  extracting: "Extracting the mesh and textures…",
+  storing: "Saving your model…",
+};
+
 import { Loader2, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
