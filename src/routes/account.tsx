@@ -9,8 +9,10 @@ import { formatPrice } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { downloadInvoicePdf, type InvoiceOrder } from "@/lib/invoice";
 import { setOrderShare } from "@/lib/share.functions";
+import { listOrderDownloads, getOrderDownloadUrl, type OrderDownload } from "@/lib/downloads.functions";
+import { downloadModelFile } from "@/lib/mesh-export";
 import { toast } from "sonner";
-import { FileText, Link2, LinkIcon } from "lucide-react";
+import { FileText, Link2, LinkIcon, Download } from "lucide-react";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
