@@ -1,12 +1,17 @@
 /**
  * Microsoft TRELLIS.2 adapter (server-only).
  *
- * Talks to a Gradio 6 Space over its REST/SSE protocol:
- *   POST /gradio_api/call/<fn>  -> { event_id }
- *   GET  /gradio_api/call/<fn>/<event_id> -> SSE stream with progress + result
+ * The Space runs Gradio 6.1 with the `sse_v3` queue protocol. The simple REST
+ * shortcut (`POST /gradio_api/call/<fn>`) is not served by this deployment — it
+ * answers every job with `404: Not Found` — so we speak the real protocol:
  *
- * All three steps share one `session_hash`, because `/extract_glb` reads the
- * asset left in the Space's per-session state by `/image_to_3d`.
+ *   POST /gradio_api/upload?upload_id=<session>  -> ["/tmp/gradio/.../file.jpg"]
+ *   POST /gradio_api/queue/join                  -> { event_id }
+ *   GET  /gradio_api/queue/data?session_hash=…   -> SSE progress + result
+ *
+ * Every step of one generation shares a single `session_hash`, because
+ * `extract_glb` reads the gaussian/mesh state that `image_to_3d` left in the
+ * Space's per-session state (component id 45, passed as `null` on the wire).
  *
  * Swap point for a different host (own duplicated Space on a dedicated GPU,
  * fal.ai, Replicate): change TRELLIS_SPACE_URL or this file only.
@@ -23,26 +28,27 @@ export type TrellisStage =
 
 export type TrellisProgress = { stage: TrellisStage; progress: number; message?: string | undefined };
 
-export type TrellisInput = {
-  /** Publicly reachable (signed) URL of the prepared portrait photo. */
-  imageUrl: string;
-  seedKey: string;
-  onProgress?: ((update: TrellisProgress) => Promise<void> | void) | undefined;
+export type GradioFile = {
+  path: string;
+  meta: { _type: "gradio.FileData" };
+  orig_name?: string;
+  mime_type?: string;
+  size?: number;
+  url?: string;
 };
 
-export type TrellisResult = {
-  /** Remote URL of the generated GLB on the provider. */
-  glbUrl: string;
-  /** Optional turntable preview video produced by image_to_3d. */
-  previewVideoUrl: string | null;
-  provider: string;
-  sessionHash: string;
-};
+/** fn_index values from the Space config (`GET /config` → dependencies). */
+const FN = { startSession: 2, preprocess: 4, imageTo3d: 7, extractGlb: 9 } as const;
 
 const DEFAULT_SPACE = "https://microsoft-trellis-2.hf.space";
-const STEP_TIMEOUT_MS = 6 * 60 * 1000;
+const STEP_TIMEOUT_MS = 8 * 60 * 1000;
 
-function spaceUrl() {
+/** Thrown when the provider is out of GPU quota — retrying immediately is pointless. */
+export class TrellisQuotaError extends Error {}
+/** Thrown for transient provider failures where a retry is worth attempting. */
+export class TrellisTransientError extends Error {}
+
+export function spaceUrl() {
   return (process.env["TRELLIS_SPACE_URL"] || DEFAULT_SPACE).replace(/\/+$/, "");
 }
 
@@ -51,42 +57,59 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function makeSessionHash(seedKey: string) {
-  return `relievo-${seedKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20)}-${Date.now().toString(36)}`;
+export function makeSessionHash(seedKey: string) {
+  return `relievo${seedKey.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20)}${Date.now().toString(36)}`;
 }
 
-type CallResult = { data: unknown[] };
+function classify(message: string): Error {
+  if (/quota/i.test(message)) return new TrellisQuotaError(message);
+  if (/(429|capacity|timeout|temporarily|connection|502|503|504)/i.test(message)) {
+    return new TrellisTransientError(message);
+  }
+  return new Error(message);
+}
 
-/** POSTs a Gradio endpoint and reads its SSE stream to completion. */
-async function callGradio(
-  fnName: string,
+type QueueResult = unknown[];
+
+/**
+ * Joins the Gradio queue for one function and follows the session SSE stream
+ * until the *matching* event completes. Filtering on `event_id` matters: the
+ * stream replays every event of the session, including `start_session`.
+ */
+async function queueCall(
+  fnIndex: number,
   payload: unknown[],
   sessionHash: string,
   onProgress?: (fraction: number, message?: string) => Promise<void> | void,
-): Promise<CallResult> {
+): Promise<QueueResult> {
   const base = spaceUrl();
-  const start = await fetch(`${base}/gradio_api/call/${fnName}`, {
+  const join = await fetch(`${base}/gradio_api/queue/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ data: payload, session_hash: sessionHash }),
+    body: JSON.stringify({
+      data: payload,
+      event_data: null,
+      fn_index: fnIndex,
+      trigger_id: null,
+      session_hash: sessionHash,
+    }),
   });
+  if (join.status === 429) throw new TrellisTransientError("The 3D engine is at capacity — retrying shortly.");
+  if (!join.ok) throw classify(`3D engine rejected the request (${join.status})`);
 
-  if (start.status === 429) throw new Error("The 3D engine is at capacity right now — please try again shortly.");
-  if (!start.ok) throw new Error(`3D engine rejected the request (${start.status})`);
+  const started = (await join.json()) as { event_id?: string };
+  const eventId = started.event_id;
+  if (!eventId) throw new TrellisTransientError("The 3D engine did not start a job");
 
-  const started = (await start.json()) as { event_id?: string };
-  if (!started.event_id) throw new Error("The 3D engine did not start a job");
-
-  const stream = await fetch(`${base}/gradio_api/call/${fnName}/${started.event_id}`, {
+  const stream = await fetch(`${base}/gradio_api/queue/data?session_hash=${encodeURIComponent(sessionHash)}`, {
     headers: { Accept: "text/event-stream", ...authHeaders() },
     signal: AbortSignal.timeout(STEP_TIMEOUT_MS),
   });
-  if (!stream.ok || !stream.body) throw new Error(`Lost connection to the 3D engine (${stream.status})`);
+  if (!stream.ok || !stream.body) throw new TrellisTransientError(`Lost connection to the 3D engine (${stream.status})`);
 
   const reader = stream.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let event = "";
 
   try {
     for (;;) {
@@ -99,38 +122,38 @@ async function callGradio(
         const line = buffer.slice(0, index).trimEnd();
         buffer = buffer.slice(index + 1);
         index = buffer.indexOf("\n");
-
-        if (line.startsWith("event:")) {
-          event = line.slice(6).trim();
-          continue;
-        }
         if (!line.startsWith("data:")) continue;
 
-        const raw = line.slice(5).trim();
-        if (!raw) continue;
-
-        let parsed: unknown;
+        let message: Record<string, unknown>;
         try {
-          parsed = JSON.parse(raw);
+          message = JSON.parse(line.slice(5).trim()) as Record<string, unknown>;
         } catch {
           continue;
         }
 
-        if (event === "error") {
-          const message = typeof parsed === "string" ? parsed : "The 3D engine reported an error";
-          throw new Error(message);
+        const id = message["event_id"];
+        if (typeof id === "string" && id !== eventId) continue;
+
+        const kind = message["msg"];
+        if (kind === "unexpected_error" || kind === "close_stream") {
+          throw classify(String(message["message"] ?? "The 3D engine dropped the job"));
         }
-        if (event === "complete" || (Array.isArray(parsed) && event !== "generating")) {
-          return { data: Array.isArray(parsed) ? parsed : [parsed] };
+        if (kind === "estimation" && onProgress) {
+          const rank = Number(message["rank"] ?? 0);
+          await onProgress(0, `Queued (position ${rank + 1})`);
         }
-        if (onProgress && parsed && typeof parsed === "object") {
-          const record = parsed as { progress_data?: { progress?: number; desc?: string }[]; rank?: number };
-          const first = record.progress_data?.[0];
-          if (typeof first?.progress === "number") {
-            await onProgress(Math.min(Math.max(first.progress, 0), 1), first.desc);
-          } else if (typeof record.rank === "number") {
-            await onProgress(0, `Queued (position ${record.rank + 1})`);
+        if (kind === "progress" && onProgress) {
+          const entry = (message["progress_data"] as { progress?: number; desc?: string }[] | undefined)?.[0];
+          if (entry && typeof entry.progress === "number") {
+            await onProgress(Math.min(Math.max(entry.progress, 0), 1), entry.desc);
           }
+        }
+        if (kind === "process_completed") {
+          const output = (message["output"] ?? {}) as { data?: unknown[]; error?: unknown };
+          if (message["success"] === false || output.error) {
+            throw classify(String(output.error ?? "The 3D engine reported an error"));
+          }
+          return Array.isArray(output.data) ? output.data : [];
         }
       }
     }
@@ -138,96 +161,96 @@ async function callGradio(
     await reader.cancel().catch(() => undefined);
   }
 
-  throw new Error("The 3D engine finished without returning a result");
+  throw new TrellisTransientError("The 3D engine finished without returning a result");
 }
 
-function fileUrlFrom(value: unknown): string | null {
+export function fileUrlFrom(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === "string") return value.startsWith("http") ? value : null;
   if (typeof value === "object") {
-    const record = value as { url?: string; path?: string; video?: unknown };
+    const record = value as { url?: string; path?: string; value?: unknown; video?: unknown };
     if (record.video) return fileUrlFrom(record.video);
     if (typeof record.url === "string") return record.url;
     if (typeof record.path === "string") return `${spaceUrl()}/gradio_api/file=${record.path}`;
+    if (record.value) return fileUrlFrom(record.value);
   }
   return null;
 }
 
-type GradioFile = { path: string; meta: { _type: "gradio.FileData" }; orig_name: string };
+/** Opens the Space-side session that later steps read their state from. */
+export async function startSession(sessionHash: string) {
+  await queueCall(FN.startSession, [], sessionHash);
+}
 
 /**
- * Uploads the portrait to the Space through `/gradio_api/upload`.
- * Gradio 6 expects a server-side `{ path }` reference for file inputs — passing
- * a remote `url` makes the endpoint 404 / fail to read the image.
+ * Streams the portrait into the Space. Gradio 6 file inputs must reference a
+ * server-side `{ path }`; a remote URL is not fetched by this app.
  */
-async function uploadImage(imageUrl: string, sessionHash: string): Promise<GradioFile> {
+export async function uploadPortrait(imageUrl: string, sessionHash: string): Promise<GradioFile> {
   const source = await fetch(imageUrl);
   if (!source.ok) throw new Error("Could not read the uploaded photo");
-  const blob = await source.blob();
+  const bytes = new Uint8Array(await source.arrayBuffer());
   const origName = "portrait.jpg";
 
   const form = new FormData();
-  form.append("files", blob, origName);
+  form.append("files", new Blob([bytes], { type: "image/jpeg" }), origName);
 
-  const response = await fetch(`${spaceUrl()}/gradio_api/upload?upload_id=${sessionHash}`, {
+  const response = await fetch(`${spaceUrl()}/gradio_api/upload?upload_id=${encodeURIComponent(sessionHash)}`, {
     method: "POST",
     headers: authHeaders(),
     body: form,
   });
-  if (!response.ok) throw new Error(`The 3D engine refused the photo upload (${response.status})`);
+  if (!response.ok) throw classify(`The 3D engine refused the photo upload (${response.status})`);
 
   const paths = (await response.json()) as unknown;
   const path = Array.isArray(paths) ? String(paths[0] ?? "") : "";
-  if (!path) throw new Error("The 3D engine did not accept the photo");
+  if (!path) throw new TrellisTransientError("The 3D engine did not accept the photo");
 
-  return { path, meta: { _type: "gradio.FileData" }, orig_name: origName };
+  return {
+    path,
+    meta: { _type: "gradio.FileData" },
+    orig_name: origName,
+    mime_type: "image/jpeg",
+    size: bytes.byteLength,
+  };
 }
 
-export async function runTrellis(input: TrellisInput): Promise<TrellisResult> {
-  if (!input.imageUrl) throw new Error("Upload a photo before generating");
+/** Step 1 — background removal / framing done by the Space itself. */
+export async function preprocessImage(file: GradioFile, sessionHash: string): Promise<GradioFile> {
+  const data = await queueCall(FN.preprocess, [file], sessionHash);
+  const prepared = data[0] as GradioFile | undefined;
+  if (!prepared) throw new TrellisTransientError("The 3D engine could not read that photo");
+  return prepared;
+}
 
-  const sessionHash = makeSessionHash(input.seedKey);
-  const report = async (stage: TrellisStage, progress: number, message?: string) => {
-    await input.onProgress?.({ stage, progress, message });
-  };
-
-  const base = spaceUrl();
-  await fetch(`${base}/gradio_api/call/start_session`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ data: [], session_hash: sessionHash }),
-  }).catch(() => undefined);
-
-  await report("preprocessing", 10);
-  const uploaded = await uploadImage(input.imageUrl, sessionHash);
-  const preprocessed = await callGradio("preprocess_image", [uploaded], sessionHash);
-  const preparedImage = preprocessed.data[0];
-  if (!preparedImage) throw new Error("The 3D engine could not read that photo");
-
-  await report("sculpting", 25);
-  const seed = Math.abs(hash32(input.seedKey)) % 2147483647;
-  // Parameter order mirrors /gradio_api/info for `image_to_3d`:
-  // image, seed, resolution, ss_(guidance_strength, guidance_rescale, sampling_steps, rescale_t),
-  // shape_slat_(…), tex_slat_(…)
-  const sculpt = await callGradio(
-    "image_to_3d",
-    [preparedImage, seed, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
+/** Step 2 — the GPU reconstruction. Leaves the asset in the Space session state. */
+export async function imageTo3d(
+  image: GradioFile,
+  seedKey: string,
+  sessionHash: string,
+  onProgress?: (fraction: number, message?: string) => Promise<void> | void,
+) {
+  const seed = Math.abs(hash32(seedKey)) % 2147483647;
+  // Order mirrors /gradio_api/info: image, seed, resolution, ss_*, shape_slat_*, tex_slat_*
+  await queueCall(
+    FN.imageTo3d,
+    [image, seed, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
     sessionHash,
-    async (fraction, message) => {
-      await report("sculpting", 25 + Math.round(fraction * 45), message);
-    },
+    onProgress,
   );
-  void sculpt;
+}
 
-  await report("extracting", 75);
-  const extracted = await callGradio("extract_glb", [300000, 2048], sessionHash, async (fraction) => {
-    await report("extracting", 75 + Math.round(fraction * 15));
-  });
-
-  const glbUrl = fileUrlFrom(extracted.data[0]) ?? fileUrlFrom(extracted.data[1]);
-  if (!glbUrl) throw new Error("The 3D engine did not return a GLB file");
-
-  return { glbUrl, previewVideoUrl: null, provider: "microsoft-trellis-2", sessionHash };
+/** Step 3 — bake the session asset into a downloadable GLB. */
+export async function extractGlb(
+  sessionHash: string,
+  onProgress?: (fraction: number, message?: string) => Promise<void> | void,
+): Promise<string> {
+  // First input is the Space's State component; the queue protocol resolves it
+  // from the session, so `null` is the correct wire value.
+  const data = await queueCall(FN.extractGlb, [null, 300000, 2048], sessionHash, onProgress);
+  const url = fileUrlFrom(data[0]) ?? fileUrlFrom(data[1]);
+  if (!url) throw new TrellisTransientError("The 3D engine did not return a GLB file");
+  return url;
 }
 
 function hash32(value: string) {

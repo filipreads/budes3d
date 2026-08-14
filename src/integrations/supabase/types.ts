@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          locale: string
+          message: string
+          name: string
+          order_number: string | null
+          status: string
+          topic: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          locale?: string
+          message: string
+          name: string
+          order_number?: string | null
+          status?: string
+          topic?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          locale?: string
+          message?: string
+          name?: string
+          order_number?: string | null
+          status?: string
+          topic?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       order_downloads: {
         Row: {
           created_at: string
@@ -122,6 +161,9 @@ export type Database = {
           id: string
           line_items: Json
           order_number: string
+          paid_at: string | null
+          payment_provider: string | null
+          payment_reference: string | null
           payment_status: string
           project_id: string | null
           share_enabled: boolean
@@ -143,6 +185,9 @@ export type Database = {
           id?: string
           line_items?: Json
           order_number?: string
+          paid_at?: string | null
+          payment_provider?: string | null
+          payment_reference?: string | null
           payment_status?: string
           project_id?: string | null
           share_enabled?: boolean
@@ -164,6 +209,9 @@ export type Database = {
           id?: string
           line_items?: Json
           order_number?: string
+          paid_at?: string | null
+          payment_provider?: string | null
+          payment_reference?: string | null
           payment_status?: string
           project_id?: string | null
           share_enabled?: boolean
