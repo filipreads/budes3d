@@ -10,7 +10,8 @@ import { getSharedPreview, type SharedPreview } from "@/lib/share.functions";
 const ModelStage = lazy(() => import("@/components/studio/ModelStage"));
 
 export const Route = createFileRoute("/share")({
-  validateSearch: (search: Record<string, unknown>) => ({ token: String(search["token"] ?? "") }),
+  validateSearch: (search: Record<string, unknown>): { token?: string } =>
+    search["token"] ? { token: String(search["token"]) } : {},
   head: () => ({
     meta: [
       { title: "Shared 3D portrait preview — Relievo Studio" },

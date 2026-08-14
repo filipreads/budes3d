@@ -39,7 +39,8 @@ const STAGE_LABEL: Record<string, string> = {
 import { Loader2, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
-  validateSearch: (search: Record<string, unknown>) => ({ project: String(search["project"] ?? "") }),
+  validateSearch: (search: Record<string, unknown>): { project?: string } =>
+    search["project"] ? { project: String(search["project"]) } : {},
   head: () => ({
     meta: [
       { title: "Portrait studio editor — Relievo Studio" },
