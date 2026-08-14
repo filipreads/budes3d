@@ -205,6 +205,15 @@ const en = {
   "account.shareOff": "Stop sharing",
   "account.shareStopped": "Sharing turned off",
   "account.viewShare": "Open shared view",
+  "viewer.solid": "Solid",
+  "viewer.wireframe": "Wireframe",
+  "viewer.warm": "Warm light",
+  "viewer.cool": "Cool light",
+  "viewer.loading": "Loading 3D model…",
+  "viewer.errorTitle": "The 3D model could not be loaded",
+  "viewer.errorBody":
+    "This file cannot be displayed, so please do not approve it. Try generating again or contact support.",
+  "viewer.exportFailed": "Could not export the model",
 
   "invoice.title": "INVOICE",
   "invoice.issuedTo": "Billed to",
