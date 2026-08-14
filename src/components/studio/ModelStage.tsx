@@ -83,6 +83,8 @@ type Props = {
   finishId: string;
   showBase?: boolean;
   canDownload?: boolean;
+  /** Pre-signed model URL (used by public share links, which cannot sign one). */
+  modelUrl?: string | null;
 };
 
 export default function ModelStage({
@@ -91,6 +93,7 @@ export default function ModelStage({
   finishId,
   showBase = true,
   canDownload = false,
+  modelUrl = null,
 }: Props) {
   const [wireframe, setWireframe] = useState(false);
   const [warmLight, setWarmLight] = useState(true);
@@ -99,7 +102,7 @@ export default function ModelStage({
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
 
-  const isGeneratedFile = !modelRef.startsWith("sample://");
+  const isGeneratedFile = Boolean(modelUrl) || !modelRef.startsWith("sample://");
 
   const seed = useMemo(() => seedFrom(modelRef), [modelRef]);
   const geometry = useMemo(() => buildBustGeometry(seed), [seed]);
@@ -118,7 +121,7 @@ export default function ModelStage({
     setLoadFailed(false);
     void (async () => {
       try {
-        const { url } = await getModelUrl({ data: { storagePath: modelRef } });
+        const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
         const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
         const gltf = await new GLTFLoader().loadAsync(url);
         if (cancelled) return;
@@ -136,7 +139,7 @@ export default function ModelStage({
     return () => {
       cancelled = true;
     };
-  }, [modelRef, isGeneratedFile]);
+  }, [modelRef, modelUrl, isGeneratedFile]);
 
   useEffect(() => {
     if (!loadedScene) return;
