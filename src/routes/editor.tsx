@@ -25,7 +25,16 @@ import {
   quote,
   type StudioConfig,
 } from "@/lib/pricing";
-import { generateModel, removeBackground } from "@/lib/studio.functions";
+import { generateModel, getGenerationStatus, removeBackground } from "@/lib/studio.functions";
+
+const STAGE_LABEL: Record<string, string> = {
+  queued: "Waiting for a free GPU slot…",
+  preprocessing: "Preparing the portrait…",
+  sculpting: "Sculpting the 3D geometry…",
+  extracting: "Extracting the mesh and textures…",
+  storing: "Saving your model…",
+};
+
 import { Loader2, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
@@ -150,14 +159,31 @@ function EditorPage() {
       if (error || !project) throw new Error(error?.message ?? "Could not save the project");
 
       setBusy(t("editor.busy.generate"));
-      setProgress(70);
-      const result = await generateModel({ data: { projectId: project.id } });
-      setBusy(t("editor.busy.finalize"));
-      setProgress(95);
-      setModelRef(result.modelRef);
+      setProgress(50);
+
+      // TRELLIS runs for minutes: poll the project row so the studio progress
+      // bar reflects the real preprocess → sculpt → extract → store stages.
+      const poll = setInterval(() => {
+        void getGenerationStatus({ data: { projectId: project.id } })
+          .then((status) => {
+            if (typeof status.progress === "number" && status.progress > 0) setProgress(status.progress);
+            if (status.stage && status.stage !== "ready") setBusy(STAGE_LABEL[status.stage] ?? t("editor.busy.generate"));
+          })
+          .catch(() => undefined);
+      }, 3000);
+
+      try {
+        const result = await generateModel({ data: { projectId: project.id } });
+        setBusy(t("editor.busy.finalize"));
+        setProgress(100);
+        setModelRef(result.modelRef);
+      } finally {
+        clearInterval(poll);
+      }
       sessionStorage.setItem("relievo:project", project.id);
       setStep("preview");
       toast.success(t("editor.toast.ready"));
+
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
