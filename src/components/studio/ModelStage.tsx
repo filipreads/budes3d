@@ -1,4 +1,6 @@
-import { Suspense, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { getModelUrl } from "@/lib/studio.functions";
+
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Center } from "@react-three/drei";
 import * as THREE from "three";
