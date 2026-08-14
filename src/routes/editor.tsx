@@ -38,6 +38,7 @@ const STAGE_LABEL: Record<string, string> = {
 import { Loader2, Upload } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
+  validateSearch: (search: Record<string, unknown>) => ({ project: String(search["project"] ?? "") }),
   head: () => ({
     meta: [
       { title: "Portrait studio editor — Relievo Studio" },
@@ -58,6 +59,7 @@ type Step = StageId;
 
 function EditorPage() {
   const navigate = useNavigate();
+  const { project: projectParam } = Route.useSearch();
   const { user } = useAuth();
   const { t } = useI18n();
   const [step, setStep] = useState<Step>("upload");
@@ -70,6 +72,31 @@ function EditorPage() {
   const [failure, setFailure] = useState<string | null>(null);
 
   const priced = useMemo(() => quote(config), [config]);
+
+  // Reopening a saved project from "My studio projects".
+  useEffect(() => {
+    if (!projectParam || !user) return;
+    let cancelled = false;
+    void supabase
+      .from("projects")
+      .select("id, config, model_url, status")
+      .eq("id", projectParam)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        sessionStorage.setItem("relievo:project", data.id);
+        if (data.config && typeof data.config === "object") {
+          setConfig(sanitizeConfig(data.config as unknown as StudioConfig));
+        }
+        if (data.model_url) {
+          setModelRef(data.model_url);
+          setStep("preview");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectParam, user]);
 
   const stageStates = useMemo<Record<StageId, StageState>>(() => {
     const order: StageId[] = ["upload", "retouch", "preview", "configure"];
