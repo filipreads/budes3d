@@ -173,46 +173,72 @@ function AccountPage() {
           <div className="mt-6 space-y-3">
             {orders.map((order) => (
               <Card key={order.id}>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-                  <div>
-                    <p className="font-display text-lg">{order.order_number}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="text-right">
-                      <p className="font-semibold">{formatPrice(order.total_cents)}</p>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
-                        {t(`status.${order.fulfilment_status}` as TranslationKey)}
+                <CardContent className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-display text-lg">{order.order_number}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
+                        {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
-                        <FileText className="mr-1.5 size-3.5" />
-                        {t("account.invoice")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={order.share_enabled ? "outline" : "secondary"}
-                        disabled={sharing === order.id}
-                        onClick={() => void toggleShare(order)}
-                      >
-                        <Link2 className="mr-1.5 size-3.5" />
-                        {order.share_enabled ? t("account.shareOff") : t("account.share")}
-                      </Button>
-                      {order.share_enabled && order.share_token ? (
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/share" search={{ token: order.share_token }}>
-                            <LinkIcon className="mr-1.5 size-3.5" />
-                            {t("account.viewShare")}
-                          </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-semibold">{formatPrice(order.total_cents)}</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
+                          {t(`status.${order.fulfilment_status}` as TranslationKey)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
+                          <FileText className="mr-1.5 size-3.5" />
+                          {t("account.invoice")}
                         </Button>
-                      ) : null}
+                        <Button
+                          size="sm"
+                          variant={order.share_enabled ? "outline" : "secondary"}
+                          disabled={sharing === order.id}
+                          onClick={() => void toggleShare(order)}
+                        >
+                          <Link2 className="mr-1.5 size-3.5" />
+                          {order.share_enabled ? t("account.shareOff") : t("account.share")}
+                        </Button>
+                        {order.share_enabled && order.share_token ? (
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/share" search={{ token: order.share_token }}>
+                              <LinkIcon className="mr-1.5 size-3.5" />
+                              {t("account.viewShare")}
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
+
+                  {(downloads[order.id]?.length ?? 0) > 0 ? (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t("account.downloads")}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {downloads[order.id]!.map((entry) => (
+                          <Button
+                            key={entry.id}
+                            size="sm"
+                            variant="secondary"
+                            disabled={preparing === entry.id}
+                            onClick={() => void runDownload(entry)}
+                          >
+                            <Download className="mr-1.5 size-3.5" />
+                            {preparing === entry.id
+                              ? t("account.preparing")
+                              : `${t("account.download")} ${entry.format.toUpperCase()}`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}
