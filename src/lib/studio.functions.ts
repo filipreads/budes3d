@@ -28,32 +28,137 @@ export const generateModel = createServerFn({ method: "POST" })
       .single();
     if (error || !project) throw new Error("Project not found");
 
-    await supabase.from("projects").update({ status: "generating", generation_error: null }).eq("id", project.id);
+    const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
+    const sourcePath = photos[0];
+    if (!sourcePath) throw new Error("Upload a photo before generating");
+
+    await supabase
+      .from("projects")
+      .update({
+        status: "generating",
+        generation_error: null,
+        generation_stage: "queued",
+        generation_progress: 5,
+        generation_started_at: new Date().toISOString(),
+        preview_video_url: null,
+      })
+      .eq("id", project.id);
+
+    // The Space needs a publicly fetchable image; a short-lived signed URL
+    // keeps the private bucket private.
+    const { data: signed, error: signError } = await supabase.storage
+      .from("portrait-uploads")
+      .createSignedUrl(sourcePath, 60 * 30);
+    if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
 
     const { runTrellis } = await import("./trellis.server");
     try {
       const result = await runTrellis({
-        photos: Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [],
+        imageUrl: signed.signedUrl,
         seedKey: `${project.id}`,
+        onProgress: async (update) => {
+          await supabase
+            .from("projects")
+            .update({ generation_stage: update.stage, generation_progress: update.progress })
+            .eq("id", project.id)
+            .eq("user_id", userId);
+        },
       });
+
+      await supabase
+        .from("projects")
+        .update({
+          generation_stage: "storing",
+          generation_progress: 92,
+          preview_video_url: result.previewVideoUrl,
+          session_hash: result.sessionHash,
+        })
+        .eq("id", project.id)
+        .eq("user_id", userId);
+
+      // Persist the mesh in our own private bucket — the provider copy is temporary.
+      const glbResponse = await fetch(result.glbUrl);
+      if (!glbResponse.ok) throw new Error("Could not download the generated model");
+      const glbBytes = new Uint8Array(await glbResponse.arrayBuffer());
+      const storagePath = `${userId}/${project.id}.glb`;
+      const upload = await supabase.storage.from("portrait-models").upload(storagePath, glbBytes, {
+        contentType: "model/gltf-binary",
+        upsert: true,
+      });
+      if (upload.error) throw new Error(upload.error.message);
+
       const { error: updateError } = await supabase
         .from("projects")
         .update({
           status: "ready",
-          model_url: result.modelRef,
+          model_url: storagePath,
           model_provider: result.provider,
           generation_error: null,
+          generation_stage: "ready",
+          generation_progress: 100,
         })
         .eq("id", project.id)
         .eq("user_id", userId);
       if (updateError) throw new Error(updateError.message);
-      return { modelRef: result.modelRef, provider: result.provider };
+
+      return { modelRef: storagePath, provider: result.provider, previewVideoUrl: result.previewVideoUrl };
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Generation failed";
-      await supabase.from("projects").update({ status: "failed", generation_error: message }).eq("id", project.id);
+      await supabase
+        .from("projects")
+        .update({
+          status: "failed",
+          generation_error: message,
+          generation_stage: "failed",
+          generation_progress: 0,
+        })
+        .eq("id", project.id);
       throw new Error(message);
     }
   });
+
+/** Lightweight poll target that drives the Studio progress UI while a job runs. */
+export const getGenerationStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { projectId: string }) => {
+    if (!input?.projectId) throw new Error("projectId required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: project } = await supabase
+      .from("projects")
+      .select("status, generation_stage, generation_progress, generation_error, model_url, preview_video_url")
+      .eq("id", data.projectId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!project) throw new Error("Project not found");
+    return {
+      status: project.status,
+      stage: project.generation_stage ?? "queued",
+      progress: project.generation_progress ?? 0,
+      error: project.generation_error,
+      modelRef: project.model_url,
+      previewVideoUrl: project.preview_video_url,
+    };
+  });
+
+/** Signed URL for a stored model file, used by the 3D viewer. */
+export const getModelUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { storagePath: string }) => {
+    if (!input?.storagePath) throw new Error("storagePath required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: signed, error } = await supabase.storage
+      .from("portrait-models")
+      .createSignedUrl(data.storagePath, 60 * 60);
+    if (error || !signed?.signedUrl) throw new Error("Could not open the model file");
+    return { url: signed.signedUrl };
+  });
+
 
 type OrderInput = {
   projectId: string;
