@@ -216,10 +216,16 @@ export type Database = {
           created_at: string
           edit_settings: Json
           generation_error: string | null
+          generation_progress: number
+          generation_stage: string | null
+          generation_started_at: string | null
           id: string
           model_provider: string | null
           model_url: string | null
           preview_image_url: string | null
+          preview_video_url: string | null
+          provider_job_id: string | null
+          session_hash: string | null
           source_photos: Json
           status: string
           title: string
@@ -232,10 +238,16 @@ export type Database = {
           created_at?: string
           edit_settings?: Json
           generation_error?: string | null
+          generation_progress?: number
+          generation_stage?: string | null
+          generation_started_at?: string | null
           id?: string
           model_provider?: string | null
           model_url?: string | null
           preview_image_url?: string | null
+          preview_video_url?: string | null
+          provider_job_id?: string | null
+          session_hash?: string | null
           source_photos?: Json
           status?: string
           title?: string
@@ -248,10 +260,16 @@ export type Database = {
           created_at?: string
           edit_settings?: Json
           generation_error?: string | null
+          generation_progress?: number
+          generation_stage?: string | null
+          generation_started_at?: string | null
           id?: string
           model_provider?: string | null
           model_url?: string | null
           preview_image_url?: string | null
+          preview_video_url?: string | null
+          provider_job_id?: string | null
+          session_hash?: string | null
           source_photos?: Json
           status?: string
           title?: string
