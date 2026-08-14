@@ -51,6 +51,21 @@ function AccountPage() {
   const { t } = useI18n();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [downloads, setDownloads] = useState<Record<string, OrderDownload[]>>({});
+  const [preparing, setPreparing] = useState<string | null>(null);
+
+  async function runDownload(entry: OrderDownload) {
+    setPreparing(entry.id);
+    try {
+      const file = await getOrderDownloadUrl({ data: { downloadId: entry.id } });
+      await downloadModelFile(file.url, file.format, file.filename);
+    } catch {
+      toast.error(t("account.downloadFailed"));
+    } finally {
+      setPreparing(null);
+    }
+  }
+
 
   async function makeInvoice(order: OrderRow) {
     await downloadInvoicePdf(order as InvoiceOrder, {
