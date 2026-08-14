@@ -73,6 +73,9 @@ export function SiteHeader() {
           ))}
           {!loading && user ? (
             <>
+              <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground">
+                {t("nav.projects")}
+              </Link>
               <Link to="/account" className="text-sm text-muted-foreground hover:text-foreground">
                 {t("nav.account")}
               </Link>
@@ -120,6 +123,9 @@ export function SiteHeader() {
             ))}
             {user ? (
               <>
+                <Link to="/projects" onClick={() => setOpen(false)} className="text-sm">
+                  {t("nav.projects")}
+                </Link>
                 <Link to="/account" onClick={() => setOpen(false)} className="text-sm">
                   {t("nav.account")}
                 </Link>
