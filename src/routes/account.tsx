@@ -119,6 +119,28 @@ function AccountPage() {
       .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
   }, [user]);
 
+  // Files are only listed for paid orders; the server re-checks payment before signing a URL.
+  useEffect(() => {
+    const paid = orders.filter((order) => order.payment_status === "paid");
+    if (paid.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        paid.map(async (order) => {
+          try {
+            return [order.id, await listOrderDownloads({ data: { orderId: order.id } })] as const;
+          } catch {
+            return [order.id, [] as OrderDownload[]] as const;
+          }
+        }),
+      );
+      if (!cancelled) setDownloads(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orders]);
+
   if (!loading && !user) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
