@@ -469,6 +469,15 @@ const cs: Record<TranslationKey, string> = {
   "account.shareOff": "Ukončit sdílení",
   "account.shareStopped": "Sdílení vypnuto",
   "account.viewShare": "Otevřít sdílený náhled",
+  "viewer.solid": "Plný",
+  "viewer.wireframe": "Drátěný",
+  "viewer.warm": "Teplé světlo",
+  "viewer.cool": "Studené světlo",
+  "viewer.loading": "Načítám 3D model…",
+  "viewer.errorTitle": "3D model se nepodařilo načíst",
+  "viewer.errorBody":
+    "Soubor nelze zobrazit, proto jej neschvalujte. Zkuste generování spustit znovu nebo nás kontaktujte.",
+  "viewer.exportFailed": "Model se nepodařilo exportovat",
 
   "invoice.title": "FAKTURA",
   "invoice.issuedTo": "Odběratel",
