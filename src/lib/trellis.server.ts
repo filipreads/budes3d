@@ -21,13 +21,13 @@ export type TrellisStage =
   | "ready"
   | "failed";
 
-export type TrellisProgress = { stage: TrellisStage; progress: number; message?: string };
+export type TrellisProgress = { stage: TrellisStage; progress: number; message?: string | undefined };
 
 export type TrellisInput = {
   /** Publicly reachable (signed) URL of the prepared portrait photo. */
   imageUrl: string;
   seedKey: string;
-  onProgress?: (update: TrellisProgress) => Promise<void> | void;
+  onProgress?: ((update: TrellisProgress) => Promise<void> | void) | undefined;
 };
 
 export type TrellisResult = {
