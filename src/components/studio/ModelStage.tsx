@@ -71,7 +71,7 @@ export default function ModelStage({
     return () => {
       cancelled = true;
     };
-  }, [modelRef, modelUrl, isGeneratedFile]);
+  }, [modelRef, modelUrl, hasFile]);
 
   useEffect(() => {
     if (!loadedScene) return;
@@ -87,8 +87,11 @@ export default function ModelStage({
   }, [loadedScene, wireframe]);
 
   async function exportModel(format: "stl" | "glb") {
-    const source: THREE.Object3D | null = loadedScene ?? meshRef.current;
-    if (!source) return;
+    const source: THREE.Object3D | null = loadedScene;
+    if (!source) {
+      toast.error(t("viewer.exportFailed"));
+      return;
+    }
     try {
       const target = source.clone();
       if (format === "stl") {
@@ -100,41 +103,12 @@ export default function ModelStage({
         const buffer = await new GLTFExporter().parseAsync(target, { binary: true });
         downloadBlob(new Blob([buffer as ArrayBuffer], { type: "model/gltf-binary" }), "portrait.glb");
       }
-      toast.success(`${format.toUpperCase()} downloaded`);
+      toast.success(`${format.toUpperCase()} ✓`);
     } catch {
-      toast.error("Could not export the model");
+      toast.error(t("viewer.exportFailed"));
     }
   }
 
-  const showProcedural = !isGeneratedFile || loadFailed;
-
-  return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep">
-      <Canvas shadows camera={{ position: [0, 0.4, 3.4], fov: 38 }} dpr={[1, 2]}>
-        <color attach="background" args={["#141311"]} />
-        <ambientLight intensity={warmLight ? 0.5 : 0.25} />
-        <directionalLight
-          position={[3, 4, 3]}
-          intensity={warmLight ? 2.4 : 1.4}
-          color={warmLight ? "#ffd9a8" : "#cfe0ff"}
-          castShadow
-        />
-        <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
-        <Suspense fallback={null}>
-          <Center>
-            <group ref={groupRef}>
-              {loadedScene ? (
-                <primitive object={loadedScene} />
-              ) : showProcedural ? (
-                <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
-                  <meshStandardMaterial
-                    color={look.color}
-                    metalness={look.metalness}
-                    roughness={roughness}
-                    wireframe={wireframe}
-                  />
-                </mesh>
-              ) : null}
               {showBase ? (
                 <mesh position={[0, -1.22, 0]} receiveShadow>
                   <cylinderGeometry args={[0.95, 1.05, 0.22, 64]} />
