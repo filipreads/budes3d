@@ -205,6 +205,15 @@ const en = {
   "account.shareOff": "Stop sharing",
   "account.shareStopped": "Sharing turned off",
   "account.viewShare": "Open shared view",
+  "viewer.solid": "Solid",
+  "viewer.wireframe": "Wireframe",
+  "viewer.warm": "Warm light",
+  "viewer.cool": "Cool light",
+  "viewer.loading": "Loading 3D model…",
+  "viewer.errorTitle": "The 3D model could not be loaded",
+  "viewer.errorBody":
+    "This file cannot be displayed, so please do not approve it. Try generating again or contact support.",
+  "viewer.exportFailed": "Could not export the model",
 
   "invoice.title": "INVOICE",
   "invoice.issuedTo": "Billed to",
@@ -469,6 +478,15 @@ const cs: Record<TranslationKey, string> = {
   "account.shareOff": "Ukončit sdílení",
   "account.shareStopped": "Sdílení vypnuto",
   "account.viewShare": "Otevřít sdílený náhled",
+  "viewer.solid": "Plný",
+  "viewer.wireframe": "Drátěný",
+  "viewer.warm": "Teplé světlo",
+  "viewer.cool": "Studené světlo",
+  "viewer.loading": "Načítám 3D model…",
+  "viewer.errorTitle": "3D model se nepodařilo načíst",
+  "viewer.errorBody":
+    "Soubor nelze zobrazit, proto jej neschvalujte. Zkuste generování spustit znovu nebo nás kontaktujte.",
+  "viewer.exportFailed": "Model se nepodařilo exportovat",
 
   "invoice.title": "FAKTURA",
   "invoice.issuedTo": "Odběratel",

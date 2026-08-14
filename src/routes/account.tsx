@@ -9,8 +9,10 @@ import { formatPrice } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { downloadInvoicePdf, type InvoiceOrder } from "@/lib/invoice";
 import { setOrderShare } from "@/lib/share.functions";
+import { listOrderDownloads, getOrderDownloadUrl, type OrderDownload } from "@/lib/downloads.functions";
+import { downloadModelFile } from "@/lib/mesh-export";
 import { toast } from "sonner";
-import { FileText, Link2, LinkIcon } from "lucide-react";
+import { FileText, Link2, LinkIcon, Download } from "lucide-react";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -49,6 +51,21 @@ function AccountPage() {
   const { t } = useI18n();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [downloads, setDownloads] = useState<Record<string, OrderDownload[]>>({});
+  const [preparing, setPreparing] = useState<string | null>(null);
+
+  async function runDownload(entry: OrderDownload) {
+    setPreparing(entry.id);
+    try {
+      const file = await getOrderDownloadUrl({ data: { downloadId: entry.id } });
+      await downloadModelFile(file.url, file.format, file.filename);
+    } catch {
+      toast.error(t("account.downloadFailed"));
+    } finally {
+      setPreparing(null);
+    }
+  }
+
 
   async function makeInvoice(order: OrderRow) {
     await downloadInvoicePdf(order as InvoiceOrder, {
@@ -102,6 +119,28 @@ function AccountPage() {
       .then(({ data }) => setOrders((data ?? []) as OrderRow[]));
   }, [user]);
 
+  // Files are only listed for paid orders; the server re-checks payment before signing a URL.
+  useEffect(() => {
+    const paid = orders.filter((order) => order.payment_status === "paid");
+    if (paid.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        paid.map(async (order) => {
+          try {
+            return [order.id, await listOrderDownloads({ data: { orderId: order.id } })] as const;
+          } catch {
+            return [order.id, [] as OrderDownload[]] as const;
+          }
+        }),
+      );
+      if (!cancelled) setDownloads(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orders]);
+
   if (!loading && !user) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
@@ -134,46 +173,72 @@ function AccountPage() {
           <div className="mt-6 space-y-3">
             {orders.map((order) => (
               <Card key={order.id}>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-                  <div>
-                    <p className="font-display text-lg">{order.order_number}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="text-right">
-                      <p className="font-semibold">{formatPrice(order.total_cents)}</p>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
-                        {t(`status.${order.fulfilment_status}` as TranslationKey)}
+                <CardContent className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-display text-lg">{order.order_number}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
+                        {new Date(order.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
-                        <FileText className="mr-1.5 size-3.5" />
-                        {t("account.invoice")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={order.share_enabled ? "outline" : "secondary"}
-                        disabled={sharing === order.id}
-                        onClick={() => void toggleShare(order)}
-                      >
-                        <Link2 className="mr-1.5 size-3.5" />
-                        {order.share_enabled ? t("account.shareOff") : t("account.share")}
-                      </Button>
-                      {order.share_enabled && order.share_token ? (
-                        <Button asChild size="sm" variant="ghost">
-                          <Link to="/share" search={{ token: order.share_token }}>
-                            <LinkIcon className="mr-1.5 size-3.5" />
-                            {t("account.viewShare")}
-                          </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="text-right">
+                        <p className="font-semibold">{formatPrice(order.total_cents)}</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
+                          {t(`status.${order.fulfilment_status}` as TranslationKey)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
+                          <FileText className="mr-1.5 size-3.5" />
+                          {t("account.invoice")}
                         </Button>
-                      ) : null}
+                        <Button
+                          size="sm"
+                          variant={order.share_enabled ? "outline" : "secondary"}
+                          disabled={sharing === order.id}
+                          onClick={() => void toggleShare(order)}
+                        >
+                          <Link2 className="mr-1.5 size-3.5" />
+                          {order.share_enabled ? t("account.shareOff") : t("account.share")}
+                        </Button>
+                        {order.share_enabled && order.share_token ? (
+                          <Button asChild size="sm" variant="ghost">
+                            <Link to="/share" search={{ token: order.share_token }}>
+                              <LinkIcon className="mr-1.5 size-3.5" />
+                              {t("account.viewShare")}
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
+
+                  {(downloads[order.id]?.length ?? 0) > 0 ? (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t("account.downloads")}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {downloads[order.id]!.map((entry) => (
+                          <Button
+                            key={entry.id}
+                            size="sm"
+                            variant="secondary"
+                            disabled={preparing === entry.id}
+                            onClick={() => void runDownload(entry)}
+                          >
+                            <Download className="mr-1.5 size-3.5" />
+                            {preparing === entry.id
+                              ? t("account.preparing")
+                              : `${t("account.download")} ${entry.format.toUpperCase()}`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}
