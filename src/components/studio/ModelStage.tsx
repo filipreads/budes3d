@@ -109,8 +109,24 @@ export default function ModelStage({
     }
   }
 
-              {showBase ? (
-                <mesh position={[0, -1.22, 0]} receiveShadow>
+  return (
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep">
+      <Canvas shadows camera={{ position: [0, 0.4, 3.4], fov: 38 }} dpr={[1, 2]}>
+        <color attach="background" args={["#141311"]} />
+        <ambientLight intensity={warmLight ? 0.5 : 0.25} />
+        <directionalLight
+          position={[3, 4, 3]}
+          intensity={warmLight ? 2.4 : 1.4}
+          color={warmLight ? "#ffd9a8" : "#cfe0ff"}
+          castShadow
+        />
+        <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
+        <Suspense fallback={null}>
+          <Center>
+            <group ref={groupRef}>
+              {loadedScene ? <primitive object={loadedScene} /> : null}
+              {showBase && loadedScene ? (
+                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow>
                   <cylinderGeometry args={[0.95, 1.05, 0.22, 64]} />
                   <meshStandardMaterial color="#3c2f24" roughness={0.6} metalness={0.05} />
                 </mesh>
@@ -122,29 +138,45 @@ export default function ModelStage({
         <OrbitControls enablePan minDistance={1.8} maxDistance={7} autoRotate autoRotateSpeed={0.6} />
       </Canvas>
 
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-3">
-        <div className="pointer-events-auto flex gap-2">
-          <Button size="sm" variant="secondary" onClick={() => setWireframe((value) => !value)}>
-            <Boxes className="mr-1.5 size-3.5" />
-            {wireframe ? "Solid" : "Wireframe"}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setWarmLight((value) => !value)}>
-            <Lightbulb className="mr-1.5 size-3.5" />
-            {warmLight ? "Warm" : "Cool"}
-          </Button>
+      {loadFailed ? (
+        <div
+          role="alert"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-stone-deep/95 px-6 text-center"
+        >
+          <AlertTriangle className="size-6 text-destructive" aria-hidden />
+          <p className="font-display text-lg text-background">{t("viewer.errorTitle")}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{t("viewer.errorBody")}</p>
         </div>
-        {canDownload ? (
+      ) : !loadedScene ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-stone-deep/80">
+          <p className="text-sm text-muted-foreground">{t("viewer.loading")}</p>
+        </div>
+      ) : null}
+
+      {loadedScene ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-3">
           <div className="pointer-events-auto flex gap-2">
-            <Button size="sm" onClick={() => void exportModel("glb")}>
-              <Download className="mr-1.5 size-3.5" /> GLB
+            <Button size="sm" variant="secondary" onClick={() => setWireframe((value) => !value)}>
+              <Boxes className="mr-1.5 size-3.5" />
+              {wireframe ? t("viewer.solid") : t("viewer.wireframe")}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => void exportModel("stl")}>
-              <Download className="mr-1.5 size-3.5" /> STL
+            <Button size="sm" variant="secondary" onClick={() => setWarmLight((value) => !value)}>
+              <Lightbulb className="mr-1.5 size-3.5" />
+              {warmLight ? t("viewer.warm") : t("viewer.cool")}
             </Button>
           </div>
-        ) : null}
-      </div>
+          {canDownload ? (
+            <div className="pointer-events-auto flex gap-2">
+              <Button size="sm" onClick={() => void exportModel("glb")}>
+                <Download className="mr-1.5 size-3.5" /> GLB
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => void exportModel("stl")}>
+                <Download className="mr-1.5 size-3.5" /> STL
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
