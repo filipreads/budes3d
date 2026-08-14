@@ -153,6 +153,36 @@ function fileUrlFrom(value: unknown): string | null {
   return null;
 }
 
+type GradioFile = { path: string; meta: { _type: "gradio.FileData" }; orig_name: string };
+
+/**
+ * Uploads the portrait to the Space through `/gradio_api/upload`.
+ * Gradio 6 expects a server-side `{ path }` reference for file inputs — passing
+ * a remote `url` makes the endpoint 404 / fail to read the image.
+ */
+async function uploadImage(imageUrl: string, sessionHash: string): Promise<GradioFile> {
+  const source = await fetch(imageUrl);
+  if (!source.ok) throw new Error("Could not read the uploaded photo");
+  const blob = await source.blob();
+  const origName = "portrait.jpg";
+
+  const form = new FormData();
+  form.append("files", blob, origName);
+
+  const response = await fetch(`${spaceUrl()}/gradio_api/upload?upload_id=${sessionHash}`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!response.ok) throw new Error(`The 3D engine refused the photo upload (${response.status})`);
+
+  const paths = (await response.json()) as unknown;
+  const path = Array.isArray(paths) ? String(paths[0] ?? "") : "";
+  if (!path) throw new Error("The 3D engine did not accept the photo");
+
+  return { path, meta: { _type: "gradio.FileData" }, orig_name: origName };
+}
+
 export async function runTrellis(input: TrellisInput): Promise<TrellisResult> {
   if (!input.imageUrl) throw new Error("Upload a photo before generating");
 
@@ -169,35 +199,35 @@ export async function runTrellis(input: TrellisInput): Promise<TrellisResult> {
   }).catch(() => undefined);
 
   await report("preprocessing", 10);
-  const preprocessed = await callGradio(
-    "preprocess_image",
-    [{ path: null, url: input.imageUrl, meta: { _type: "gradio.FileData" }, orig_name: "portrait.jpg" }],
-    sessionHash,
-  );
+  const uploaded = await uploadImage(input.imageUrl, sessionHash);
+  const preprocessed = await callGradio("preprocess_image", [uploaded], sessionHash);
   const preparedImage = preprocessed.data[0];
   if (!preparedImage) throw new Error("The 3D engine could not read that photo");
 
   await report("sculpting", 25);
   const seed = Math.abs(hash32(input.seedKey)) % 2147483647;
+  // Parameter order mirrors /gradio_api/info for `image_to_3d`:
+  // image, seed, resolution, ss_(guidance_strength, guidance_rescale, sampling_steps, rescale_t),
+  // shape_slat_(…), tex_slat_(…)
   const sculpt = await callGradio(
     "image_to_3d",
-    [preparedImage, seed, 1024, 7.5, 0, 12, 0.2, 3, 0, 12, 0.2, 3, 0, 12, 0.2],
+    [preparedImage, seed, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0],
     sessionHash,
     async (fraction, message) => {
       await report("sculpting", 25 + Math.round(fraction * 45), message);
     },
   );
-  const previewVideoUrl = fileUrlFrom(sculpt.data[0]);
+  void sculpt;
 
   await report("extracting", 75);
-  const extracted = await callGradio("extract_glb", [50000, 2048], sessionHash, async (fraction) => {
+  const extracted = await callGradio("extract_glb", [300000, 2048], sessionHash, async (fraction) => {
     await report("extracting", 75 + Math.round(fraction * 15));
   });
 
-  const glbUrl = fileUrlFrom(extracted.data[1]) ?? fileUrlFrom(extracted.data[0]);
+  const glbUrl = fileUrlFrom(extracted.data[0]) ?? fileUrlFrom(extracted.data[1]);
   if (!glbUrl) throw new Error("The 3D engine did not return a GLB file");
 
-  return { glbUrl, previewVideoUrl, provider: "microsoft-trellis-2", sessionHash };
+  return { glbUrl, previewVideoUrl: null, provider: "microsoft-trellis-2", sessionHash };
 }
 
 function hash32(value: string) {
