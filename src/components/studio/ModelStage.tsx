@@ -92,24 +92,75 @@ export default function ModelStage({
 }: Props) {
   const [wireframe, setWireframe] = useState(false);
   const [warmLight, setWarmLight] = useState(true);
+  const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+
+  const isGeneratedFile = !modelRef.startsWith("sample://");
 
   const seed = useMemo(() => seedFrom(modelRef), [modelRef]);
   const geometry = useMemo(() => buildBustGeometry(seed), [seed]);
   const look = MATERIAL_LOOK[materialId] ?? MATERIAL_LOOK["resin"]!;
   const roughness = Math.min(Math.max(look.roughness + (FINISH_ROUGHNESS[finishId] ?? 0), 0.03), 1);
 
+  // Real TRELLIS output lives in private storage: resolve a signed URL, then load the GLB.
+  useEffect(() => {
+    if (!isGeneratedFile) {
+      setLoadedScene(null);
+      setLoadFailed(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadedScene(null);
+    setLoadFailed(false);
+    void (async () => {
+      try {
+        const { url } = await getModelUrl({ data: { storagePath: modelRef } });
+        const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+        const gltf = await new GLTFLoader().loadAsync(url);
+        if (cancelled) return;
+        gltf.scene.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        setLoadedScene(gltf.scene);
+      } catch {
+        if (!cancelled) setLoadFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modelRef, isGeneratedFile]);
+
+  useEffect(() => {
+    if (!loadedScene) return;
+    loadedScene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const material = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+      const list = Array.isArray(material) ? material : [material];
+      for (const entry of list) {
+        if ("wireframe" in entry) entry.wireframe = wireframe;
+      }
+    });
+  }, [loadedScene, wireframe]);
+
   async function exportModel(format: "stl" | "glb") {
-    if (!meshRef.current) return;
+    const source: THREE.Object3D | null = loadedScene ?? meshRef.current;
+    if (!source) return;
     try {
-      const mesh = meshRef.current.clone();
+      const target = source.clone();
       if (format === "stl") {
         const { STLExporter } = await import("three/examples/jsm/exporters/STLExporter.js");
-        const output = new STLExporter().parse(mesh, { binary: true }) as unknown as DataView;
+        const output = new STLExporter().parse(target, { binary: true }) as unknown as DataView;
         downloadBlob(new Blob([output as unknown as BlobPart], { type: "model/stl" }), "portrait.stl");
       } else {
         const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
-        const buffer = await new GLTFExporter().parseAsync(mesh, { binary: true });
+        const buffer = await new GLTFExporter().parseAsync(target, { binary: true });
         downloadBlob(new Blob([buffer as ArrayBuffer], { type: "model/gltf-binary" }), "portrait.glb");
       }
       toast.success(`${format.toUpperCase()} downloaded`);
@@ -117,6 +168,8 @@ export default function ModelStage({
       toast.error("Could not export the model");
     }
   }
+
+  const showProcedural = !isGeneratedFile || loadFailed;
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep">
@@ -132,15 +185,19 @@ export default function ModelStage({
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
         <Suspense fallback={null}>
           <Center>
-            <group>
-              <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
-                <meshStandardMaterial
-                  color={look.color}
-                  metalness={look.metalness}
-                  roughness={roughness}
-                  wireframe={wireframe}
-                />
-              </mesh>
+            <group ref={groupRef}>
+              {loadedScene ? (
+                <primitive object={loadedScene} />
+              ) : showProcedural ? (
+                <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+                  <meshStandardMaterial
+                    color={look.color}
+                    metalness={look.metalness}
+                    roughness={roughness}
+                    wireframe={wireframe}
+                  />
+                </mesh>
+              ) : null}
               {showBase ? (
                 <mesh position={[0, -1.22, 0]} receiveShadow>
                   <cylinderGeometry args={[0.95, 1.05, 0.22, 64]} />
@@ -153,6 +210,7 @@ export default function ModelStage({
         </Suspense>
         <OrbitControls enablePan minDistance={1.8} maxDistance={7} autoRotate autoRotateSpeed={0.6} />
       </Canvas>
+
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-3">
         <div className="pointer-events-auto flex gap-2">
