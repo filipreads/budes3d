@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import ModelStage from "@/components/studio/ModelStage";
 import { StudioProgress, type StageId, type StageState } from "@/components/studio/StudioProgress";
@@ -23,6 +23,7 @@ import {
   SIZES,
   formatPrice,
   quote,
+  sanitizeConfig,
   type StudioConfig,
 } from "@/lib/pricing";
 import { generateModel, getGenerationStatus, removeBackground } from "@/lib/studio.functions";
