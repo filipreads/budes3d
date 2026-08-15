@@ -11,6 +11,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 export type JobStage = "queued" | "preprocessing" | "sculpting" | "extracting" | "storing" | "ready" | "failed";
 
@@ -128,7 +129,8 @@ export const advanceGeneration = createServerFn({ method: "POST" })
     }
 
     const trellis = await import("./trellis.server");
-    const patch = async (fields: Parameters<ReturnType<typeof supabase.from<"projects">>["update"]>[0]) => {
+    type ProjectPatch = Database["public"]["Tables"]["projects"]["Update"];
+    const patch = async (fields: ProjectPatch) => {
       await supabase.from("projects").update(fields).eq("id", project.id).eq("user_id", userId);
     };
 
