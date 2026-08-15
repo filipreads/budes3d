@@ -213,6 +213,7 @@ const en = {
   "viewer.errorTitle": "The 3D model could not be loaded",
   "viewer.errorBody":
     "This file cannot be displayed, so please do not approve it. Try generating again or contact support.",
+  "viewer.retry": "Try loading again",
   "viewer.exportFailed": "Could not export the model",
 
   "invoice.title": "INVOICE",
@@ -486,6 +487,7 @@ const cs: Record<TranslationKey, string> = {
   "viewer.errorTitle": "3D model se nepodařilo načíst",
   "viewer.errorBody":
     "Soubor nelze zobrazit, proto jej neschvalujte. Zkuste generování spustit znovu nebo nás kontaktujte.",
+  "viewer.retry": "Zkusit načíst znovu",
   "viewer.exportFailed": "Model se nepodařilo exportovat",
 
   "invoice.title": "FAKTURA",
