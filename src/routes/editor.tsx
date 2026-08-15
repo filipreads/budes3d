@@ -26,7 +26,8 @@ import {
   sanitizeConfig,
   type StudioConfig,
 } from "@/lib/pricing";
-import { generateModel, getGenerationStatus, removeBackground } from "@/lib/studio.functions";
+import { removeBackground } from "@/lib/studio.functions";
+import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
 
 const STAGE_LABEL: Record<string, string> = {
   queued: "Waiting for a free GPU slot…",
@@ -190,25 +191,28 @@ function EditorPage() {
       setBusy(t("editor.busy.generate"));
       setProgress(50);
 
-      // TRELLIS runs for minutes: poll the project row so the studio progress
-      // bar reflects the real preprocess → sculpt → extract → store stages.
-      const poll = setInterval(() => {
-        void getGenerationStatus({ data: { projectId: project.id } })
-          .then((status) => {
-            if (typeof status.progress === "number" && status.progress > 0) setProgress(status.progress);
-            if (status.stage && status.stage !== "ready") setBusy(STAGE_LABEL[status.stage] ?? t("editor.busy.generate"));
-          })
-          .catch(() => undefined);
-      }, 3000);
+      // TRELLIS runs for minutes. The job is persisted server-side and driven
+      // one step at a time, so no single request has to stay open that long.
+      await startGeneration({ data: { projectId: project.id } });
 
-      try {
-        const result = await generateModel({ data: { projectId: project.id } });
-        setBusy(t("editor.busy.finalize"));
-        setProgress(100);
-        setModelRef(result.modelRef);
-      } finally {
-        clearInterval(poll);
+      let guard = 0;
+      let job = await getGenerationStatus({ data: { projectId: project.id } });
+      while (!job.done && guard < 40) {
+        guard += 1;
+        job = await advanceGeneration({ data: { projectId: project.id } });
+        setProgress(job.progress > 0 ? job.progress : null);
+        if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+        if (job.error && !job.retryable) break;
       }
+
+      if (job.stage !== "ready" || !job.modelRef) {
+        throw new Error(job.error ?? t("editor.toast.genFail"));
+      }
+
+      setBusy(t("editor.busy.finalize"));
+      setProgress(100);
+      setModelRef(job.modelRef);
+
       sessionStorage.setItem("relievo:project", project.id);
       setStep("preview");
       toast.success(t("editor.toast.ready"));

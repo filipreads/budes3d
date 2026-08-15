@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
-import { createOrder, confirmPayment } from "@/lib/studio.functions";
+import { createOrder, startPayment } from "@/lib/studio.functions";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -60,10 +60,14 @@ function CheckoutPage() {
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
-      await confirmPayment({ data: { orderId: order.orderId, locale } });
+      const payment = await startPayment({ data: { orderId: order.orderId, locale } });
       sessionStorage.removeItem("relievo:project");
+      if (payment.checkoutUrl) {
+        window.location.href = payment.checkoutUrl;
+        return;
+      }
       toast.success(t("checkout.confirmed", { number: order.orderNumber }));
-      toast.message(t("checkout.emailSent", { email }));
+      toast.warning(payment.message);
       void navigate({ to: "/account" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("checkout.failed"));

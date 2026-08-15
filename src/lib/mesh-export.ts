@@ -12,7 +12,12 @@ function saveBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function downloadModelFile(signedUrl: string, format: string, filename: string) {
+export async function downloadModelFile(
+  signedUrl: string,
+  format: string,
+  filename: string,
+  heightMm?: number,
+) {
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Could not fetch the model file");
   const buffer = await response.arrayBuffer();
@@ -27,6 +32,20 @@ export async function downloadModelFile(signedUrl: string, format: string, filen
     import("three/examples/jsm/exporters/STLExporter.js"),
   ]);
   const gltf = await new GLTFLoader().parseAsync(buffer, "");
+
+  // Slicers read STL as millimetres. The generated mesh is unit-less, so
+  // normalise it to the ordered print height before exporting.
+  if (heightMm && heightMm > 0) {
+    const { Box3, Vector3 } = await import("three");
+    const box = new Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new Vector3());
+    if (size.y > 0) {
+      const factor = heightMm / size.y;
+      gltf.scene.scale.setScalar(factor);
+      gltf.scene.updateMatrixWorld(true);
+    }
+  }
+
   const output = new STLExporter().parse(gltf.scene, { binary: true }) as unknown as BlobPart;
   saveBlob(new Blob([output], { type: "model/stl" }), filename);
 }

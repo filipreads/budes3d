@@ -11,6 +11,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 
 export type JobStage = "queued" | "preprocessing" | "sculpting" | "extracting" | "storing" | "ready" | "failed";
 
@@ -128,7 +129,8 @@ export const advanceGeneration = createServerFn({ method: "POST" })
     }
 
     const trellis = await import("./trellis.server");
-    const patch = async (fields: Record<string, unknown>) => {
+    type ProjectPatch = Database["public"]["Tables"]["projects"]["Update"];
+    const patch = async (fields: ProjectPatch) => {
       await supabase.from("projects").update(fields).eq("id", project.id).eq("user_id", userId);
     };
 
@@ -165,7 +167,7 @@ export const advanceGeneration = createServerFn({ method: "POST" })
         const sessionHash = project.session_hash;
         const preparedRaw = project.provider_job_id;
         if (!sessionHash || !preparedRaw) throw new Error("Generation state was lost — start the job again");
-        const prepared = JSON.parse(preparedRaw) as trellis.GradioFile;
+        const prepared = JSON.parse(preparedRaw) as import("./trellis.server").GradioFile;
 
         await trellis.imageTo3d(prepared, project.id, sessionHash, async (fraction, message) => {
           await patch({

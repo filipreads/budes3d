@@ -34,6 +34,7 @@ export default function ModelStage({
   const [warmLight, setWarmLight] = useState(true);
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -71,7 +72,7 @@ export default function ModelStage({
     return () => {
       cancelled = true;
     };
-  }, [modelRef, modelUrl, hasFile]);
+  }, [modelRef, modelUrl, hasFile, attempt]);
 
   useEffect(() => {
     if (!loadedScene) return;
@@ -146,6 +147,9 @@ export default function ModelStage({
           <AlertTriangle className="size-6 text-destructive" aria-hidden />
           <p className="font-display text-lg text-background">{t("viewer.errorTitle")}</p>
           <p className="max-w-sm text-sm text-muted-foreground">{t("viewer.errorBody")}</p>
+          <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAttempt((n) => n + 1)}>
+            {t("viewer.retry")}
+          </Button>
         </div>
       ) : !loadedScene ? (
         <div className="absolute inset-0 flex items-center justify-center bg-stone-deep/80">

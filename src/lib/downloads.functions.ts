@@ -19,7 +19,7 @@ export const listOrderDownloads = createServerFn({ method: "POST" })
 
     const { data: order } = await supabase
       .from("orders")
-      .select("id, payment_status")
+      .select("id, payment_status, config_snapshot")
       .eq("id", data.orderId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -61,7 +61,7 @@ export const getOrderDownloadUrl = createServerFn({ method: "POST" })
 
     const { data: order } = await supabase
       .from("orders")
-      .select("id, payment_status, order_number")
+      .select("id, payment_status, order_number, config_snapshot")
       .eq("id", row.order_id)
       .eq("user_id", userId)
       .maybeSingle();
@@ -72,9 +72,16 @@ export const getOrderDownloadUrl = createServerFn({ method: "POST" })
       .createSignedUrl(String(row.storage_path), 60 * 10);
     if (error || !signed?.signedUrl) throw new Error("Could not prepare that download");
 
+    // STL is a print file: it must come out at the physical height the customer
+    // ordered, so the browser scales the mesh with this value (millimetres).
+    const snapshot = (order.config_snapshot ?? {}) as { sizeId?: string };
+    const heights: Record<string, number> = { s: 100, m: 150, l: 220, xl: 300 };
+    const heightMm = heights[String(snapshot.sizeId ?? "m")] ?? 150;
+
     return {
       url: signed.signedUrl,
       format: row.file_format,
       filename: `${order.order_number}.${row.file_format}`,
+      heightMm,
     };
   });

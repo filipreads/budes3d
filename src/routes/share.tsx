@@ -82,7 +82,7 @@ function SharePage() {
             <div className="mt-5 h-[480px]">
               <Suspense fallback={<div className="h-full w-full rounded-lg border border-border bg-muted" />}>
                 <ModelStage
-                  modelRef={preview?.orderNumber ?? "sample://shared"}
+                  modelRef=""
                   modelUrl={preview?.modelUrl ?? null}
                   materialId="resin"
                   finishId="satin"
