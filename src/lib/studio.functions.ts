@@ -3,146 +3,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { quote, sanitizeConfig, type StudioConfig } from "./pricing";
 import type { Json } from "@/integrations/supabase/types";
 
-type GenerateInput = { projectId: string };
-
-/**
- * Trellis adapter boundary.
- * Today this runs the built-in sample generator. Swapping in a hosted
- * Trellis 2 endpoint (fal.ai / Replicate / self-hosted) means changing only
- * `runTrellis` in trellis.server.ts — no schema or UI changes.
- */
-export const generateModel = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: GenerateInput) => {
-    if (!input?.projectId) throw new Error("projectId required");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-
-    const { data: project, error } = await supabase
-      .from("projects")
-      .select("id, source_photos, edit_settings, config")
-      .eq("id", data.projectId)
-      .eq("user_id", userId)
-      .single();
-    if (error || !project) throw new Error("Project not found");
-
-    const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
-    const sourcePath = photos[0];
-    if (!sourcePath) throw new Error("Upload a photo before generating");
-
-    await supabase
-      .from("projects")
-      .update({
-        status: "generating",
-        generation_error: null,
-        generation_stage: "queued",
-        generation_progress: 5,
-        generation_started_at: new Date().toISOString(),
-        preview_video_url: null,
-      })
-      .eq("id", project.id);
-
-    // The Space needs a publicly fetchable image; a short-lived signed URL
-    // keeps the private bucket private.
-    const { data: signed, error: signError } = await supabase.storage
-      .from("portrait-uploads")
-      .createSignedUrl(sourcePath, 60 * 30);
-    if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
-
-    const { runTrellis } = await import("./trellis.server");
-    try {
-      const result = await runTrellis({
-        imageUrl: signed.signedUrl,
-        seedKey: `${project.id}`,
-        onProgress: async (update) => {
-          await supabase
-            .from("projects")
-            .update({ generation_stage: update.stage, generation_progress: update.progress })
-            .eq("id", project.id)
-            .eq("user_id", userId);
-        },
-      });
-
-      await supabase
-        .from("projects")
-        .update({
-          generation_stage: "storing",
-          generation_progress: 92,
-          preview_video_url: result.previewVideoUrl,
-          session_hash: result.sessionHash,
-        })
-        .eq("id", project.id)
-        .eq("user_id", userId);
-
-      // Persist the mesh in our own private bucket — the provider copy is temporary.
-      const glbResponse = await fetch(result.glbUrl);
-      if (!glbResponse.ok) throw new Error("Could not download the generated model");
-      const glbBytes = new Uint8Array(await glbResponse.arrayBuffer());
-      const storagePath = `${userId}/${project.id}.glb`;
-      const upload = await supabase.storage.from("portrait-models").upload(storagePath, glbBytes, {
-        contentType: "model/gltf-binary",
-        upsert: true,
-      });
-      if (upload.error) throw new Error(upload.error.message);
-
-      const { error: updateError } = await supabase
-        .from("projects")
-        .update({
-          status: "ready",
-          model_url: storagePath,
-          model_provider: result.provider,
-          generation_error: null,
-          generation_stage: "ready",
-          generation_progress: 100,
-        })
-        .eq("id", project.id)
-        .eq("user_id", userId);
-      if (updateError) throw new Error(updateError.message);
-
-      return { modelRef: storagePath, provider: result.provider, previewVideoUrl: result.previewVideoUrl };
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Generation failed";
-      await supabase
-        .from("projects")
-        .update({
-          status: "failed",
-          generation_error: message,
-          generation_stage: "failed",
-          generation_progress: 0,
-        })
-        .eq("id", project.id);
-      throw new Error(message);
-    }
-  });
-
-/** Lightweight poll target that drives the Studio progress UI while a job runs. */
-export const getGenerationStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { projectId: string }) => {
-    if (!input?.projectId) throw new Error("projectId required");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: project } = await supabase
-      .from("projects")
-      .select("status, generation_stage, generation_progress, generation_error, model_url, preview_video_url")
-      .eq("id", data.projectId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!project) throw new Error("Project not found");
-    return {
-      status: project.status,
-      stage: project.generation_stage ?? "queued",
-      progress: project.generation_progress ?? 0,
-      error: project.generation_error,
-      modelRef: project.model_url,
-      previewVideoUrl: project.preview_video_url,
-    };
-  });
-
 /** Signed URL for a stored model file, used by the 3D viewer. */
 export const getModelUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -257,7 +117,12 @@ export const createOrder = createServerFn({ method: "POST" })
     return { orderId: order.id, orderNumber: order.order_number, totalCents: order.total_cents };
   });
 
-export const confirmPayment = createServerFn({ method: "POST" })
+/**
+ * Payment boundary. No payment provider is configured yet (no Stripe secret),
+ * so nothing in the app may mark an order as paid. The order stays `pending`
+ * and the customer is told payment is not available — never a fake receipt.
+ */
+export const startPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { orderId: string; locale?: "en" | "cs" }) => {
     if (!input?.orderId) throw new Error("orderId required");
@@ -265,35 +130,31 @@ export const confirmPayment = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("orders")
-      .update({ payment_status: "paid", fulfilment_status: "in_production" })
-      .eq("id", data.orderId)
-      .eq("user_id", userId);
-    if (error) throw new Error(error.message);
 
     const { data: order } = await supabase
       .from("orders")
-      .select("id, order_number, delivery_type, total_cents, payment_status, fulfilment_status, contact_email")
+      .select("id, order_number, payment_status")
       .eq("id", data.orderId)
-      .single();
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!order) throw new Error("Order not found");
 
-    if (order?.contact_email) {
-      const { sendOrderEmail } = await import("./email.server");
-      await sendOrderEmail({
-        orderId: order.id,
-        toEmail: order.contact_email,
-        locale: data.locale === "cs" ? "cs" : "en",
-        template: "status",
+    const secret = process.env["STRIPE_SECRET_KEY"];
+    if (!secret) {
+      // Explicit, honest state: the order exists and is unpaid.
+      return {
+        status: "unconfigured" as const,
         orderNumber: order.order_number,
-        deliveryType: order.delivery_type,
-        totalCents: order.total_cents,
-        paymentStatus: order.payment_status,
-        fulfilmentStatus: order.fulfilment_status,
-      });
+        checkoutUrl: null,
+        message:
+          "Online payment is not switched on yet. Your order is saved as unpaid — our team will contact you with payment details.",
+      };
     }
 
-    return { ok: true };
+    // Integration point: create a Stripe Checkout Session here and return its
+    // URL. `payment_status` must only ever be set to `paid` by the verified
+    // Stripe webhook route, never by this function or by the browser.
+    throw new Error("Stripe checkout is not wired up yet");
   });
 
 export const removeBackground = createServerFn({ method: "POST" })

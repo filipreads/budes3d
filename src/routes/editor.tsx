@@ -26,7 +26,8 @@ import {
   sanitizeConfig,
   type StudioConfig,
 } from "@/lib/pricing";
-import { generateModel, getGenerationStatus, removeBackground } from "@/lib/studio.functions";
+import { removeBackground } from "@/lib/studio.functions";
+import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
 
 const STAGE_LABEL: Record<string, string> = {
   queued: "Waiting for a free GPU slot…",
