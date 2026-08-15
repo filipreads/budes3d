@@ -58,7 +58,7 @@ function AccountPage() {
     setPreparing(entry.id);
     try {
       const file = await getOrderDownloadUrl({ data: { downloadId: entry.id } });
-      await downloadModelFile(file.url, file.format, file.filename);
+      await downloadModelFile(file.url, file.format, file.filename, file.heightMm);
     } catch {
       toast.error(t("account.downloadFailed"));
     } finally {
