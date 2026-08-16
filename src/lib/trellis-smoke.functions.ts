@@ -12,7 +12,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type SmokeStep = "session" | "sculpt" | "extract";
 
-export type SmokeState = { sessionHash?: string; prepared?: unknown };
+export type SmokeState = { sessionHash?: string | undefined; prepared?: string | undefined };
 
 export type SmokeResult = {
   ok: boolean;
@@ -34,7 +34,7 @@ const CANDIDATE_IMAGES = [
 const smokeInput = z.object({
   step: z.enum(["session", "sculpt", "extract"]),
   imageUrl: z.string().url().optional(),
-  state: z.object({ sessionHash: z.string().optional(), prepared: z.unknown().optional() }).optional(),
+  state: z.object({ sessionHash: z.string().optional(), prepared: z.string().optional() }).optional(),
 });
 
 export const runTrellisSmokeStep = createServerFn({ method: "POST" })
@@ -104,7 +104,7 @@ export const runTrellisSmokeStep = createServerFn({ method: "POST" })
         log(`upload OK → ${uploaded.path}`);
 
         const prepared = await trellis.preprocessImage(uploaded, sessionHash);
-        state.prepared = prepared;
+        state.prepared = JSON.stringify(prepared);
         log("preprocess_image OK");
 
         return {
@@ -124,7 +124,7 @@ export const runTrellisSmokeStep = createServerFn({ method: "POST" })
         if (!state.sessionHash || !state.prepared) throw new Error("Run step 1 first");
         log("image_to_3d started (GPU) …");
         await trellis.imageTo3d(
-          state.prepared as import("./trellis.server").GradioFile,
+          JSON.parse(state.prepared) as import("./trellis.server").GradioFile,
           "smoketest",
           state.sessionHash,
           (fraction, message) => {
