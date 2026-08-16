@@ -273,6 +273,12 @@ const en = {
   "contact.sent": "Thanks — your message is on its way.",
   "contact.direct": "Prefer email? Write to hello@relievo.studio.",
   "contact.support": "Support hours: Mon–Fri, 9–17 CET.",
+  "dash.title": "Generation dashboard",
+  "dash.subtitle": "Live stage, progress and error details for every reconstruction.",
+  "dash.refresh": "Refresh",
+  "dash.orders": "Orders",
+  "dash.signIn": "Sign in to see your generation dashboard.",
+  "nav.dashboard": "Dashboard",
 } as const;
 
 
@@ -547,6 +553,12 @@ const cs: Record<TranslationKey, string> = {
   "contact.sent": "Děkujeme — zpráva byla odeslána.",
   "contact.direct": "Raději e-mailem? Pište na hello@relievo.studio.",
   "contact.support": "Podpora: Po–Pá, 9–17 SEČ.",
+  "dash.title": "Přehled generování",
+  "dash.subtitle": "Aktuální fáze, průběh a detaily chyb pro každou rekonstrukci.",
+  "dash.refresh": "Obnovit",
+  "dash.orders": "Objednávky",
+  "dash.signIn": "Přihlaste se pro zobrazení přehledu generování.",
+  "nav.dashboard": "Přehled",
 };
 
 

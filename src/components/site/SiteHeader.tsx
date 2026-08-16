@@ -76,6 +76,9 @@ export function SiteHeader() {
               <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground">
                 {t("nav.projects")}
               </Link>
+              <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+                {t("nav.dashboard")}
+              </Link>
               <Link to="/account" className="text-sm text-muted-foreground hover:text-foreground">
                 {t("nav.account")}
               </Link>
@@ -125,6 +128,9 @@ export function SiteHeader() {
               <>
                 <Link to="/projects" onClick={() => setOpen(false)} className="text-sm">
                   {t("nav.projects")}
+                </Link>
+                <Link to="/dashboard" onClick={() => setOpen(false)} className="text-sm">
+                  {t("nav.dashboard")}
                 </Link>
                 <Link to="/account" onClick={() => setOpen(false)} className="text-sm">
                   {t("nav.account")}
