@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -264,7 +285,9 @@ export type Database = {
           created_at: string
           edit_settings: Json
           generation_error: string | null
+          generation_plan: string | null
           generation_progress: number
+          generation_seconds: number | null
           generation_stage: string | null
           generation_started_at: string | null
           id: string
@@ -286,7 +309,9 @@ export type Database = {
           created_at?: string
           edit_settings?: Json
           generation_error?: string | null
+          generation_plan?: string | null
           generation_progress?: number
+          generation_seconds?: number | null
           generation_stage?: string | null
           generation_started_at?: string | null
           id?: string
@@ -308,7 +333,9 @@ export type Database = {
           created_at?: string
           edit_settings?: Json
           generation_error?: string | null
+          generation_plan?: string | null
           generation_progress?: number
+          generation_seconds?: number | null
           generation_stage?: string | null
           generation_started_at?: string | null
           id?: string

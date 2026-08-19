@@ -109,7 +109,9 @@ export const advanceGeneration = createServerFn({ method: "POST" })
 
     const { data: project, error } = await supabase
       .from("projects")
-      .select("id, source_photos, generation_stage, session_hash, provider_job_id, model_url, status")
+      .select(
+        "id, source_photos, generation_stage, session_hash, provider_job_id, model_url, status, generation_started_at",
+      )
       .eq("id", data.projectId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -204,6 +206,12 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       });
       if (upload.error) throw new Error(upload.error.message);
 
+      const startedAt = project.generation_started_at ? Date.parse(project.generation_started_at) : NaN;
+      const seconds = Number.isFinite(startedAt)
+        ? Math.max(1, Math.min(1800, Math.round((Date.now() - startedAt) / 1000)))
+        : null;
+      const { currentPlan } = await import("./quota.server");
+
       await patch({
         status: "ready",
         model_url: storagePath,
@@ -211,6 +219,8 @@ export const advanceGeneration = createServerFn({ method: "POST" })
         generation_stage: "ready",
         generation_progress: 100,
         generation_error: null,
+        generation_seconds: seconds,
+        generation_plan: await currentPlan(),
       });
 
       return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
@@ -220,17 +230,23 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       const transient = cause instanceof trellis.TrellisTransientError;
       const retryable = transient && !quota;
 
+      // A quota ceiling is not a broken project — it is a job waiting for GPU
+      // time, so it is parked as `quota_blocked` instead of `failed`.
       await patch({
         generation_error: message,
-        ...(retryable ? {} : { generation_stage: "failed", status: "failed", generation_progress: 0 }),
+        ...(quota
+          ? { generation_stage: "queued", status: "quota_blocked", generation_progress: 0 }
+          : retryable
+            ? {}
+            : { generation_stage: "failed", status: "failed", generation_progress: 0 }),
       });
 
       return {
-        stage: retryable ? stage : "failed",
+        stage: quota ? "queued" : retryable ? stage : "failed",
         progress: 0,
-        status: retryable ? "generating" : "failed",
+        status: quota ? "quota_blocked" : retryable ? "generating" : "failed",
         error: message,
-        retryable,
+        retryable: retryable || quota,
         modelRef: null,
         done: !retryable,
       };
