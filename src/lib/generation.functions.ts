@@ -109,7 +109,9 @@ export const advanceGeneration = createServerFn({ method: "POST" })
 
     const { data: project, error } = await supabase
       .from("projects")
-      .select("id, source_photos, generation_stage, session_hash, provider_job_id, model_url, status")
+      .select(
+        "id, source_photos, generation_stage, session_hash, provider_job_id, model_url, status, generation_started_at",
+      )
       .eq("id", data.projectId)
       .eq("user_id", userId)
       .maybeSingle();
