@@ -188,7 +188,11 @@ function DashboardPage() {
                     </ol>
 
                     {row.generation_error ? (
-                      <p className="mt-3 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      <p
+                        className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
+                          quotaBlocked ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"
+                        }`}
+                      >
                         <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                         <span className="break-words">{row.generation_error}</span>
                       </p>
