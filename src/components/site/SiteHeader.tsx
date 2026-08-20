@@ -83,9 +83,14 @@ export function SiteHeader() {
                 {t("nav.account")}
               </Link>
               {admin ? (
-                <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
-                  {t("nav.admin")}
-                </Link>
+                <>
+                  <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
+                    {t("nav.admin")}
+                  </Link>
+                  <Link to="/admin-quota" className="text-sm text-muted-foreground hover:text-foreground">
+                    {t("nav.quota")}
+                  </Link>
+                </>
               ) : null}
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>
                 {t("nav.signout")}
