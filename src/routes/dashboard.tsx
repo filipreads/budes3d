@@ -145,8 +145,12 @@ function DashboardPage() {
                           {t("projects.created")}: {new Date(row.created_at).toLocaleString()}
                         </p>
                       </div>
-                      <Badge variant={failed ? "destructive" : row.status === "ready" ? "default" : "secondary"}>
-                        {row.status}
+                      <Badge
+                        variant={
+                          failed ? "destructive" : quotaBlocked ? "outline" : row.status === "ready" ? "default" : "secondary"
+                        }
+                      >
+                        {quotaBlocked ? t("quota.blocked") : row.status}
                       </Badge>
                     </div>
 
