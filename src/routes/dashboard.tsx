@@ -132,7 +132,9 @@ function DashboardPage() {
               const stage = row.generation_stage ?? (row.model_url ? "ready" : "queued");
               const pct = row.generation_progress ?? (row.model_url ? 100 : 0);
               const linked = orders.filter((order) => order.project_id === row.id);
-              const failed = row.status === "failed" || stage === "failed";
+              const quotaBlocked =
+                row.status === "quota_blocked" || (!!row.generation_error && /quota/i.test(row.generation_error));
+              const failed = !quotaBlocked && (row.status === "failed" || stage === "failed");
               return (
                 <Card key={row.id}>
                   <CardContent className="p-5">
