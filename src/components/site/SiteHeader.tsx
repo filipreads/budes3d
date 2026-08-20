@@ -83,9 +83,14 @@ export function SiteHeader() {
                 {t("nav.account")}
               </Link>
               {admin ? (
-                <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
-                  {t("nav.admin")}
-                </Link>
+                <>
+                  <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
+                    {t("nav.admin")}
+                  </Link>
+                  <Link to="/admin-quota" className="text-sm text-muted-foreground hover:text-foreground">
+                    {t("nav.quota")}
+                  </Link>
+                </>
               ) : null}
               <Button variant="ghost" size="sm" onClick={() => void signOut()}>
                 {t("nav.signout")}
@@ -136,9 +141,14 @@ export function SiteHeader() {
                   {t("nav.account")}
                 </Link>
                 {admin ? (
-                  <Link to="/admin" onClick={() => setOpen(false)} className="text-sm">
-                    {t("nav.admin")}
-                  </Link>
+                  <>
+                    <Link to="/admin" onClick={() => setOpen(false)} className="text-sm">
+                      {t("nav.admin")}
+                    </Link>
+                    <Link to="/admin-quota" onClick={() => setOpen(false)} className="text-sm">
+                      {t("nav.quota")}
+                    </Link>
+                  </>
                 ) : null}
                 <button className="text-left text-sm text-muted-foreground" onClick={() => void signOut()}>
                   {t("nav.signout")}

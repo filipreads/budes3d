@@ -132,7 +132,9 @@ function DashboardPage() {
               const stage = row.generation_stage ?? (row.model_url ? "ready" : "queued");
               const pct = row.generation_progress ?? (row.model_url ? 100 : 0);
               const linked = orders.filter((order) => order.project_id === row.id);
-              const failed = row.status === "failed" || stage === "failed";
+              const quotaBlocked =
+                row.status === "quota_blocked" || (!!row.generation_error && /quota/i.test(row.generation_error));
+              const failed = !quotaBlocked && (row.status === "failed" || stage === "failed");
               return (
                 <Card key={row.id}>
                   <CardContent className="p-5">
@@ -143,8 +145,12 @@ function DashboardPage() {
                           {t("projects.created")}: {new Date(row.created_at).toLocaleString()}
                         </p>
                       </div>
-                      <Badge variant={failed ? "destructive" : row.status === "ready" ? "default" : "secondary"}>
-                        {row.status}
+                      <Badge
+                        variant={
+                          failed ? "destructive" : quotaBlocked ? "outline" : row.status === "ready" ? "default" : "secondary"
+                        }
+                      >
+                        {quotaBlocked ? t("quota.blocked") : row.status}
                       </Badge>
                     </div>
 
@@ -186,7 +192,11 @@ function DashboardPage() {
                     </ol>
 
                     {row.generation_error ? (
-                      <p className="mt-3 flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                      <p
+                        className={`mt-3 flex items-start gap-2 rounded-md p-3 text-sm ${
+                          quotaBlocked ? "bg-muted text-muted-foreground" : "bg-destructive/10 text-destructive"
+                        }`}
+                      >
                         <TriangleAlert className="mt-0.5 size-4 shrink-0" />
                         <span className="break-words">{row.generation_error}</span>
                       </p>
