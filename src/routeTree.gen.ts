@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminQuotaRouteImport } from './routes/admin-quota'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout-return'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditorRouteImport } from './routes/editor'
@@ -23,6 +24,7 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as TrellisTestRouteImport } from './routes/trellis-test'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +54,11 @@ const AuthRoute = AuthRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout-return',
+  path: '/checkout-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -94,6 +101,12 @@ const TrellisTestRoute = TrellisTestRouteImport.update({
   path: '/trellis-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -110,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +133,7 @@ export interface FileRoutesByTo {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -126,6 +142,7 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,6 +152,7 @@ export interface FileRoutesById {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -143,6 +161,7 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -153,6 +172,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -161,6 +181,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -169,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -177,6 +199,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
@@ -185,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -193,6 +217,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -202,6 +227,7 @@ export interface RootRouteChildren {
   AdminQuotaRoute: typeof AdminQuotaRoute
   AuthRoute: typeof AuthRoute
   CheckoutRoute: typeof CheckoutRoute
+  CheckoutReturnRoute: typeof CheckoutReturnRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   EditorRoute: typeof EditorRoute
@@ -210,6 +236,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   ShareRoute: typeof ShareRoute
   TrellisTestRoute: typeof TrellisTestRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -254,6 +281,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout-return': {
+      id: '/checkout-return'
+      path: '/checkout-return'
+      fullPath: '/checkout-return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -312,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrellisTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -322,6 +363,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminQuotaRoute: AdminQuotaRoute,
   AuthRoute: AuthRoute,
   CheckoutRoute: CheckoutRoute,
+  CheckoutReturnRoute: CheckoutReturnRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   EditorRoute: EditorRoute,
@@ -330,6 +372,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   ShareRoute: ShareRoute,
   TrellisTestRoute: TrellisTestRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
