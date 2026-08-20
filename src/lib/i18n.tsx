@@ -573,6 +573,20 @@ const cs: Record<TranslationKey, string> = {
   "dash.orders": "Objednávky",
   "dash.signIn": "Přihlaste se pro zobrazení přehledu generování.",
   "nav.dashboard": "Přehled",
+  "nav.quota": "GPU kvóta",
+  "quota.title": "Kvóta TRELLIS.2",
+  "quota.subtitle": "Zbývající kvóta ZeroGPU, přepínání plánu a kompletní historie generování.",
+  "quota.plan": "Plán",
+  "quota.free": "Free",
+  "quota.pro": "PRO",
+  "quota.remaining": "Zbývající kvóta (24 h)",
+  "quota.used": "Využito",
+  "quota.runs": "Generování",
+  "quota.blocked": "Čeká na kvótu",
+  "quota.history": "Historie generování",
+  "quota.hfAccount": "Účet enginu",
+  "quota.switched": "Plán aktualizován",
+  "quota.switchedRequeued": "Plán aktualizován — {count} projekt(ů) vráceno do fronty",
 };
 
 
