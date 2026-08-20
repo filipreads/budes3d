@@ -279,6 +279,20 @@ const en = {
   "dash.orders": "Orders",
   "dash.signIn": "Sign in to see your generation dashboard.",
   "nav.dashboard": "Dashboard",
+  "nav.quota": "GPU quota",
+  "quota.title": "TRELLIS.2 quota",
+  "quota.subtitle": "Remaining ZeroGPU budget, plan switch and full generation history.",
+  "quota.plan": "Plan",
+  "quota.free": "Free",
+  "quota.pro": "PRO",
+  "quota.remaining": "Remaining quota (24h)",
+  "quota.used": "Used",
+  "quota.runs": "Runs",
+  "quota.blocked": "Waiting for quota",
+  "quota.history": "Generation history",
+  "quota.hfAccount": "Engine account",
+  "quota.switched": "Plan updated",
+  "quota.switchedRequeued": "Plan updated — {count} project(s) put back in the queue",
 } as const;
 
 
