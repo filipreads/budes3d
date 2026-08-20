@@ -15,6 +15,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminQuotaRouteImport } from './routes/admin-quota'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout-return'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditorRouteImport } from './routes/editor'
@@ -53,6 +54,11 @@ const AuthRoute = AuthRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout-return',
+  path: '/checkout-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
   '/checkout': typeof CheckoutRoute
+  '/checkout-return': typeof CheckoutReturnRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/admin-quota'
     | '/auth'
     | '/checkout'
+    | '/checkout-return'
     | '/contact'
     | '/dashboard'
     | '/editor'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   AdminQuotaRoute: typeof AdminQuotaRoute
   AuthRoute: typeof AuthRoute
   CheckoutRoute: typeof CheckoutRoute
+  CheckoutReturnRoute: typeof CheckoutReturnRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
   EditorRoute: typeof EditorRoute
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout-return': {
+      id: '/checkout-return'
+      path: '/checkout-return'
+      fullPath: '/checkout-return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -343,6 +363,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminQuotaRoute: AdminQuotaRoute,
   AuthRoute: AuthRoute,
   CheckoutRoute: CheckoutRoute,
+  CheckoutReturnRoute: CheckoutReturnRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
   EditorRoute: EditorRoute,
