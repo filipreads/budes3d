@@ -413,7 +413,14 @@ function EditorPage() {
         ) : null}
 
         <div className="mt-5">
-          <StudioProgress states={stageStates} message={busy} progress={progress} error={failure} />
+          <StudioProgress
+            states={stageStates}
+            message={busy}
+            progress={progress}
+            error={failure}
+            startedAt={startedAt}
+          />
+
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
