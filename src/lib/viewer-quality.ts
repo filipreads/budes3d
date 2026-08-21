@@ -1,6 +1,20 @@
 export type ViewerQuality = "high" | "low";
+/** What the customer picked: "auto" defers to device detection. */
+export type ViewerQualityPreference = "auto" | ViewerQuality;
 
 const STORAGE_KEY = "relievo:viewer-quality";
+
+/** Reads the manual preference the customer stored (defaults to automatic). */
+export function getViewerQualityPreference(): ViewerQualityPreference {
+  if (typeof window === "undefined") return "auto";
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored === "low" || stored === "high" || stored === "auto") return stored;
+  } catch {
+    /* private mode */
+  }
+  return "auto";
+}
 
 /**
  * Picks a sensible default for the 3D stage. Phones, low-core or low-memory
@@ -9,9 +23,6 @@ const STORAGE_KEY = "relievo:viewer-quality";
  */
 export function detectViewerQuality(): ViewerQuality {
   if (typeof window === "undefined") return "high";
-
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "low" || stored === "high") return stored;
 
   const nav = navigator as Navigator & { deviceMemory?: number; hardwareConcurrency?: number };
   const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
@@ -23,13 +34,22 @@ export function detectViewerQuality(): ViewerQuality {
   return (coarse && narrow) || lowMemory || fewCores || reducedMotion ? "low" : "high";
 }
 
-export function rememberViewerQuality(quality: ViewerQuality): void {
+/** The preset actually used: the manual choice, or detection when set to auto. */
+export function resolveViewerQuality(preference = getViewerQualityPreference()): ViewerQuality {
+  return preference === "auto" ? detectViewerQuality() : preference;
+}
+
+export const VIEWER_QUALITY_EVENT = "relievo:viewer-quality-changed";
+
+export function rememberViewerQuality(preference: ViewerQualityPreference): void {
   try {
-    window.localStorage.setItem(STORAGE_KEY, quality);
+    window.localStorage.setItem(STORAGE_KEY, preference);
+    window.dispatchEvent(new CustomEvent(VIEWER_QUALITY_EVENT));
   } catch {
     /* private mode — the preset just won't persist */
   }
 }
+
 
 /** Renderer settings per preset. */
 export const QUALITY_SETTINGS: Record<ViewerQuality, {
