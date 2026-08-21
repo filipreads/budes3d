@@ -92,6 +92,8 @@ function EditorPage() {
   const [quality, setQuality] = useState<QualityReport | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [readPercent, setReadPercent] = useState<number | null>(null);
+
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
   const [offline, setOffline] = useState(false);
   const cancelRef = useRef(false);
