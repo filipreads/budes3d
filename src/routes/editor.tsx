@@ -710,10 +710,28 @@ function EditorPage() {
                     </div>
                   ))}
                 </div>
+                <div className="mt-2 space-y-0.5 border-t border-border pt-2">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">{t("editor.subtotal")}</span>
+                    <span>{formatPrice(priced.subtotalCents)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">{t("editor.shipping")}</span>
+                    <span>
+                      {priced.shippingCents ? formatPrice(priced.shippingCents) : t("editor.shippingFree")}
+                    </span>
+                  </div>
+                </div>
                 <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
                   <span>{t("editor.total")}</span>
                   <span>{formatPrice(priced.totalCents)}</span>
                 </div>
+                {config.quantity > 1 ? (
+                  <p className="mt-1 text-right text-xs text-muted-foreground">
+                    {formatPrice(Math.round(priced.subtotalCents / config.quantity))} {t("editor.perUnit")}
+                  </p>
+                ) : null}
+
               </CardContent>
             </Card>
           ) : null}
