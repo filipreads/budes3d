@@ -17,6 +17,7 @@ export async function downloadModelFile(
   format: string,
   filename: string,
   heightMm?: number,
+  placement?: { yaw: number; tilt: number; scale: number },
 ) {
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Could not fetch the model file");
@@ -32,6 +33,12 @@ export async function downloadModelFile(
     import("three/examples/jsm/exporters/STLExporter.js"),
   ]);
   const gltf = await new GLTFLoader().parseAsync(buffer, "");
+
+  // Bake the orientation the customer approved in the studio into the mesh.
+  if (placement) {
+    gltf.scene.rotation.set((placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0);
+    gltf.scene.updateMatrixWorld(true);
+  }
 
   // Slicers read STL as millimetres. The generated mesh is unit-less, so
   // normalise it to the ordered print height before exporting.

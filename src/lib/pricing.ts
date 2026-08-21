@@ -31,6 +31,19 @@ export const ENGRAVING_CENTS = 1500;
 export const RUSH_RATE = 0.3;
 export const SHIPPING_CENTS = 1200;
 
+export type Placement = {
+  /** Rotation around the vertical axis, degrees. */
+  yaw: number;
+  /** Forward/back tilt, degrees. */
+  tilt: number;
+  /** Vertical offset relative to the plinth, in scene units. */
+  lift: number;
+  /** Relative scale against the auto-fitted size. */
+  scale: number;
+};
+
+export const DEFAULT_PLACEMENT: Placement = { yaw: 0, tilt: 0, lift: 0, scale: 1 };
+
 export type StudioConfig = {
   delivery: DeliveryType;
   sizeId: (typeof SIZES)[number]["id"];
@@ -40,6 +53,7 @@ export type StudioConfig = {
   engraving: string;
   rush: boolean;
   quantity: number;
+  placement: Placement;
 };
 
 export const DEFAULT_CONFIG: StudioConfig = {
@@ -51,6 +65,7 @@ export const DEFAULT_CONFIG: StudioConfig = {
   engraving: "",
   rush: false,
   quantity: 1,
+  placement: DEFAULT_PLACEMENT,
 };
 
 export type LineItem = { label: string; cents: number };
@@ -115,6 +130,22 @@ export function formatPrice(cents: number, currency = "USD") {
   );
 }
 
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(Math.max(num, min), max);
+}
+
+export function sanitizePlacement(input: unknown): Placement {
+  const raw = (input ?? {}) as Partial<Placement>;
+  return {
+    yaw: clampNumber(raw.yaw, -180, 180, 0),
+    tilt: clampNumber(raw.tilt, -30, 30, 0),
+    lift: clampNumber(raw.lift, -0.5, 0.5, 0),
+    scale: clampNumber(raw.scale, 0.6, 1.6, 1),
+  };
+}
+
 export function sanitizeConfig(input: unknown): StudioConfig {
   const raw = (input ?? {}) as Partial<StudioConfig>;
   return {
@@ -126,5 +157,6 @@ export function sanitizeConfig(input: unknown): StudioConfig {
     engraving: String(raw.engraving ?? "").slice(0, 40),
     rush: Boolean(raw.rush),
     quantity: Math.min(Math.max(Math.round(Number(raw.quantity) || 1), 1), 25),
+    placement: sanitizePlacement(raw.placement),
   };
 }

@@ -7,6 +7,20 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { deleteProject } from "@/lib/studio.functions";
+import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/projects")({
   head: () => ({
@@ -35,6 +49,8 @@ export default function ProjectsPage() {
   const { user, loading } = useAuth();
   const { t } = useI18n();
   const [projects, setProjects] = useState<ProjectRow[]>([]);
+  const [orderedProjects, setOrderedProjects] = useState<Record<string, string>>({});
+  const [removing, setRemoving] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -43,7 +59,35 @@ export default function ProjectsPage() {
       .select("id, title, status, model_url, created_at")
       .order("created_at", { ascending: false })
       .then(({ data }) => setProjects((data ?? []) as ProjectRow[]));
+
+    void supabase
+      .from("orders")
+      .select("order_number, project_id")
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        for (const order of data ?? []) {
+          if (order.project_id) map[order.project_id] = order.order_number;
+        }
+        setOrderedProjects(map);
+      });
   }, [user]);
+
+  async function onDelete(projectId: string) {
+    setRemoving(projectId);
+    try {
+      const result = await deleteProject({ data: { projectId } });
+      if (!result.deleted) {
+        toast.error(t("projects.deleteBlocked").replace("{order}", result.blockedByOrder ?? ""));
+        return;
+      }
+      setProjects((current) => current.filter((project) => project.id !== projectId));
+      toast.success(t("projects.deleted"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("projects.delete"));
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   if (!loading && !user) {
     return (
@@ -87,11 +131,38 @@ export default function ProjectsPage() {
                       {project.model_url ? project.status : t("projects.noModel")}
                     </p>
                   </div>
-                  <Button asChild variant="secondary">
-                    <Link to="/editor" search={{ project: project.id }}>
-                      {t("projects.open")}
-                    </Link>
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="secondary">
+                      <Link to="/editor" search={{ project: project.id }}>
+                        {t("projects.open")}
+                      </Link>
+                    </Button>
+                    {orderedProjects[project.id] ? (
+                      <p className="max-w-xs text-xs text-muted-foreground">
+                        {t("projects.deleteBlocked").replace("{order}", orderedProjects[project.id]!)}
+                      </p>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label={t("projects.delete")} disabled={removing === project.id}>
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("projects.delete")}</AlertDialogTitle>
+                            <AlertDialogDescription>{t("projects.deleteConfirm")}</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => void onDelete(project.id)}>
+                              {t("projects.delete")}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
