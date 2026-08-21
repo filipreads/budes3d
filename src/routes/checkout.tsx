@@ -36,6 +36,7 @@ function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState({ name: "", line1: "", line2: "", city: "", postalCode: "", country: "" });
   const [busy, setBusy] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     setProjectId(sessionStorage.getItem("relievo:project"));
