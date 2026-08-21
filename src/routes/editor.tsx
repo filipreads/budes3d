@@ -702,9 +702,12 @@ function EditorPage() {
                     />
                   </div>
 
+                  {placementPanel}
+
                   <Button className="w-full" onClick={goToCheckout}>
                     {t("editor.checkout")}
                   </Button>
+
                 </>
               ) : null}
             </CardContent>
