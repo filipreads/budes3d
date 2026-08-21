@@ -10,6 +10,7 @@ import { setOrderShare } from "@/lib/share.functions";
 import { getOrderDownloadUrl, listOrderDownloads, type OrderDownload } from "@/lib/downloads.functions";
 import { downloadModelFile } from "@/lib/mesh-export";
 import type { AccountOrder } from "@/lib/account.functions";
+import { StatusChip } from "@/components/account/StatusChip";
 import { useQuery } from "@tanstack/react-query";
 
 const OrderCheckout = lazy(() =>
@@ -115,56 +116,49 @@ export function OrderCard({
   return (
     <Card>
       <CardContent className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <p className="font-display text-lg">{order.order_number}</p>
             <p className="text-sm text-muted-foreground">
               {order.delivery_type === "print" ? t("account.printed") : t("account.digital")} ·{" "}
               {new Date(order.created_at).toLocaleDateString()}
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-right">
-              <p className="font-semibold">{formatPrice(order.total_cents)}</p>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
-                {t(`status.${order.fulfilment_status}` as TranslationKey)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!paid ? (
-                <Button size="sm" onClick={() => setPaying((value) => !value)}>
-                  {paying ? t("account.payCancel") : t("account.pay")}
-                </Button>
-              ) : null}
-              <Button size="sm" variant="secondary" onClick={() => void makeInvoice()}>
-                <FileText className="mr-1.5 size-3.5" />
-                {t("account.invoice")}
-              </Button>
-              <Button
-                size="sm"
-                variant={order.share_enabled ? "outline" : "secondary"}
-                disabled={sharing}
-                onClick={() => void toggleShare()}
-              >
-                <Link2 className="mr-1.5 size-3.5" />
-                {order.share_enabled ? t("account.shareOff") : t("account.share")}
-              </Button>
-              {order.share_enabled && order.share_token ? (
-                <Button asChild size="sm" variant="ghost">
-                  <Link to="/share" search={{ token: order.share_token }}>
-                    <LinkIcon className="mr-1.5 size-3.5" />
-                    {t("account.viewShare")}
-                  </Link>
-                </Button>
-              ) : null}
-              <Button size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
-                <ChevronDown className={`mr-1.5 size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
-                {t("account.details")}
-              </Button>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <StatusChip status={order.payment_status} />
+              <StatusChip status={order.fulfilment_status} />
             </div>
           </div>
+          <p className="font-display text-lg">{formatPrice(order.total_cents)}</p>
         </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {!paid ? (
+            <Button size="sm" onClick={() => setPaying((value) => !value)}>
+              {paying ? t("account.payCancel") : t("account.pay")}
+            </Button>
+          ) : null}
+          <Button size="sm" variant="secondary" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+            <ChevronDown className={`mr-1.5 size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+            {t("account.details")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void makeInvoice()}>
+            <FileText className="mr-1.5 size-3.5" />
+            {t("account.invoice")}
+          </Button>
+          <Button size="sm" variant="ghost" disabled={sharing} onClick={() => void toggleShare()}>
+            <Link2 className="mr-1.5 size-3.5" />
+            {order.share_enabled ? t("account.shareOff") : t("account.share")}
+          </Button>
+          {order.share_enabled && order.share_token ? (
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/share" search={{ token: order.share_token }}>
+                <LinkIcon className="mr-1.5 size-3.5" />
+                {t("account.viewShare")}
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+
 
         {paying ? (
           <div className="mt-4 border-t border-border pt-4">

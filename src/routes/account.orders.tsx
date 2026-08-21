@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderCard } from "@/components/account/OrderCard";
 import { useAuth } from "@/hooks/useAuth";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { listAccountOrders, type AccountOrder } from "@/lib/account.functions";
 
 export const Route = createFileRoute("/account/orders")({
@@ -25,31 +26,20 @@ export const Route = createFileRoute("/account/orders")({
 
 const PAGE_SIZE = 10;
 
-function Select({
-  value,
-  onChange,
-  options,
-  label,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  label: string;
-}) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
+type QuickFilter = "all" | "awaiting" | "paid" | "production";
+
+const QUICK_FILTERS: { value: QuickFilter; labelKey: TranslationKey }[] = [
+  { value: "all", labelKey: "account.filters.all" },
+  { value: "awaiting", labelKey: "account.filters.awaiting" },
+  { value: "paid", labelKey: "account.filters.paid" },
+  { value: "production", labelKey: "account.filters.production" },
+];
+
+function resolveFilter(quick: QuickFilter): { payment: string; fulfilment: string } {
+  if (quick === "awaiting") return { payment: "pending", fulfilment: "all" };
+  if (quick === "paid") return { payment: "paid", fulfilment: "all" };
+  if (quick === "production") return { payment: "all", fulfilment: "in_production" };
+  return { payment: "all", fulfilment: "all" };
 }
 
 function OrdersTab() {
@@ -57,17 +47,17 @@ function OrdersTab() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
+  const [quick, setQuick] = useState<QuickFilter>("all");
   const [search, setSearch] = useState("");
-  const [payment, setPayment] = useState("all");
-  const [fulfilment, setFulfilment] = useState("all");
   const [delivery, setDelivery] = useState("all");
   const [sort, setSort] = useState<"newest" | "oldest" | "amount">("newest");
+  const [showMore, setShowMore] = useState(false);
   const [page, setPage] = useState(1);
 
-  const filters = useMemo(
-    () => ({ search, payment, fulfilment, delivery, sort, page, pageSize: PAGE_SIZE }),
-    [search, payment, fulfilment, delivery, sort, page],
-  );
+  const filters = useMemo(() => {
+    const { payment, fulfilment } = resolveFilter(quick);
+    return { search, payment, fulfilment, delivery, sort, page, pageSize: PAGE_SIZE };
+  }, [quick, search, delivery, sort, page]);
 
   const queryKey = ["account-orders", user?.id, filters] as const;
   const { data, isLoading } = useQuery({
@@ -97,83 +87,91 @@ function OrdersTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder={t("account.searchPlaceholder")}
-          className="h-9 w-full sm:w-56"
-          aria-label={t("account.searchPlaceholder")}
-        />
-        <Select
-          label={t("account.filterPayment")}
-          value={payment}
-          onChange={(value) => {
-            setPayment(value);
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: t("account.filterPayment") },
-            { value: "pending", label: t("status.pending") },
-            { value: "paid", label: t("status.paid") },
-            { value: "refunded", label: t("status.refunded") },
-          ]}
-        />
-        <Select
-          label={t("account.filterFulfilment")}
-          value={fulfilment}
-          onChange={(value) => {
-            setFulfilment(value);
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: t("account.filterFulfilment") },
-            { value: "new", label: t("status.new") },
-            { value: "in_production", label: t("status.in_production") },
-            { value: "shipped", label: t("status.shipped") },
-            { value: "delivered", label: t("status.delivered") },
-            { value: "cancelled", label: t("status.cancelled") },
-          ]}
-        />
-        <Select
-          label={t("account.filterDelivery")}
-          value={delivery}
-          onChange={(value) => {
-            setDelivery(value);
-            setPage(1);
-          }}
-          options={[
-            { value: "all", label: t("account.filterDelivery") },
-            { value: "digital", label: t("account.digital") },
-            { value: "print", label: t("account.printed") },
-          ]}
-        />
-        <Select
-          label={t("account.sort")}
-          value={sort}
-          onChange={(value) => {
-            setSort(value as "newest" | "oldest" | "amount");
-            setPage(1);
-          }}
-          options={[
-            { value: "newest", label: t("account.sortNewest") },
-            { value: "oldest", label: t("account.sortOldest") },
-            { value: "amount", label: t("account.sortAmount") },
-          ]}
-        />
+        {QUICK_FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            aria-pressed={quick === filter.value}
+            onClick={() => {
+              setQuick(filter.value);
+              setPage(1);
+            }}
+            className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+              quick === filter.value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t(filter.labelKey)}
+          </button>
+        ))}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto"
+          aria-expanded={showMore}
+          onClick={() => setShowMore((value) => !value)}
+        >
+          <SlidersHorizontal className="mr-1.5 size-3.5" />
+          {t("account.moreFilters")}
+        </Button>
       </div>
+
+      {showMore ? (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-2 p-4">
+            <div className="relative w-full sm:w-56">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder={t("account.searchPlaceholder")}
+                className="h-9 pl-8"
+                aria-label={t("account.searchPlaceholder")}
+              />
+            </div>
+            <select
+              aria-label={t("account.filterDelivery")}
+              value={delivery}
+              onChange={(event) => {
+                setDelivery(event.target.value);
+                setPage(1);
+              }}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="all">{t("account.filterDelivery")}</option>
+              <option value="digital">{t("account.digital")}</option>
+              <option value="print">{t("account.printed")}</option>
+            </select>
+            <select
+              aria-label={t("account.sort")}
+              value={sort}
+              onChange={(event) => {
+                setSort(event.target.value as "newest" | "oldest" | "amount");
+                setPage(1);
+              }}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="newest">{t("account.sortNewest")}</option>
+              <option value="oldest">{t("account.sortOldest")}</option>
+              <option value="amount">{t("account.sortAmount")}</option>
+            </select>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isLoading ? (
         <div className="space-y-3">
           {[0, 1, 2].map((key) => (
-            <div key={key} className="h-24 animate-pulse rounded-lg bg-muted" />
+            <div key={key} className="h-24 animate-pulse rounded-xl bg-muted" />
           ))}
         </div>
       ) : (data?.rows ?? []).length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">{t("account.noResults")}</CardContent>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">{t("account.noResults")}</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">

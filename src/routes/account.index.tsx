@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { StatusChip } from "@/components/account/StatusChip";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { formatPrice } from "@/lib/pricing";
 import { getAccountSummary } from "@/lib/account.functions";
-import { useProfile } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/account/")({
   head: () => ({
@@ -22,9 +23,34 @@ export const Route = createFileRoute("/account/")({
   component: AccountOverview,
 });
 
+function Section({
+  title,
+  actionLabel,
+  action,
+  children,
+}: {
+  title: string;
+  actionLabel: string;
+  action: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg">{title}</h2>
+          <Button asChild size="sm" variant="ghost" aria-label={actionLabel}>
+            {action}
+          </Button>
+        </div>
+        <div className="mt-2 divide-y divide-border">{children}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function AccountOverview() {
   const { user } = useAuth();
-  const { profile } = useProfile();
   const { t } = useI18n();
 
   const { data, isLoading } = useQuery({
@@ -37,114 +63,103 @@ function AccountOverview() {
   const stats: { key: TranslationKey; value: number }[] = [
     { key: "account.stats.orders", value: data?.totals.orders ?? 0 },
     { key: "account.stats.awaiting", value: data?.totals.awaitingPayment ?? 0 },
-    { key: "account.stats.production", value: data?.totals.inProduction ?? 0 },
     { key: "account.stats.downloads", value: data?.totals.downloads ?? 0 },
-    { key: "account.stats.projects", value: data?.totals.projects ?? 0 },
   ];
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        {profile?.avatarUrl ? (
-          <img src={profile.avatarUrl} alt="" className="size-12 rounded-full object-cover" />
-        ) : (
-          <span className="grid size-12 place-items-center rounded-full bg-muted font-display text-lg">
-            {(profile?.displayName || profile?.email || "?").charAt(0).toUpperCase()}
-          </span>
-        )}
-        <div>
-          <p className="font-display text-xl">
-            {t("account.hello", { name: profile?.displayName || profile?.email || "" })}
-          </p>
-          <p className="text-sm text-muted-foreground">{profile?.email}</p>
-        </div>
-      </div>
+  const orders = data?.latestOrders ?? [];
+  const projects = data?.latestProjects ?? [];
+  const isNew = !isLoading && orders.length === 0 && projects.length === 0;
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-20 animate-pulse rounded-xl bg-muted" />
+        <div className="h-40 animate-pulse rounded-xl bg-muted" />
+        <div className="h-40 animate-pulse rounded-xl bg-muted" />
+      </div>
+    );
+  }
+
+  if (isNew) {
+    return (
+      <Card>
+        <CardContent className="space-y-3 p-8 text-center">
+          <h2 className="font-display text-xl">{t("account.emptyTitle")}</h2>
+          <p className="mx-auto max-w-sm text-sm text-muted-foreground">{t("account.emptyHint")}</p>
+          <Button asChild>
+            <Link to="/editor">{t("account.newPortrait")}</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
         {stats.map((stat) => (
           <Card key={stat.key}>
             <CardContent className="p-4">
-              <p className="font-display text-2xl">{isLoading ? "—" : stat.value}</p>
-              <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{t(stat.key)}</p>
+              <p className="font-display text-2xl">{stat.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t(stat.key)}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg">{t("account.latestOrders")}</h2>
-              <Button asChild size="sm" variant="ghost">
-                <Link to="/account/orders">{t("account.viewAll")}</Link>
-              </Button>
+      <Section
+        title={t("account.latestOrders")}
+        actionLabel={t("account.viewAll")}
+        action={<Link to="/account/orders">{t("account.viewAll")}</Link>}
+      >
+        {orders.map((order) => (
+          <Link
+            key={order.id}
+            to="/account/orders"
+            className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{order.order_number}</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                <StatusChip status={order.payment_status} />
+                <StatusChip status={order.fulfilment_status} />
+              </div>
             </div>
-            <div className="mt-3 space-y-2">
-              {(data?.latestOrders ?? []).map((order) => (
-                <div key={order.id} className="flex items-center justify-between gap-3 text-sm">
-                  <div>
-                    <p className="font-medium">{order.order_number}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t(`status.${order.payment_status}` as TranslationKey)} ·{" "}
-                      {t(`status.${order.fulfilment_status}` as TranslationKey)}
-                    </p>
-                  </div>
-                  <span>{formatPrice(order.total_cents)}</span>
-                </div>
-              ))}
-              {!isLoading && (data?.latestOrders ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("account.empty")}</p>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+            <span className="flex items-center gap-1 font-medium">
+              {formatPrice(order.total_cents)}
+              <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+            </span>
+          </Link>
+        ))}
+        {orders.length === 0 ? <p className="py-3 text-sm text-muted-foreground">{t("account.empty")}</p> : null}
+      </Section>
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg">{t("account.latestProjects")}</h2>
-              <Button asChild size="sm" variant="ghost">
-                <Link to="/projects">{t("account.viewAll")}</Link>
-              </Button>
+      <Section
+        title={t("account.latestProjects")}
+        actionLabel={t("account.viewAll")}
+        action={<Link to="/projects">{t("account.viewAll")}</Link>}
+      >
+        {projects.map((project) => (
+          <Link
+            key={project.id}
+            to="/editor"
+            search={{ project: project.id }}
+            className="flex items-center justify-between gap-3 py-3 text-sm transition-colors hover:text-primary"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{project.title}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <StatusChip status={project.status} />
+                <span className="text-xs text-muted-foreground">
+                  {new Date(project.created_at).toLocaleDateString()}
+                </span>
+              </div>
             </div>
-            <div className="mt-3 space-y-2">
-              {(data?.latestProjects ?? []).map((project) => (
-                <div key={project.id} className="flex items-center justify-between gap-3 text-sm">
-                  <div>
-                    <p className="font-medium">{project.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(project.created_at).toLocaleDateString()} · {project.status}
-                    </p>
-                  </div>
-                  <Button asChild size="sm" variant="secondary">
-                    <Link to="/editor" search={{ project: project.id }}>
-                      {t("projects.open")}
-                    </Link>
-                  </Button>
-                </div>
-              ))}
-              {!isLoading && (data?.latestProjects ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("projects.empty")}</p>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardContent className="flex flex-wrap gap-2 p-5">
-          <Button asChild>
-            <Link to="/editor">{t("account.newPortrait")}</Link>
-          </Button>
-          <Button asChild variant="secondary">
-            <Link to="/projects">{t("nav.projects")}</Link>
-          </Button>
-          <Button asChild variant="ghost">
-            <Link to="/contact">{t("account.support")}</Link>
-          </Button>
-        </CardContent>
-      </Card>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        ))}
+        {projects.length === 0 ? <p className="py-3 text-sm text-muted-foreground">{t("projects.empty")}</p> : null}
+      </Section>
     </div>
   );
 }
