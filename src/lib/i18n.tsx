@@ -239,6 +239,17 @@ const en = {
   "viewer.errorBody":
     "This file cannot be displayed, so please do not approve it. Try generating again or contact support.",
   "viewer.retry": "Try loading again",
+  "viewer.qualityHigh": "Quality: high",
+  "viewer.qualityLow": "Quality: light",
+  "viewer.qualityHint": "Switch to the light preset on slower devices",
+  "editor.resume.title": "Continue where you left off?",
+  "editor.resume.body": "We kept your photo and settings from the last session.",
+  "editor.resume.action": "Continue",
+  "editor.resume.discard": "Start over",
+  "editor.offline": "You are offline — the upload will resume automatically once the connection is back.",
+  "editor.choosePhoto": "Choose or take a photo",
+  "editor.reading": "Reading photo",
+
   "viewer.view.front": "Front",
   "viewer.view.side": "Side",
   "viewer.view.top": "Top",
