@@ -300,7 +300,7 @@ export default function ModelStage({
       {loadedScene ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex flex-wrap gap-1.5">
-            {(["front", "side", "top"] as const).map((preset) => (
+            {(["front", "angle", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
                 size="sm"
@@ -311,6 +311,25 @@ export default function ModelStage({
                 {t(`viewer.view.${preset}`)}
               </Button>
             ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
+              aria-label={t("viewer.zoomIn")}
+              onClick={() => setZoom((state) => ({ factor: 0.82, nonce: state.nonce + 1 }))}
+            >
+              <ZoomIn className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
+              aria-label={t("viewer.zoomOut")}
+              onClick={() => setZoom((state) => ({ factor: 1.22, nonce: state.nonce + 1 }))}
+            >
+              <ZoomOut className="size-3.5" />
+            </Button>
+
             <Button
               size="sm"
               variant="secondary"
