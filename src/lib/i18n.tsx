@@ -199,6 +199,8 @@ const en = {
   "nav.projects": "My projects",
 
   "account.invoice": "Invoice (PDF)",
+  "account.pay": "Pay now",
+  "account.payCancel": "Cancel payment",
   "account.share": "Share preview",
   "account.shareCopied": "View-only link copied to clipboard",
   "account.shareFail": "Could not create the share link",
@@ -493,6 +495,8 @@ const cs: Record<TranslationKey, string> = {
   "nav.projects": "Moje projekty",
 
   "account.invoice": "Faktura (PDF)",
+  "account.pay": "Zaplatit",
+  "account.payCancel": "Zrušit platbu",
   "account.share": "Sdílet náhled",
   "account.shareCopied": "Odkaz jen pro prohlížení zkopírován",
   "account.shareFail": "Odkaz se nepodařilo vytvořit",

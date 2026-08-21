@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
-import { createOrder, startPayment } from "@/lib/studio.functions";
+import { createOrder } from "@/lib/studio.functions";
+import { OrderCheckout } from "@/components/payments/OrderCheckout";
+import { PaymentTestModeBanner } from "@/components/payments/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -34,6 +36,7 @@ function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState({ name: "", line1: "", line2: "", city: "", postalCode: "", country: "" });
   const [busy, setBusy] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     setProjectId(sessionStorage.getItem("relievo:project"));
@@ -60,15 +63,9 @@ function CheckoutPage() {
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
-      const payment = await startPayment({ data: { orderId: order.orderId, locale } });
       sessionStorage.removeItem("relievo:project");
-      if (payment.checkoutUrl) {
-        window.location.href = payment.checkoutUrl;
-        return;
-      }
+      setOrderId(order.orderId);
       toast.success(t("checkout.confirmed", { number: order.orderNumber }));
-      toast.warning(payment.message);
-      void navigate({ to: "/account" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("checkout.failed"));
     } finally {
@@ -92,50 +89,57 @@ function CheckoutPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <PaymentTestModeBanner />
       <SiteHeader />
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-5 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
         <Card>
           <CardContent className="space-y-4 p-6">
             <h1 className="font-display text-2xl">{t("checkout.title")}</h1>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">{t("checkout.email")}</Label>
-              <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            </div>
 
-            {config.delivery === "print" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    ["name", "checkout.fullName"],
-                    ["line1", "checkout.address"],
-                    ["line2", "checkout.address2"],
-                    ["city", "checkout.city"],
-                    ["postalCode", "checkout.postalCode"],
-                    ["country", "checkout.country"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div key={key} className="space-y-1.5">
-                    <Label htmlFor={key}>{t(label)}</Label>
-                    <Input
-                      id={key}
-                      value={address[key]}
-                      onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
-                    />
-                  </div>
-                ))}
-              </div>
+            {orderId ? (
+              <OrderCheckout
+                orderId={orderId}
+                returnUrl={`${window.location.origin}/checkout-return?order=${orderId}`}
+              />
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("checkout.digitalNote")}
-              </p>
-            )}
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">{t("checkout.email")}</Label>
+                  <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                </div>
 
-            <Button className="w-full" disabled={busy} onClick={() => void pay()}>
-              {t("checkout.pay", { price: formatPrice(priced.totalCents) })}
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              {t("checkout.paymentNote")}
-            </p>
+                {config.delivery === "print" ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ["name", "checkout.fullName"],
+                        ["line1", "checkout.address"],
+                        ["line2", "checkout.address2"],
+                        ["city", "checkout.city"],
+                        ["postalCode", "checkout.postalCode"],
+                        ["country", "checkout.country"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <div key={key} className="space-y-1.5">
+                        <Label htmlFor={key}>{t(label)}</Label>
+                        <Input
+                          id={key}
+                          value={address[key]}
+                          onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("checkout.digitalNote")}</p>
+                )}
+
+                <Button className="w-full" disabled={busy} onClick={() => void pay()}>
+                  {t("checkout.pay", { price: formatPrice(priced.totalCents) })}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t("checkout.paymentNote")}</p>
+              </>
+            )}
           </CardContent>
         </Card>
 

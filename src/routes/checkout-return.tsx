@@ -18,7 +18,7 @@ export const Route = createFileRoute("/checkout-return")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { order?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { order?: string | undefined } => ({
     order: typeof search["order"] === "string" ? search["order"] : undefined,
   }),
   component: CheckoutReturnPage,

@@ -13,6 +13,8 @@ import { listOrderDownloads, getOrderDownloadUrl, type OrderDownload } from "@/l
 import { downloadModelFile } from "@/lib/mesh-export";
 import { toast } from "sonner";
 import { FileText, Link2, LinkIcon, Download } from "lucide-react";
+import { OrderCheckout } from "@/components/payments/OrderCheckout";
+import { PaymentTestModeBanner } from "@/components/payments/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -53,6 +55,7 @@ function AccountPage() {
   const [sharing, setSharing] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<Record<string, OrderDownload[]>>({});
   const [preparing, setPreparing] = useState<string | null>(null);
+  const [paying, setPaying] = useState<string | null>(null);
 
   async function runDownload(entry: OrderDownload) {
     setPreparing(entry.id);
@@ -157,6 +160,7 @@ function AccountPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <PaymentTestModeBanner />
       <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-12">
         <h1 className="font-display text-3xl">{t("account.title")}</h1>
@@ -191,6 +195,11 @@ function AccountPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {order.payment_status !== "paid" ? (
+                          <Button size="sm" onClick={() => setPaying(paying === order.id ? null : order.id)}>
+                            {paying === order.id ? t("account.payCancel") : t("account.pay")}
+                          </Button>
+                        ) : null}
                         <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
                           <FileText className="mr-1.5 size-3.5" />
                           {t("account.invoice")}
@@ -215,6 +224,15 @@ function AccountPage() {
                       </div>
                     </div>
                   </div>
+
+                  {paying === order.id ? (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <OrderCheckout
+                        orderId={order.id}
+                        returnUrl={`${window.location.origin}/checkout-return?order=${order.id}`}
+                      />
+                    </div>
+                  ) : null}
 
                   {(downloads[order.id]?.length ?? 0) > 0 ? (
                     <div className="mt-4 border-t border-border pt-4">
