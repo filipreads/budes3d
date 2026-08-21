@@ -233,8 +233,17 @@ function EditorPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error(t("editor.toast.imageOnly")); return; }
     const reader = new FileReader();
+    setReadPercent(0);
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) setReadPercent(Math.round((event.loaded / event.total) * 100));
+    };
+    reader.onerror = () => {
+      setReadPercent(null);
+      toast.error(t("editor.toast.imageOnly"));
+    };
     reader.onload = () => {
       const dataUrl = String(reader.result);
+      setReadPercent(null);
       setPhoto(dataUrl);
       setOriginalPhoto(dataUrl);
       setShowBefore(false);
@@ -246,6 +255,7 @@ function EditorPage() {
     };
     reader.readAsDataURL(file);
   }
+
 
   async function clearBackground() {
     if (!photo) return;
