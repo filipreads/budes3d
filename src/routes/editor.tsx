@@ -281,12 +281,23 @@ function EditorPage() {
     setProgress(20);
     try {
       const baked = await renderEdited(photo, edits);
-      const path = `${user.id}/${crypto.randomUUID()}.jpg`;
-      const upload = await supabase.storage.from("portrait-uploads").upload(path, baked, {
+      // Reuse the same storage slot across retries so a dropped mobile
+      // connection resumes the upload instead of starting a new object.
+      const pendingKey = "relievo:upload-path";
+      const path = sessionStorage.getItem(pendingKey) ?? `${user.id}/${crypto.randomUUID()}.jpg`;
+      sessionStorage.setItem(pendingKey, path);
+      await uploadWithProgress({
+        bucket: "portrait-uploads",
+        path,
+        body: baked,
         contentType: "image/jpeg",
-        upsert: true,
+        onProgress: (percent) => {
+          setProgress(20 + Math.round(percent * 0.2));
+          setBusy(`${t("editor.busy.upload")} ${percent}%`);
+        },
       });
-      if (upload.error) throw new Error(upload.error.message);
+      sessionStorage.removeItem(pendingKey);
+
 
       setProgress(45);
       const { data: project, error } = await supabase
