@@ -547,7 +547,33 @@ function EditorPage() {
             startedAt={startedAt}
           />
 
+          {step !== "upload" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" disabled={!history.canUndo} onClick={history.undo}>
+                <Undo2 className="mr-1.5 size-3.5" />
+                {t("editor.undo")}
+              </Button>
+              <Button size="sm" variant="outline" disabled={!history.canRedo} onClick={history.redo}>
+                <Redo2 className="mr-1.5 size-3.5" />
+                {t("editor.redo")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={saveVersion}>
+                <Save className="mr-1.5 size-3.5" />
+                {t("editor.version.save")}
+              </Button>
+              <Button size="sm" variant="ghost" disabled={!savedVersion} onClick={restoreVersion}>
+                <History className="mr-1.5 size-3.5" />
+                {t("editor.version.restore")}
+              </Button>
+              {savedVersion ? (
+                <span className="text-xs text-muted-foreground">
+                  {t("editor.version.savedAt")} {new Date(savedVersion.at).toLocaleTimeString()}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           <Card className="min-h-[320px] sm:min-h-[460px]">
