@@ -819,6 +819,12 @@ const cs: Record<TranslationKey, string> = {
   "mfa.challengeTitle": "Zadejte ověřovací kód",
   "mfa.challengeHint": "Otevřete ověřovací aplikaci a zadejte aktuální šestimístný kód.",
   "mfa.continue": "Pokračovat",
+  "mfa.rememberDevice": "Zapamatovat toto zařízení",
+  "mfa.rememberHint": "V tomto prohlížeči se dalších 30 dní nebudeme ptát na kód.",
+  "mfa.trustedDevices": "Zapamatovaná zařízení",
+  "mfa.trustedCount": "Kód se přeskakuje na {count} zařízeních.",
+  "mfa.forgetDevices": "Zapomenout všechna zařízení",
+  "mfa.forgotten": "Zapamatovaná zařízení byla smazána",
 };
 
 
