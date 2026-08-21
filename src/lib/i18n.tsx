@@ -840,7 +840,7 @@ type I18nValue = {
 const I18nContext = createContext<I18nValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("en");
+  const [locale, setLocaleState] = useState<Locale>("cs");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -848,8 +848,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLocaleState(stored);
       return;
     }
-    if (navigator.language?.toLowerCase().startsWith("cs")) setLocaleState("cs");
+    if (navigator.language && !navigator.language.toLowerCase().startsWith("cs")) {
+      setLocaleState("en");
+    }
   }, []);
+
 
   useEffect(() => {
     document.documentElement.lang = locale;
