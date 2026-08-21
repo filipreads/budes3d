@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
@@ -34,7 +35,9 @@ function LanguageSwitcher() {
 
 export function SiteHeader() {
   const { user, loading, signOut } = useAuth();
+  const { profile } = useProfile();
   const { t } = useI18n();
+  const initial = (profile?.displayName || profile?.email || user?.email || "?").charAt(0).toUpperCase();
   const [open, setOpen] = useState(false);
   const [admin, setAdmin] = useState(false);
 
@@ -79,8 +82,16 @@ export function SiteHeader() {
               <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
                 {t("nav.dashboard")}
               </Link>
-              <Link to="/account" className="text-sm text-muted-foreground hover:text-foreground">
-                {t("nav.account")}
+              <Link
+                to="/account"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                {profile?.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
+                ) : (
+                  <span className="grid size-6 place-items-center rounded-full bg-muted text-[11px]">{initial}</span>
+                )}
+                <span className="max-w-28 truncate">{profile?.displayName || t("nav.account")}</span>
               </Link>
               {admin ? (
                 <>
