@@ -44,33 +44,35 @@ type ProjectRow = {
   created_at: string;
 };
 
-export default function ProjectsPage() {
+function ProjectsPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { t } = useI18n();
-  const [projects, setProjects] = useState<ProjectRow[]>([]);
-  const [orderedProjects, setOrderedProjects] = useState<Record<string, string>>({});
+  const queryClient = useQueryClient();
   const [removing, setRemoving] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    void supabase
-      .from("projects")
-      .select("id, title, status, model_url, created_at")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setProjects((data ?? []) as ProjectRow[]));
+  const { data } = useQuery({
+    queryKey: ["projects-page", user?.id],
+    enabled: Boolean(user),
+    staleTime: 60 * 1000,
+    queryFn: async () => {
+      const [projectsResult, ordersResult] = await Promise.all([
+        supabase
+          .from("projects")
+          .select("id, title, status, model_url, created_at")
+          .order("created_at", { ascending: false }),
+        supabase.from("orders").select("order_number, project_id"),
+      ]);
+      const map: Record<string, string> = {};
+      for (const order of ordersResult.data ?? []) {
+        if (order.project_id) map[order.project_id] = order.order_number;
+      }
+      return { projects: (projectsResult.data ?? []) as ProjectRow[], orderedProjects: map };
+    },
+  });
 
-    void supabase
-      .from("orders")
-      .select("order_number, project_id")
-      .then(({ data }) => {
-        const map: Record<string, string> = {};
-        for (const order of data ?? []) {
-          if (order.project_id) map[order.project_id] = order.order_number;
-        }
-        setOrderedProjects(map);
-      });
-  }, [user]);
+  const projects = data?.projects ?? [];
+  const orderedProjects = data?.orderedProjects ?? {};
 
   async function onDelete(projectId: string) {
     setRemoving(projectId);
@@ -80,7 +82,8 @@ export default function ProjectsPage() {
         toast.error(t("projects.deleteBlocked").replace("{order}", result.blockedByOrder ?? ""));
         return;
       }
-      setProjects((current) => current.filter((project) => project.id !== projectId));
+      await queryClient.invalidateQueries({ queryKey: ["projects-page", user?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["account-summary", user?.id] });
       toast.success(t("projects.deleted"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("projects.delete"));
@@ -88,6 +91,7 @@ export default function ProjectsPage() {
       setRemoving(null);
     }
   }
+
 
   if (!loading && !user) {
     return (
