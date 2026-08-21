@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { countTrustedDevices, forgetTrustedDevices } from "@/lib/mfa-devices.functions";
 
 type Enrolling = { factorId: string; qr: string; secret: string };
 
@@ -16,6 +17,8 @@ export function TwoFactorCard() {
   const [enrolling, setEnrolling] = useState<Enrolling | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [trustedCount, setTrustedCount] = useState(0);
+
 
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.mfa.listFactors();
