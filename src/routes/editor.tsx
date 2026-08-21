@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import ModelStage from "@/components/studio/LazyModelStage";
 import { StudioProgress, type StageId, type StageState } from "@/components/studio/StudioProgress";
@@ -40,6 +40,7 @@ import {
 import { removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
+import { useEditorHistory } from "@/lib/use-editor-history";
 import { uploadWithProgress } from "@/lib/storage-upload";
 
 
@@ -51,7 +52,12 @@ const STAGE_LABEL: Record<string, string> = {
   storing: "Saving your model…",
 };
 
-import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check } from "lucide-react";
+/** Project id of a reconstruction that is still running server-side. */
+const JOB_KEY = "relievo:job";
+/** Manually saved configuration snapshot the customer can roll back to. */
+const SAVED_KEY = "relievo:saved-version";
+
+import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
   validateSearch: (search: Record<string, unknown>): { project?: string } =>
@@ -98,16 +104,53 @@ function EditorPage() {
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
   const [offline, setOffline] = useState(false);
+  const [savedVersion, setSavedVersion] = useState<{ config: StudioConfig; edits: EditSettings; at: number } | null>(null);
   const cancelRef = useRef(false);
+  const busyRef = useRef(false);
+  busyRef.current = Boolean(busy);
+
+  // Undo/redo over everything the customer authors by hand.
+  const snapshot = useMemo(() => ({ config, edits }), [config, edits]);
+  const applySnapshot = useCallback((value: { config: StudioConfig; edits: EditSettings }) => {
+    setConfig(sanitizeConfig(value.config));
+    setEdits(value.edits);
+  }, []);
+  const history = useEditorHistory(snapshot, applySnapshot);
 
   // Interrupted mobile sessions: keep a local copy of the working photo and
   // settings so the customer never has to pick the photo again.
   useEffect(() => {
     if (projectParam) return;
     void loadDraft().then((draft) => {
-      if (draft?.photo) setResumable(draft);
+      if (draft && (draft.photo || draft.config)) setResumable(draft);
     });
   }, [projectParam]);
+
+  // Manually saved configuration version ("restore last saved").
+  useEffect(() => {
+    const raw = localStorage.getItem(SAVED_KEY);
+    if (!raw) return;
+    try {
+      setSavedVersion(JSON.parse(raw));
+    } catch {
+      localStorage.removeItem(SAVED_KEY);
+    }
+  }, []);
+
+  function saveVersion() {
+    const payload = { config, edits, at: Date.now() };
+    localStorage.setItem(SAVED_KEY, JSON.stringify(payload));
+    setSavedVersion(payload);
+    toast.success(t("editor.version.saved"));
+  }
+
+  function restoreVersion() {
+    if (!savedVersion) return;
+    setConfig(sanitizeConfig(savedVersion.config));
+    if (savedVersion.edits) setEdits(savedVersion.edits);
+    toast.success(t("editor.version.restored"));
+  }
+
 
   useEffect(() => {
     const update = () => setOffline(!navigator.onLine);
@@ -192,7 +235,8 @@ function EditorPage() {
   // Local mirror of the session: survives a closed tab, lost connection or an
   // app switch on the phone.
   useEffect(() => {
-    if (!photo) return;
+    // Also mirrored when there is no photo yet, so a configuration built
+    // before uploading (size, material, plinth) survives a return visit.
     const timer = setTimeout(() => {
       void saveDraft({
         photo,
@@ -213,8 +257,11 @@ function EditorPage() {
     if (resumable.edits) setEdits(resumable.edits as EditSettings);
     if (resumable.config) setConfig(sanitizeConfig(resumable.config as StudioConfig));
     if (resumable.projectId) sessionStorage.setItem("relievo:project", resumable.projectId);
-    setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    if (resumable.photo) {
+      setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    }
     setResumable(null);
+
     if (resumable.photo) void analyzeImageQuality(resumable.photo).then(setQuality).catch(() => setQuality(null));
   }
 
@@ -338,31 +385,10 @@ function EditorPage() {
 
       // TRELLIS runs for minutes. The job is persisted server-side and driven
       // one step at a time, so no single request has to stay open that long.
-      await startGeneration({ data: { projectId: project.id } });
-
-      let guard = 0;
-      let job = await getGenerationStatus({ data: { projectId: project.id } });
-      while (!job.done && guard < 40) {
-        if (cancelRef.current) throw new Error(t("editor.cancelled"));
-        guard += 1;
-        job = await advanceGeneration({ data: { projectId: project.id } });
-        setProgress(job.progress > 0 ? job.progress : null);
-        if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
-        if (job.error && !job.retryable) break;
-      }
-
-      if (job.stage !== "ready" || !job.modelRef) {
-        throw new Error(job.error ?? t("editor.toast.genFail"));
-      }
-
-      setBusy(t("editor.busy.finalize"));
-      setProgress(100);
-      setModelRef(job.modelRef);
-
       sessionStorage.setItem("relievo:project", project.id);
-      setStep("preview");
+      await startGeneration({ data: { projectId: project.id } });
+      await driveJob(project.id);
       toast.success(t("editor.toast.ready"));
-
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
@@ -374,6 +400,85 @@ function EditorPage() {
 
     }
   }
+
+  /**
+   * Drives a persisted generation job to completion. The project id is kept in
+   * localStorage, so reloading the page picks the same job back up instead of
+   * losing the reconstruction.
+   */
+  async function driveJob(projectId: string) {
+    localStorage.setItem(JOB_KEY, projectId);
+    let guard = 0;
+    let job = await getGenerationStatus({ data: { projectId } });
+    while (!job.done && guard < 40) {
+      if (cancelRef.current) throw new Error(t("editor.cancelled"));
+      guard += 1;
+      job = await advanceGeneration({ data: { projectId } });
+      setProgress(job.progress > 0 ? job.progress : null);
+      if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+      if (job.error && !job.retryable) break;
+    }
+
+    if (job.stage !== "ready" || !job.modelRef) {
+      if (job.stage === "failed") localStorage.removeItem(JOB_KEY);
+      throw new Error(job.error ?? t("editor.toast.genFail"));
+    }
+
+    localStorage.removeItem(JOB_KEY);
+    setBusy(t("editor.busy.finalize"));
+    setProgress(100);
+    setModelRef(job.modelRef);
+    sessionStorage.setItem("relievo:project", projectId);
+    setStep("preview");
+  }
+
+  // Reopening the studio while a reconstruction is still queued or running:
+  // pick the job back up and keep showing its real state.
+  useEffect(() => {
+    if (!user) return;
+    const pending = localStorage.getItem(JOB_KEY);
+    if (!pending || busyRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const job = await getGenerationStatus({ data: { projectId: pending } });
+        if (cancelled) return;
+        if (job.stage === "ready" && job.modelRef) {
+          localStorage.removeItem(JOB_KEY);
+          setModelRef(job.modelRef);
+          sessionStorage.setItem("relievo:project", pending);
+          setStep("preview");
+          return;
+        }
+        if (job.stage === "failed") {
+          localStorage.removeItem(JOB_KEY);
+          setFailure(job.error ?? t("editor.toast.genFail"));
+          return;
+        }
+        cancelRef.current = false;
+        setStartedAt(Date.now());
+        setProgress(job.progress > 0 ? job.progress : null);
+        setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+        toast.info(t("editor.job.resumed"));
+        await driveJob(pending);
+        if (!cancelled) toast.success(t("editor.toast.ready"));
+      } catch (error) {
+        if (cancelled) return;
+        setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
+      } finally {
+        if (!cancelled) {
+          setBusy(null);
+          setProgress(null);
+          setStartedAt(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
 
   function goToCheckout() {
     const projectId = sessionStorage.getItem("relievo:project");
@@ -442,7 +547,33 @@ function EditorPage() {
             startedAt={startedAt}
           />
 
+          {step !== "upload" ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" disabled={!history.canUndo} onClick={history.undo}>
+                <Undo2 className="mr-1.5 size-3.5" />
+                {t("editor.undo")}
+              </Button>
+              <Button size="sm" variant="outline" disabled={!history.canRedo} onClick={history.redo}>
+                <Redo2 className="mr-1.5 size-3.5" />
+                {t("editor.redo")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={saveVersion}>
+                <Save className="mr-1.5 size-3.5" />
+                {t("editor.version.save")}
+              </Button>
+              <Button size="sm" variant="ghost" disabled={!savedVersion} onClick={restoreVersion}>
+                <History className="mr-1.5 size-3.5" />
+                {t("editor.version.restore")}
+              </Button>
+              {savedVersion ? (
+                <span className="text-xs text-muted-foreground">
+                  {t("editor.version.savedAt")} {new Date(savedVersion.at).toLocaleTimeString()}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
+
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
           <Card className="min-h-[320px] sm:min-h-[460px]">
