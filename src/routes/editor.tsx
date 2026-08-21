@@ -692,6 +692,19 @@ function EditorPage() {
           ) : null}
         </div>
       </main>
+
+      {step === "configure" ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{t("editor.total")}</p>
+            <p className="truncate font-display text-lg">{formatPrice(priced.totalCents)}</p>
+          </div>
+          <Button className="shrink-0" onClick={goToCheckout}>
+            {t("editor.checkout")}
+          </Button>
+        </div>
+      ) : null}
+
     </div>
   );
 }
