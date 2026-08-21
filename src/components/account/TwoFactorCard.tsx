@@ -23,7 +23,27 @@ export function TwoFactorCard() {
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.mfa.listFactors();
     setFactors((data?.totp ?? []).map((factor) => ({ id: factor.id, status: factor.status })));
+    try {
+      const { count } = await countTrustedDevices();
+      setTrustedCount(count);
+    } catch {
+      setTrustedCount(0);
+    }
   }, []);
+
+  async function forgetDevices() {
+    setBusy(true);
+    try {
+      await forgetTrustedDevices();
+      await refresh();
+      toast.success(t("mfa.forgotten"));
+    } catch {
+      toast.error(t("mfa.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   useEffect(() => {
     void refresh();
