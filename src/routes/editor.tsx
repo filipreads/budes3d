@@ -182,6 +182,42 @@ function EditorPage() {
     return () => clearTimeout(timer);
   }, [config, edits, user]);
 
+  // Local mirror of the session: survives a closed tab, lost connection or an
+  // app switch on the phone.
+  useEffect(() => {
+    if (!photo) return;
+    const timer = setTimeout(() => {
+      void saveDraft({
+        photo,
+        originalPhoto,
+        edits,
+        config,
+        step,
+        projectId: sessionStorage.getItem("relievo:project"),
+      });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [photo, originalPhoto, edits, config, step]);
+
+  function restoreDraft() {
+    if (!resumable) return;
+    setPhoto(resumable.photo);
+    setOriginalPhoto(resumable.originalPhoto ?? resumable.photo);
+    if (resumable.edits) setEdits(resumable.edits as EditSettings);
+    if (resumable.config) setConfig(sanitizeConfig(resumable.config as StudioConfig));
+    if (resumable.projectId) sessionStorage.setItem("relievo:project", resumable.projectId);
+    setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    setResumable(null);
+    if (resumable.photo) void analyzeImageQuality(resumable.photo).then(setQuality).catch(() => setQuality(null));
+  }
+
+  function discardDraft() {
+    setResumable(null);
+    void clearDraft();
+  }
+
+
+
   async function rotatePhoto(direction: 1 | -1) {
     if (!photo) return;
     try {
