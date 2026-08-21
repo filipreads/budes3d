@@ -154,7 +154,7 @@ export default function ProjectsPage() {
                             <AlertDialogDescription>{t("projects.deleteConfirm")}</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>{t("nav.menu") === "" ? "" : "×"}</AlertDialogCancel>
+                            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                             <AlertDialogAction onClick={() => void onDelete(project.id)}>
                               {t("projects.delete")}
                             </AlertDialogAction>
