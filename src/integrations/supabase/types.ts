@@ -261,6 +261,7 @@ export type Database = {
           display_name: string | null
           id: string
           preferred_locale: string
+          shipping_address: Json | null
           updated_at: string
         }
         Insert: {
@@ -269,6 +270,7 @@ export type Database = {
           display_name?: string | null
           id: string
           preferred_locale?: string
+          shipping_address?: Json | null
           updated_at?: string
         }
         Update: {
@@ -277,6 +279,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           preferred_locale?: string
+          shipping_address?: Json | null
           updated_at?: string
         }
         Relationships: []

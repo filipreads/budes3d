@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { formatPrice } from "@/lib/pricing";
 import { getAccountSummary } from "@/lib/account.functions";
+import { useProfile } from "@/hooks/useProfile";
 
 export const Route = createFileRoute("/account/")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/account/")({
 
 function AccountOverview() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { t } = useI18n();
 
   const { data, isLoading } = useQuery({
@@ -43,18 +45,18 @@ function AccountOverview() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        {data?.avatarUrl ? (
-          <img src={data.avatarUrl} alt="" className="size-12 rounded-full object-cover" />
+        {profile?.avatarUrl ? (
+          <img src={profile.avatarUrl} alt="" className="size-12 rounded-full object-cover" />
         ) : (
           <span className="grid size-12 place-items-center rounded-full bg-muted font-display text-lg">
-            {(data?.displayName ?? data?.email ?? "?").charAt(0).toUpperCase()}
+            {(profile?.displayName || profile?.email || "?").charAt(0).toUpperCase()}
           </span>
         )}
         <div>
           <p className="font-display text-xl">
-            {t("account.hello", { name: data?.displayName || data?.email || "" })}
+            {t("account.hello", { name: profile?.displayName || profile?.email || "" })}
           </p>
-          <p className="text-sm text-muted-foreground">{data?.email}</p>
+          <p className="text-sm text-muted-foreground">{profile?.email}</p>
         </div>
       </div>
 

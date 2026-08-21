@@ -180,12 +180,50 @@ export const listAllDownloads = createServerFn({ method: "GET" })
       }));
   });
 
+export type ShippingAddress = {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+};
+
+export const EMPTY_SHIPPING_ADDRESS: ShippingAddress = {
+  name: "",
+  line1: "",
+  line2: "",
+  city: "",
+  postalCode: "",
+  country: "",
+  phone: "",
+};
+
+function normalizeAddress(value: unknown): ShippingAddress | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const pick = (key: keyof ShippingAddress) =>
+    typeof raw[key] === "string" ? (raw[key] as string).trim().slice(0, 120) : "";
+  const address: ShippingAddress = {
+    name: pick("name"),
+    line1: pick("line1"),
+    line2: pick("line2"),
+    city: pick("city"),
+    postalCode: pick("postalCode"),
+    country: pick("country"),
+    phone: pick("phone"),
+  };
+  return Object.values(address).some(Boolean) ? address : null;
+}
+
 export type AccountProfile = {
   displayName: string;
   avatarUrl: string | null;
   avatarPath: string | null;
   preferredLocale: string;
   email: string | null;
+  shippingAddress: ShippingAddress | null;
 };
 
 export const getAccountProfile = createServerFn({ method: "GET" })
@@ -194,7 +232,7 @@ export const getAccountProfile = createServerFn({ method: "GET" })
     const { supabase, userId, claims } = context;
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url, preferred_locale")
+      .select("display_name, avatar_url, preferred_locale, shipping_address")
       .eq("id", userId)
       .maybeSingle();
 
@@ -216,21 +254,36 @@ export const getAccountProfile = createServerFn({ method: "GET" })
       avatarPath,
       preferredLocale: data?.preferred_locale ?? "en",
       email: (claims as { email?: string } | null)?.email ?? null,
+      shippingAddress: normalizeAddress(data?.shipping_address),
     };
   });
 
 export const updateAccountProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { displayName?: string; preferredLocale?: string; avatarPath?: string }) => input ?? {})
+  .inputValidator(
+    (input: {
+      displayName?: string;
+      preferredLocale?: string;
+      avatarPath?: string;
+      shippingAddress?: Partial<ShippingAddress> | null;
+    }) => input ?? {},
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const patch: { id: string; display_name?: string; preferred_locale?: string; avatar_url?: string } = {
+    const patch: {
+      id: string;
+      display_name?: string;
+      preferred_locale?: string;
+      avatar_url?: string;
+      shipping_address?: ShippingAddress | null;
+    } = {
       id: userId,
     };
     if (typeof data.displayName === "string") patch.display_name = data.displayName.trim().slice(0, 80);
     if (data.preferredLocale === "en" || data.preferredLocale === "cs") patch.preferred_locale = data.preferredLocale;
     if (typeof data.avatarPath === "string" && data.avatarPath) patch.avatar_url = data.avatarPath;
+    if (data.shippingAddress !== undefined) patch.shipping_address = normalizeAddress(data.shippingAddress);
 
     const { error } = await supabase.from("profiles").upsert(patch, { onConflict: "id" });
     if (error) throw new Error(error.message);

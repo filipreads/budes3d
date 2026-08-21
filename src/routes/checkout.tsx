@@ -10,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
 import { createOrder } from "@/lib/studio.functions";
+import { updateAccountProfile, EMPTY_SHIPPING_ADDRESS, type ShippingAddress } from "@/lib/account.functions";
+import { useProfile } from "@/hooks/useProfile";
 import { OrderCheckout } from "@/components/payments/OrderCheckout";
 import { PaymentTestModeBanner } from "@/components/payments/PaymentTestModeBanner";
 
@@ -34,7 +36,10 @@ function CheckoutPage() {
   const [config, setConfig] = useState<StudioConfig>(DEFAULT_CONFIG);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState({ name: "", line1: "", line2: "", city: "", postalCode: "", country: "" });
+  const { profile, refresh: refreshProfile } = useProfile();
+  const [address, setAddress] = useState<ShippingAddress>(EMPTY_SHIPPING_ADDRESS);
+  const [useSaved, setUseSaved] = useState(true);
+  const [saveDefault, setSaveDefault] = useState(false);
   const [busy, setBusy] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
 
@@ -47,6 +52,11 @@ function CheckoutPage() {
   useEffect(() => {
     if (user?.email && !email) setEmail(user.email);
   }, [user, email]);
+
+  // Prefill from the saved default address unless the customer opted out.
+  useEffect(() => {
+    if (useSaved && profile?.shippingAddress) setAddress(profile.shippingAddress);
+  }, [profile, useSaved]);
 
   const priced = useMemo(() => quote(config), [config]);
 
@@ -63,6 +73,10 @@ function CheckoutPage() {
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
+      if (config.delivery === "print" && saveDefault) {
+        await updateAccountProfile({ data: { shippingAddress: address } });
+        await refreshProfile();
+      }
       sessionStorage.removeItem("relievo:project");
       setOrderId(order.orderId);
       toast.success(t("checkout.confirmed", { number: order.orderNumber }));
@@ -109,6 +123,20 @@ function CheckoutPage() {
                 </div>
 
                 {config.delivery === "print" ? (
+                  <>
+                  {profile?.shippingAddress ? (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={useSaved}
+                        onChange={(event) => {
+                          setUseSaved(event.target.checked);
+                          if (!event.target.checked) setAddress(EMPTY_SHIPPING_ADDRESS);
+                        }}
+                      />
+                      {t("checkout.useSaved")}
+                    </label>
+                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-2">
                     {(
                       [
@@ -130,6 +158,15 @@ function CheckoutPage() {
                       </div>
                     ))}
                   </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={saveDefault}
+                      onChange={(event) => setSaveDefault(event.target.checked)}
+                    />
+                    {t("checkout.saveDefault")}
+                  </label>
+                  </>
                 ) : (
                   <p className="text-sm text-muted-foreground">{t("checkout.digitalNote")}</p>
                 )}
