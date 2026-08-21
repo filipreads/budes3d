@@ -125,6 +125,9 @@ function EditorPage() {
   const heightMm = SIZES.find((size) => size.id === config.sizeId)?.heightMm ?? null;
 
   const priced = useMemo(() => quote(config), [config]);
+  /** Price difference a configurator option would make, shown next to each choice. */
+  const deltaFor = (patch: Partial<StudioConfig>) => quote({ ...config, ...patch }).totalCents - priced.totalCents;
+
 
   // Reopening a saved project from "My studio projects".
   useEffect(() => {
