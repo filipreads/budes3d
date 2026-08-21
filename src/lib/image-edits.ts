@@ -75,3 +75,73 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
+
+/** Rotates an image by a multiple of 90° and returns a new data URL. */
+export async function rotate90(src: string, direction: 1 | -1 = 1): Promise<string> {
+  const image = await loadImage(src);
+  const canvas = document.createElement("canvas");
+  canvas.width = image.height;
+  canvas.height = image.width;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unavailable");
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((direction * Math.PI) / 2);
+  ctx.drawImage(image, -image.width / 2, -image.height / 2);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+export type QualityReport = {
+  width: number;
+  height: number;
+  /** 0–100, higher is sharper. */
+  sharpness: number;
+  /** 0–255 average luminance. */
+  brightness: number;
+  warnings: ("resolution" | "blurry" | "dark" | "bright")[];
+};
+
+/** Cheap client-side quality check run before a generation is started. */
+export async function analyzeImageQuality(src: string): Promise<QualityReport> {
+  const image = await loadImage(src);
+  const sample = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = sample;
+  canvas.height = sample;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas unavailable");
+  ctx.drawImage(image, 0, 0, sample, sample);
+  const { data } = ctx.getImageData(0, 0, sample, sample);
+
+  const gray = new Float32Array(sample * sample);
+  let sum = 0;
+  for (let i = 0; i < gray.length; i += 1) {
+    const value = 0.299 * data[i * 4]! + 0.587 * data[i * 4 + 1]! + 0.114 * data[i * 4 + 2]!;
+    gray[i] = value;
+    sum += value;
+  }
+  const brightness = sum / gray.length;
+
+  // Laplacian variance — the standard cheap blur estimate.
+  let mean = 0;
+  const lap: number[] = [];
+  for (let y = 1; y < sample - 1; y += 1) {
+    for (let x = 1; x < sample - 1; x += 1) {
+      const i = y * sample + x;
+      const value =
+        4 * gray[i]! - gray[i - 1]! - gray[i + 1]! - gray[i - sample]! - gray[i + sample]!;
+      lap.push(value);
+      mean += value;
+    }
+  }
+  mean /= lap.length;
+  const variance = lap.reduce((acc, value) => acc + (value - mean) ** 2, 0) / lap.length;
+  const sharpness = Math.min(100, Math.round(variance / 4));
+
+  const warnings: QualityReport["warnings"] = [];
+  if (Math.min(image.width, image.height) < 700) warnings.push("resolution");
+  if (sharpness < 12) warnings.push("blurry");
+  if (brightness < 55) warnings.push("dark");
+  if (brightness > 225) warnings.push("bright");
+
+  return { width: image.width, height: image.height, sharpness, brightness, warnings };
+}
