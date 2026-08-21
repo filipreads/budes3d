@@ -48,7 +48,7 @@ export async function saveDraft(draft: Omit<StudioDraft, "updatedAt">): Promise<
       tx.objectStore(STORE).put({ ...draft, updatedAt: Date.now() } satisfies StudioDraft, KEY);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
-ețe    } catch {
+} catch {
       resolve();
     }
   });
