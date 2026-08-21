@@ -235,7 +235,8 @@ function EditorPage() {
   // Local mirror of the session: survives a closed tab, lost connection or an
   // app switch on the phone.
   useEffect(() => {
-    if (!photo) return;
+    // Also mirrored when there is no photo yet, so a configuration built
+    // before uploading (size, material, plinth) survives a return visit.
     const timer = setTimeout(() => {
       void saveDraft({
         photo,
@@ -256,8 +257,11 @@ function EditorPage() {
     if (resumable.edits) setEdits(resumable.edits as EditSettings);
     if (resumable.config) setConfig(sanitizeConfig(resumable.config as StudioConfig));
     if (resumable.projectId) sessionStorage.setItem("relievo:project", resumable.projectId);
-    setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    if (resumable.photo) {
+      setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    }
     setResumable(null);
+
     if (resumable.photo) void analyzeImageQuality(resumable.photo).then(setQuality).catch(() => setQuality(null));
   }
 
