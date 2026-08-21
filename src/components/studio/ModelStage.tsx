@@ -71,11 +71,16 @@ export default function ModelStage({
 
   const settings = QUALITY_SETTINGS[quality];
 
-  // Weak devices start in the light preset so the first frame arrives quickly.
+  // Manual preference wins; otherwise weak devices start in the light preset.
   useEffect(() => {
-    const detected = detectViewerQuality();
-    setQuality(detected);
-    setAutoRotate(QUALITY_SETTINGS[detected].autoRotate);
+    function sync() {
+      const effective = resolveViewerQuality();
+      setQuality(effective);
+      setAutoRotate(QUALITY_SETTINGS[effective].autoRotate);
+    }
+    sync();
+    window.addEventListener(VIEWER_QUALITY_EVENT, sync);
+    return () => window.removeEventListener(VIEWER_QUALITY_EVENT, sync);
   }, []);
 
   function switchQuality(next: ViewerQuality) {
@@ -83,6 +88,7 @@ export default function ModelStage({
     rememberViewerQuality(next);
     if (next === "low") setAutoRotate(false);
   }
+
 
   // There is no stand-in mesh: either the real generated file loads, or the
   // customer sees an explicit error instead of an approvable placeholder.
