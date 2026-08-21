@@ -309,26 +309,57 @@ function EditorPage() {
                       materialId={config.materialId}
                       finishId={config.finishId}
                       showBase={config.baseId !== "none"}
+                      placement={placement}
+                      heightMm={config.delivery === "print" ? heightMm : null}
                       canDownload
                     />
                   </div>
                 ) : null
               ) : photo ? (
-                <div className="flex h-[460px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep">
+                <div className="relative flex h-[460px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep">
+                  {originalPhoto && originalPhoto !== photo ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="absolute left-3 top-3 z-10"
+                      onMouseDown={() => setShowBefore(true)}
+                      onMouseUp={() => setShowBefore(false)}
+                      onMouseLeave={() => setShowBefore(false)}
+                      onTouchStart={() => setShowBefore(true)}
+                      onTouchEnd={() => setShowBefore(false)}
+                    >
+                      {showBefore ? t("editor.before") : t("editor.after")}
+                    </Button>
+                  ) : null}
                   <img
-                    src={photo}
+                    src={showBefore && originalPhoto ? originalPhoto : photo}
                     alt="Uploaded portrait preview"
                     className="max-h-full max-w-full object-contain"
                     style={{
-                      filter: cssFilter(edits),
+                      filter: showBefore ? "none" : cssFilter(edits),
                       transform: `translate(${edits.offsetX}%, ${edits.offsetY}%) rotate(${edits.rotation}deg) scale(${edits.zoom})`,
                     }}
                   />
                 </div>
               ) : (
-                <label className="flex h-[460px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border text-muted-foreground">
+                <label
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setDragOver(false);
+                    onFile(event.dataTransfer.files?.[0]);
+                  }}
+                  className={`flex h-[460px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-muted-foreground transition-colors ${
+                    dragOver ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
                   <Upload className="size-6" />
                   <span className="text-sm">{t("editor.uploadPrompt")}</span>
+                  <span className="text-xs">{t("editor.dropHint")}</span>
                   <input
                     type="file"
                     accept="image/*"
@@ -345,6 +376,36 @@ function EditorPage() {
               {step === "retouch" ? (
                 <>
                   <h2 className="font-display text-xl">{t("editor.retouchHeading")}</h2>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => void rotatePhoto(-1)}>
+                      <RotateCcw className="mr-1.5 size-3.5" />
+                      {t("editor.rotateLeft")}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void rotatePhoto(1)}>
+                      <RotateCw className="mr-1.5 size-3.5" />
+                      {t("editor.rotateRight")}
+                    </Button>
+                  </div>
+                  {quality ? (
+                    quality.warnings.length > 0 ? (
+                      <div className="rounded-lg border border-border bg-muted/50 p-3 text-sm">
+                        <p className="flex items-center gap-2 font-medium">
+                          <TriangleAlert className="size-4 text-destructive" aria-hidden />
+                          {t("editor.quality.title")}
+                        </p>
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                          {quality.warnings.map((warning) => (
+                            <li key={warning}>{t(`editor.quality.${warning}`)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Check className="size-3.5" aria-hidden />
+                        {t("editor.quality.ok")}
+                      </p>
+                    )
+                  ) : null}
                   <SliderRow label={t("editor.zoom")} value={edits.zoom * 100} min={80} max={220} onChange={(v) => setEdits({ ...edits, zoom: v / 100 })} />
                   <SliderRow label={t("editor.straighten")} value={edits.rotation} min={-20} max={20} onChange={(v) => setEdits({ ...edits, rotation: v })} />
                   <SliderRow label={t("editor.brightness")} value={edits.brightness} min={60} max={150} onChange={(v) => setEdits({ ...edits, brightness: v })} />
@@ -358,6 +419,16 @@ function EditorPage() {
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     {busy ?? t("editor.generate")}
                   </Button>
+                  {busy ? (
+                    <Button variant="ghost" className="w-full" onClick={() => (cancelRef.current = true)}>
+                      {t("editor.cancel")}
+                    </Button>
+                  ) : null}
+                  {failure && !busy ? (
+                    <Button variant="outline" className="w-full" onClick={() => void generate()}>
+                      {t("editor.retry")}
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
 
@@ -379,6 +450,21 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <p className="text-sm font-semibold">{t("editor.placement")}</p>
+                    <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
+                    <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+                    <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
+                    <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
+                        {t("editor.placement.center")}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
+                        {t("editor.placement.reset")}
+                      </Button>
+                    </div>
+                  </div>
                   <Button className="w-full" onClick={() => setStep("configure")}>
                     {t("editor.approve")}
                   </Button>
