@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import ModelStage from "@/components/studio/ModelStage";
+import ModelStage from "@/components/studio/LazyModelStage";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { formatPrice } from "@/lib/pricing";

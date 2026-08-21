@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS preferred_locale text NOT NULL DEFAULT 'en';

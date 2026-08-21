@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import ModelStage from "@/components/studio/ModelStage";
+import ModelStage from "@/components/studio/LazyModelStage";
 import { StudioProgress, type StageId, type StageState } from "@/components/studio/StudioProgress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

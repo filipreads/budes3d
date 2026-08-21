@@ -24,6 +24,10 @@ import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as TrellisTestRouteImport } from './routes/trellis-test'
+import { Route as AccountIndexRouteImport } from './routes/account.index'
+import { Route as AccountDownloadsRouteImport } from './routes/account.downloads'
+import { Route as AccountOrdersRouteImport } from './routes/account.orders'
+import { Route as AccountSettingsRouteImport } from './routes/account.settings'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -101,6 +105,26 @@ const TrellisTestRoute = TrellisTestRouteImport.update({
   path: '/trellis-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountIndexRoute = AccountIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountDownloadsRoute = AccountDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountOrdersRoute = AccountOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AccountRoute,
+} as any)
+const AccountSettingsRoute = AccountSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AccountRoute,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -110,7 +134,7 @@ const ApiPublicPaymentsWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
+  '/account': typeof AccountRouteWithChildren
   '/admin': typeof AdminRoute
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
@@ -124,11 +148,14 @@ export interface FileRoutesByFullPath {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/account/downloads': typeof AccountDownloadsRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/settings': typeof AccountSettingsRoute
+  '/account/': typeof AccountIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
@@ -142,12 +169,16 @@ export interface FileRoutesByTo {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/account/downloads': typeof AccountDownloadsRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/settings': typeof AccountSettingsRoute
+  '/account': typeof AccountIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
+  '/account': typeof AccountRouteWithChildren
   '/admin': typeof AdminRoute
   '/admin-quota': typeof AdminQuotaRoute
   '/auth': typeof AuthRoute
@@ -161,6 +192,10 @@ export interface FileRoutesById {
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
+  '/account/downloads': typeof AccountDownloadsRoute
+  '/account/orders': typeof AccountOrdersRoute
+  '/account/settings': typeof AccountSettingsRoute
+  '/account/': typeof AccountIndexRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -181,11 +216,14 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/account/downloads'
+    | '/account/orders'
+    | '/account/settings'
+    | '/account/'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/account'
     | '/admin'
     | '/admin-quota'
     | '/auth'
@@ -199,6 +237,10 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/account/downloads'
+    | '/account/orders'
+    | '/account/settings'
+    | '/account'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -217,12 +259,16 @@ export interface FileRouteTypes {
     | '/projects'
     | '/share'
     | '/trellis-test'
+    | '/account/downloads'
+    | '/account/orders'
+    | '/account/settings'
+    | '/account/'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountRoute: typeof AccountRoute
+  AccountRoute: typeof AccountRouteWithChildren
   AdminRoute: typeof AdminRoute
   AdminQuotaRoute: typeof AdminQuotaRoute
   AuthRoute: typeof AuthRoute
@@ -346,6 +392,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrellisTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account/': {
+      id: '/account/'
+      path: '/'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AccountIndexRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/downloads': {
+      id: '/account/downloads'
+      path: '/downloads'
+      fullPath: '/account/downloads'
+      preLoaderRoute: typeof AccountDownloadsRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/orders': {
+      id: '/account/orders'
+      path: '/orders'
+      fullPath: '/account/orders'
+      preLoaderRoute: typeof AccountOrdersRouteImport
+      parentRoute: typeof AccountRoute
+    }
+    '/account/settings': {
+      id: '/account/settings'
+      path: '/settings'
+      fullPath: '/account/settings'
+      preLoaderRoute: typeof AccountSettingsRouteImport
+      parentRoute: typeof AccountRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -356,9 +430,26 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AccountRouteChildren {
+  AccountDownloadsRoute: typeof AccountDownloadsRoute
+  AccountOrdersRoute: typeof AccountOrdersRoute
+  AccountSettingsRoute: typeof AccountSettingsRoute
+  AccountIndexRoute: typeof AccountIndexRoute
+}
+
+const AccountRouteChildren: AccountRouteChildren = {
+  AccountDownloadsRoute: AccountDownloadsRoute,
+  AccountOrdersRoute: AccountOrdersRoute,
+  AccountSettingsRoute: AccountSettingsRoute,
+  AccountIndexRoute: AccountIndexRoute,
+}
+
+const AccountRouteWithChildren =
+  AccountRoute._addFileChildren(AccountRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountRoute: AccountRoute,
+  AccountRoute: AccountRouteWithChildren,
   AdminRoute: AdminRoute,
   AdminQuotaRoute: AdminQuotaRoute,
   AuthRoute: AuthRoute,
