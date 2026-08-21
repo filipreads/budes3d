@@ -127,9 +127,27 @@ export function TwoFactorCard() {
         </div>
 
         {verified ? (
-          <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
-            {t("mfa.disable")}
-          </Button>
+          <div className="space-y-3">
+            <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
+              {t("mfa.disable")}
+            </Button>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-sm font-medium">{t("mfa.trustedDevices")}</p>
+              <p className="text-sm text-muted-foreground">{t("mfa.trustedCount", { count: trustedCount })}</p>
+              {trustedCount > 0 ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 px-0"
+                  disabled={busy}
+                  onClick={() => void forgetDevices()}
+                >
+                  {t("mfa.forgetDevices")}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
         ) : enrolling ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t("mfa.scan")}</p>
