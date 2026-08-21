@@ -160,6 +160,7 @@ function AccountPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <PaymentTestModeBanner />
       <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-12">
         <h1 className="font-display text-3xl">{t("account.title")}</h1>
