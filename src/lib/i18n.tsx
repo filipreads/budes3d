@@ -664,6 +664,17 @@ const cs: Record<TranslationKey, string> = {
   "viewer.errorBody":
     "Soubor nelze zobrazit, proto jej neschvalujte. Zkuste generování spustit znovu nebo nás kontaktujte.",
   "viewer.retry": "Zkusit načíst znovu",
+  "viewer.qualityHigh": "Kvalita: vysoká",
+  "viewer.qualityLow": "Kvalita: úsporná",
+  "viewer.qualityHint": "Na pomalejších zařízeních přepněte na úsporný režim",
+  "editor.resume.title": "Pokračovat tam, kde jste skončili?",
+  "editor.resume.body": "Uložili jsme vaši fotku i nastavení z minulé návštěvy.",
+  "editor.resume.action": "Pokračovat",
+  "editor.resume.discard": "Začít znovu",
+  "editor.offline": "Jste offline — nahrávání bude pokračovat automaticky po obnovení připojení.",
+  "editor.choosePhoto": "Vybrat nebo vyfotit",
+  "editor.reading": "Načítám fotku",
+
   "viewer.view.front": "Zepředu",
   "viewer.view.side": "Z boku",
   "viewer.view.top": "Shora",
