@@ -92,7 +92,30 @@ function EditorPage() {
   const [quality, setQuality] = useState<QualityReport | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
+  const [offline, setOffline] = useState(false);
   const cancelRef = useRef(false);
+
+  // Interrupted mobile sessions: keep a local copy of the working photo and
+  // settings so the customer never has to pick the photo again.
+  useEffect(() => {
+    if (projectParam) return;
+    void loadDraft().then((draft) => {
+      if (draft?.photo) setResumable(draft);
+    });
+  }, [projectParam]);
+
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
 
   const placement = config.placement ?? DEFAULT_PLACEMENT;
   const setPlacement = (next: Partial<Placement>) =>
