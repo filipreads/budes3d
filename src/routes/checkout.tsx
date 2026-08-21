@@ -9,7 +9,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
-import { createOrder, startPayment } from "@/lib/studio.functions";
+import { createOrder } from "@/lib/studio.functions";
+import { OrderCheckout } from "@/components/payments/OrderCheckout";
+import { PaymentTestModeBanner } from "@/components/payments/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
