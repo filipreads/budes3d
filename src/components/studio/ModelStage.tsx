@@ -202,14 +202,20 @@ export default function ModelStage({
       ref={shellRef}
       className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep"
     >
-      <Canvas shadows camera={{ position: [0, 0.4, 3.4], fov: 38 }} dpr={[1, 2]}>
+      <Canvas
+        shadows={settings.shadows}
+        camera={{ position: [0, 0.4, 3.4], fov: 38 }}
+        dpr={settings.dpr}
+        gl={{ antialias: settings.antialias, powerPreference: "high-performance" }}
+        frameloop={autoRotate ? "always" : "demand"}
+      >
         <color attach="background" args={["#141311"]} />
         <ambientLight intensity={warmLight ? 0.5 : 0.25} />
         <directionalLight
           position={[3, 4, 3]}
           intensity={warmLight ? 2.4 : 1.4}
           color={warmLight ? "#ffd9a8" : "#cfe0ff"}
-          castShadow
+          castShadow={settings.shadows}
         />
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
         <Suspense fallback={null}>
@@ -222,18 +228,21 @@ export default function ModelStage({
             >
               {loadedScene ? <primitive object={loadedScene} /> : null}
               {showBase && loadedScene ? (
-                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow>
-                  <cylinderGeometry args={[0.95, 1.05, 0.22, 64]} />
+                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow={settings.shadows}>
+                  <cylinderGeometry args={[0.95, 1.05, 0.22, settings.shadows ? 64 : 28]} />
                   <meshStandardMaterial color="#3c2f24" roughness={0.6} metalness={0.05} />
                 </mesh>
               ) : null}
             </group>
           </Center>
-          <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
+          {settings.contactShadows ? (
+            <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
+          ) : null}
         </Suspense>
         <OrbitControls
           makeDefault
           enablePan
+          enableDamping={quality === "high"}
           minDistance={1.8}
           maxDistance={7}
           autoRotate={autoRotate}
@@ -241,6 +250,7 @@ export default function ModelStage({
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
       </Canvas>
+
 
       {loadFailed ? (
         <div
