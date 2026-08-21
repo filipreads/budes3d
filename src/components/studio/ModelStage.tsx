@@ -22,10 +22,12 @@ import { useI18n } from "@/lib/i18n";
 import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
 import {
   QUALITY_SETTINGS,
-  detectViewerQuality,
+  resolveViewerQuality,
   rememberViewerQuality,
+  VIEWER_QUALITY_EVENT,
   type ViewerQuality,
 } from "@/lib/viewer-quality";
+
 
 
 type Props = {
