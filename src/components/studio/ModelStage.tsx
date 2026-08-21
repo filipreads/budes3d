@@ -1,13 +1,24 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { getModelUrl } from "@/lib/studio.functions";
 
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Center } from "@react-three/drei";
 import * as THREE from "three";
 import { Button } from "@/components/ui/button";
-import { Download, Lightbulb, Boxes, AlertTriangle } from "lucide-react";
+import {
+  Download,
+  Lightbulb,
+  Boxes,
+  AlertTriangle,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Play,
+  Pause,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
+import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
 
 type Props = {
   modelRef: string;
@@ -17,6 +28,10 @@ type Props = {
   canDownload?: boolean;
   /** Pre-signed model URL (used by public share links, which cannot sign one). */
   modelUrl?: string | null;
+  /** Manual placement of the sculpture on its plinth. */
+  placement?: Placement;
+  /** Ordered print height, shown as a real-world scale reference. */
+  heightMm?: number | null;
 };
 
 export default function ModelStage({
@@ -26,6 +41,8 @@ export default function ModelStage({
   showBase = true,
   canDownload = false,
   modelUrl = null,
+  placement = DEFAULT_PLACEMENT,
+  heightMm = null,
 }: Props) {
   void materialId;
   void finishId;
@@ -35,6 +52,10 @@ export default function ModelStage({
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
+  const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
 
@@ -87,6 +108,21 @@ export default function ModelStage({
     });
   }, [loadedScene, wireframe]);
 
+  useEffect(() => {
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await shellRef.current?.requestFullscreen();
+    } catch {
+      /* fullscreen is a nice-to-have; ignore refusals */
+    }
+  }
+
   async function exportModel(format: "stl" | "glb") {
     const source: THREE.Object3D | null = loadedScene;
     if (!source) {
@@ -111,7 +147,10 @@ export default function ModelStage({
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep">
+    <div
+      ref={shellRef}
+      className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep"
+    >
       <Canvas shadows camera={{ position: [0, 0.4, 3.4], fov: 38 }} dpr={[1, 2]}>
         <color attach="background" args={["#141311"]} />
         <ambientLight intensity={warmLight ? 0.5 : 0.25} />
@@ -124,7 +163,12 @@ export default function ModelStage({
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
         <Suspense fallback={null}>
           <Center>
-            <group ref={groupRef}>
+            <group
+              ref={groupRef}
+              rotation={[(placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0]}
+              position={[0, placement.lift, 0]}
+              scale={placement.scale}
+            >
               {loadedScene ? <primitive object={loadedScene} /> : null}
               {showBase && loadedScene ? (
                 <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow>
@@ -136,7 +180,15 @@ export default function ModelStage({
           </Center>
           <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
         </Suspense>
-        <OrbitControls enablePan minDistance={1.8} maxDistance={7} autoRotate autoRotateSpeed={0.6} />
+        <OrbitControls
+          makeDefault
+          enablePan
+          minDistance={1.8}
+          maxDistance={7}
+          autoRotate={autoRotate}
+          autoRotateSpeed={0.6}
+        />
+        <CameraRig preset={view.preset} nonce={view.nonce} />
       </Canvas>
 
       {loadFailed ? (
@@ -154,6 +206,52 @@ export default function ModelStage({
       ) : !loadedScene ? (
         <div className="absolute inset-0 flex items-center justify-center bg-stone-deep/80">
           <p className="text-sm text-muted-foreground">{t("viewer.loading")}</p>
+        </div>
+      ) : null}
+
+      {loadedScene ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3">
+          <div className="pointer-events-auto flex flex-wrap gap-1.5">
+            {(["front", "side", "top"] as const).map((preset) => (
+              <Button
+                key={preset}
+                size="sm"
+                variant="secondary"
+                onClick={() => setView((state) => ({ preset, nonce: state.nonce + 1 }))}
+              >
+                {t(`viewer.view.${preset}`)}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              aria-label={t("viewer.reset")}
+              onClick={() => setView((state) => ({ preset: "front", nonce: state.nonce + 1 }))}
+            >
+              <RotateCcw className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              aria-label={autoRotate ? t("viewer.pause") : t("viewer.play")}
+              onClick={() => setAutoRotate((value) => !value)}
+            >
+              {autoRotate ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              aria-label={t("viewer.fullscreen")}
+              onClick={() => void toggleFullscreen()}
+            >
+              {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+            </Button>
+          </div>
+          {heightMm ? (
+            <span className="pointer-events-auto rounded-full bg-background/85 px-3 py-1 text-xs text-foreground">
+              {t("viewer.scale").replace("{mm}", String(Math.round(heightMm * placement.scale)))}
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -183,6 +281,29 @@ export default function ModelStage({
       ) : null}
     </div>
   );
+}
+
+type ViewPreset = "front" | "side" | "top";
+
+const VIEW_POSITIONS: Record<ViewPreset, [number, number, number]> = {
+  front: [0, 0.4, 3.4],
+  side: [3.3, 0.4, 0.2],
+  top: [0, 3.2, 1.4],
+};
+
+/** Moves the camera to a preset whenever `nonce` changes. */
+function CameraRig({ preset, nonce }: { preset: ViewPreset; nonce: number }) {
+  const camera = useThree((state) => state.camera);
+  const controls = useThree((state) => state.controls) as { target: THREE.Vector3; update: () => void } | null;
+  useEffect(() => {
+    if (nonce === 0) return;
+    const [x, y, z] = VIEW_POSITIONS[preset];
+    camera.position.set(x, y, z);
+    controls?.target.set(0, 0, 0);
+    controls?.update();
+    camera.updateProjectionMatrix();
+  }, [preset, nonce, camera, controls]);
+  return null;
 }
 
 function downloadBlob(blob: Blob, filename: string) {
