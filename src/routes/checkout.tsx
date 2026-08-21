@@ -62,15 +62,9 @@ function CheckoutPage() {
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
-      const payment = await startPayment({ data: { orderId: order.orderId, locale } });
       sessionStorage.removeItem("relievo:project");
-      if (payment.checkoutUrl) {
-        window.location.href = payment.checkoutUrl;
-        return;
-      }
+      setOrderId(order.orderId);
       toast.success(t("checkout.confirmed", { number: order.orderNumber }));
-      toast.warning(payment.message);
-      void navigate({ to: "/account" });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("checkout.failed"));
     } finally {
