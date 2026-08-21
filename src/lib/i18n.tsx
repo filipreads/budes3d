@@ -495,6 +495,8 @@ const cs: Record<TranslationKey, string> = {
   "nav.projects": "Moje projekty",
 
   "account.invoice": "Faktura (PDF)",
+  "account.pay": "Zaplatit",
+  "account.payCancel": "Zrušit platbu",
   "account.share": "Sdílet náhled",
   "account.shareCopied": "Odkaz jen pro prohlížení zkopírován",
   "account.shareFail": "Odkaz se nepodařilo vytvořit",
