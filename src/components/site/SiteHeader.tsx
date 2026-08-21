@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 
@@ -37,7 +45,8 @@ export function SiteHeader() {
   const { user, loading, signOut } = useAuth();
   const { profile } = useProfile();
   const { t } = useI18n();
-  const initial = (profile?.displayName || profile?.email || user?.email || "?").charAt(0).toUpperCase();
+  const name = profile?.displayName || profile?.email || user?.email || "";
+  const initial = (name || "?").charAt(0).toUpperCase();
   const [open, setOpen] = useState(false);
   const [admin, setAdmin] = useState(false);
 
@@ -74,39 +83,48 @@ export function SiteHeader() {
               {t(item.labelKey)}
             </Link>
           ))}
+
+          <LanguageSwitcher />
+
           {!loading && user ? (
-            <>
-              <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground">
-                {t("nav.projects")}
-              </Link>
-              <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
-                {t("nav.dashboard")}
-              </Link>
-              <Link
-                to="/account"
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-              >
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3 text-sm text-muted-foreground transition-colors hover:text-foreground">
                 {profile?.avatarUrl ? (
                   <img src={profile.avatarUrl} alt="" className="size-6 rounded-full object-cover" />
                 ) : (
                   <span className="grid size-6 place-items-center rounded-full bg-muted text-[11px]">{initial}</span>
                 )}
-                <span className="max-w-28 truncate">{profile?.displayName || t("nav.account")}</span>
-              </Link>
-              {admin ? (
-                <>
-                  <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground">
-                    {t("nav.admin")}
-                  </Link>
-                  <Link to="/admin-quota" className="text-sm text-muted-foreground hover:text-foreground">
-                    {t("nav.quota")}
-                  </Link>
-                </>
-              ) : null}
-              <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-                {t("nav.signout")}
-              </Button>
-            </>
+                <span className="max-w-24 truncate">{profile?.displayName || t("nav.account")}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
+                  {profile?.email || user.email}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/account">{t("nav.account")}</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/projects">{t("nav.projects")}</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard">{t("nav.dashboard")}</Link>
+                </DropdownMenuItem>
+                {admin ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin">{t("nav.admin")}</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin-quota">{t("nav.quota")}</Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => void signOut()}>{t("nav.signout")}</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <Link to="/auth" search={{ redirect: "" }}>
               <Button variant="ghost" size="sm">
@@ -114,7 +132,7 @@ export function SiteHeader() {
               </Button>
             </Link>
           )}
-          <LanguageSwitcher />
+
           <Link to="/editor">
             <Button size="sm">{t("nav.cta")}</Button>
           </Link>
@@ -142,14 +160,17 @@ export function SiteHeader() {
             ))}
             {user ? (
               <>
+                <div className="mt-1 border-t border-border/70 pt-3 text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("nav.account")}
+                </div>
+                <Link to="/account" onClick={() => setOpen(false)} className="text-sm">
+                  {t("nav.account")}
+                </Link>
                 <Link to="/projects" onClick={() => setOpen(false)} className="text-sm">
                   {t("nav.projects")}
                 </Link>
                 <Link to="/dashboard" onClick={() => setOpen(false)} className="text-sm">
                   {t("nav.dashboard")}
-                </Link>
-                <Link to="/account" onClick={() => setOpen(false)} className="text-sm">
-                  {t("nav.account")}
                 </Link>
                 {admin ? (
                   <>
@@ -170,6 +191,11 @@ export function SiteHeader() {
                 {t("nav.signin")}
               </Link>
             )}
+            <Link to="/editor" onClick={() => setOpen(false)} className="mt-1">
+              <Button size="sm" className="w-full">
+                {t("nav.cta")}
+              </Button>
+            </Link>
           </div>
         </div>
       ) : null}
