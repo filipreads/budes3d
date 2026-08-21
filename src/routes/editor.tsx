@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import ModelStage from "@/components/studio/ModelStage";
 import { StudioProgress, type StageId, type StageState } from "@/components/studio/StudioProgress";
@@ -14,16 +14,27 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_EDITS, cssFilter, renderEdited, blobToDataUrl, type EditSettings } from "@/lib/image-edits";
+import {
+  DEFAULT_EDITS,
+  cssFilter,
+  renderEdited,
+  blobToDataUrl,
+  rotate90,
+  analyzeImageQuality,
+  type EditSettings,
+  type QualityReport,
+} from "@/lib/image-edits";
 import {
   BASES,
   DEFAULT_CONFIG,
   FINISHES,
   MATERIALS,
   SIZES,
+  DEFAULT_PLACEMENT,
   formatPrice,
   quote,
   sanitizeConfig,
+  type Placement,
   type StudioConfig,
 } from "@/lib/pricing";
 import { removeBackground } from "@/lib/studio.functions";
@@ -37,7 +48,7 @@ const STAGE_LABEL: Record<string, string> = {
   storing: "Saving your model…",
 };
 
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
   validateSearch: (search: Record<string, unknown>): { project?: string } =>
@@ -73,6 +84,17 @@ function EditorPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [originalPhoto, setOriginalPhoto] = useState<string | null>(null);
+  const [showBefore, setShowBefore] = useState(false);
+  const [quality, setQuality] = useState<QualityReport | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const cancelRef = useRef(false);
+
+  const placement = config.placement ?? DEFAULT_PLACEMENT;
+  const setPlacement = (next: Partial<Placement>) =>
+    setConfig((current) => ({ ...current, placement: { ...(current.placement ?? DEFAULT_PLACEMENT), ...next } }));
+  const heightMm = SIZES.find((size) => size.id === config.sizeId)?.heightMm ?? null;
 
   const priced = useMemo(() => quote(config), [config]);
 
@@ -119,12 +141,42 @@ function EditorPage() {
     return map;
   }, [step, busy, photo, modelRef, failure]);
 
+  // Autosave the working configuration so a closed tab loses nothing.
+  useEffect(() => {
+    if (!user) return;
+    const projectId = sessionStorage.getItem("relievo:project");
+    if (!projectId) return;
+    const timer = setTimeout(() => {
+      void supabase
+        .from("projects")
+        .update({ config: config as unknown as Json, edit_settings: edits as unknown as Json })
+        .eq("id", projectId)
+        .then(() => setSavedAt(Date.now()));
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [config, edits, user]);
+
+  async function rotatePhoto(direction: 1 | -1) {
+    if (!photo) return;
+    try {
+      const next = await rotate90(photo, direction);
+      setPhoto(next);
+      void analyzeImageQuality(next).then(setQuality).catch(() => setQuality(null));
+    } catch {
+      toast.error(t("editor.toast.imageOnly"));
+    }
+  }
+
   function onFile(file: File | undefined) {
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error(t("editor.toast.imageOnly")); return; }
     const reader = new FileReader();
     reader.onload = () => {
-      setPhoto(String(reader.result));
+      const dataUrl = String(reader.result);
+      setPhoto(dataUrl);
+      setOriginalPhoto(dataUrl);
+      setShowBefore(false);
+      void analyzeImageQuality(dataUrl).then(setQuality).catch(() => setQuality(null));
       setEdits(DEFAULT_EDITS);
       setModelRef(null);
       setFailure(null);
@@ -162,6 +214,7 @@ function EditorPage() {
       return;
     }
     setFailure(null);
+    cancelRef.current = false;
     setBusy(t("editor.busy.upload"));
     setProgress(20);
     try {
@@ -198,6 +251,7 @@ function EditorPage() {
       let guard = 0;
       let job = await getGenerationStatus({ data: { projectId: project.id } });
       while (!job.done && guard < 40) {
+        if (cancelRef.current) throw new Error(t("editor.cancelled"));
         guard += 1;
         job = await advanceGeneration({ data: { projectId: project.id } });
         setProgress(job.progress > 0 ? job.progress : null);
