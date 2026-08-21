@@ -112,10 +112,19 @@ export function StudioProgress({
           <TriangleAlert className="size-4 shrink-0" /> {error}
         </p>
       ) : message ? (
-        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 shrink-0 animate-spin" /> {message}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <Loader2 className="size-4 shrink-0 animate-spin" /> {message}
+          </p>
+          {elapsed !== null ? (
+            <p className="text-xs tabular-nums">
+              {t("editor.elapsed", { mm: formatDuration(elapsed) })}
+              {remaining !== null ? ` · ${t("editor.eta", { mm: formatDuration(remaining) })}` : ""}
+            </p>
+          ) : null}
+        </div>
       ) : null}
+
     </section>
   );
 }
