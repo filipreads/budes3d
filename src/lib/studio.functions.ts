@@ -19,6 +19,51 @@ export const getModelUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/**
+ * Deletes a project and its stored files. Projects that already back an order
+ * are kept, so invoicing and paid downloads never lose their source.
+ */
+export const deleteProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { projectId: string }) => {
+    if (!input?.projectId) throw new Error("projectId required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, source_photos, model_url")
+      .eq("id", data.projectId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!project) throw new Error("Project not found");
+
+    const { data: linkedOrders } = await supabase
+      .from("orders")
+      .select("order_number")
+      .eq("project_id", project.id)
+      .limit(1);
+    if (linkedOrders && linkedOrders.length > 0) {
+      return {
+        deleted: false as const,
+        blockedByOrder: linkedOrders[0]!.order_number,
+      };
+    }
+
+    const photos = Array.isArray(project.source_photos)
+      ? (project.source_photos as unknown[]).filter((entry): entry is string => typeof entry === "string")
+      : [];
+    if (photos.length > 0) await supabase.storage.from("portrait-uploads").remove(photos);
+    if (project.model_url) await supabase.storage.from("portrait-models").remove([project.model_url]);
+
+    const { error } = await supabase.from("projects").delete().eq("id", project.id).eq("user_id", userId);
+    if (error) throw new Error(error.message);
+
+    return { deleted: true as const, blockedByOrder: null };
+  });
+
 
 type OrderInput = {
   projectId: string;
