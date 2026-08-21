@@ -39,6 +39,9 @@ import {
 } from "@/lib/pricing";
 import { removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
+import { uploadWithProgress } from "@/lib/storage-upload";
+
 
 const STAGE_LABEL: Record<string, string> = {
   queued: "Waiting for a free GPU slot…",
