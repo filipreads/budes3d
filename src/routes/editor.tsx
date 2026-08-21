@@ -740,7 +740,7 @@ function ChoiceRow({
   onChange,
 }: {
   label: string;
-  options: { id: string; label: string }[];
+  options: { id: string; label: string; delta?: number }[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -748,19 +748,29 @@ function ChoiceRow({
     <div className="space-y-2">
       <Label>{label}</Label>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {options.map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            className="h-10 w-full justify-center whitespace-normal px-3 text-xs leading-tight sm:h-9 sm:w-auto sm:text-sm"
-            variant={value === option.id ? "default" : "outline"}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
+        {options.map((option) => {
+          const delta = option.delta ?? 0;
+          return (
+            <Button
+              key={option.id}
+              size="sm"
+              className="h-auto min-h-10 w-full flex-col items-center justify-center gap-0.5 whitespace-normal px-3 py-1.5 text-xs leading-tight sm:w-auto sm:text-sm"
+              variant={value === option.id ? "default" : "outline"}
+              onClick={() => onChange(option.id)}
+            >
+              <span>{option.label}</span>
+              {value !== option.id && delta !== 0 ? (
+                <span className="text-[11px] opacity-70">
+                  {delta > 0 ? "+" : "−"}
+                  {formatPrice(Math.abs(delta))}
+                </span>
+              ) : null}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
+
 
 }
