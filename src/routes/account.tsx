@@ -55,6 +55,7 @@ function AccountPage() {
   const [sharing, setSharing] = useState<string | null>(null);
   const [downloads, setDownloads] = useState<Record<string, OrderDownload[]>>({});
   const [preparing, setPreparing] = useState<string | null>(null);
+  const [paying, setPaying] = useState<string | null>(null);
 
   async function runDownload(entry: OrderDownload) {
     setPreparing(entry.id);
