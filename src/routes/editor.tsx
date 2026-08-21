@@ -370,6 +370,8 @@ function EditorPage() {
     } finally {
       setBusy(null);
       setProgress(null);
+      setStartedAt(null);
+
     }
   }
 
