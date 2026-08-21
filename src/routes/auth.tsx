@@ -103,7 +103,41 @@ function AuthPage() {
       <main className="mx-auto flex w-full max-w-md flex-1 items-center px-5 py-14">
         <Card className="w-full">
           <CardContent className="p-7">
+            {mfaFactorId ? (
+              <div className="space-y-4">
+                <h1 className="font-display text-2xl">Enter your authentication code</h1>
+                <p className="text-sm text-muted-foreground">
+                  Open your authenticator app and enter the current 6-digit code.
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="mfa-signin-code">6-digit code</Label>
+                  <Input
+                    id="mfa-signin-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                  />
+                </div>
+                <Button className="w-full" disabled={busy || mfaCode.length < 6} onClick={() => void verifyMfa()}>
+                  Continue
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setMfaFactorId(null);
+                    void supabase.auth.signOut();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <>
             <h1 className="font-display text-2xl">Welcome to the studio</h1>
+
             <p className="mt-1 text-sm text-muted-foreground">Sign in to save projects and place orders.</p>
 
             <Button variant="outline" className="mt-6 w-full" onClick={() => void google()}>
