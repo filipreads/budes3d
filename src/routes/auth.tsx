@@ -141,7 +141,20 @@ function AuthPage() {
                     onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
                   />
                 </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-primary"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
+                  <span>
+                    {t("mfa.rememberDevice")}
+                    <span className="block text-xs text-muted-foreground">{t("mfa.rememberHint")}</span>
+                  </span>
+                </label>
                 <Button className="w-full" disabled={busy || mfaCode.length < 6} onClick={() => void verifyMfa()}>
+
                   Continue
                 </Button>
                 <Button
