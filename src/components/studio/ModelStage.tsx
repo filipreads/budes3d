@@ -407,13 +407,30 @@ export default function ModelStage({
   );
 }
 
-type ViewPreset = "front" | "side" | "top";
+type ViewPreset = "front" | "angle" | "side" | "top";
 
 const VIEW_POSITIONS: Record<ViewPreset, [number, number, number]> = {
   front: [0, 0.4, 3.4],
+  angle: [2.3, 1, 2.4],
   side: [3.3, 0.4, 0.2],
   top: [0, 3.2, 1.4],
 };
+
+/** Dollies the camera in or out whenever `nonce` changes, respecting orbit limits. */
+function CameraZoom({ factor, nonce }: { factor: number; nonce: number }) {
+  const camera = useThree((state) => state.camera);
+  const controls = useThree((state) => state.controls) as { target: THREE.Vector3; update: () => void } | null;
+  useEffect(() => {
+    if (nonce === 0) return;
+    const target = controls?.target ?? new THREE.Vector3();
+    const offset = camera.position.clone().sub(target);
+    const distance = Math.min(7, Math.max(1.8, offset.length() * factor));
+    camera.position.copy(target).add(offset.setLength(distance));
+    controls?.update();
+  }, [factor, nonce, camera, controls]);
+  return null;
+}
+
 
 /** Moves the camera to a preset whenever `nonce` changes. */
 function CameraRig({ preset, nonce }: { preset: ViewPreset; nonce: number }) {
