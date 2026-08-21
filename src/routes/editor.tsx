@@ -385,31 +385,10 @@ function EditorPage() {
 
       // TRELLIS runs for minutes. The job is persisted server-side and driven
       // one step at a time, so no single request has to stay open that long.
-      await startGeneration({ data: { projectId: project.id } });
-
-      let guard = 0;
-      let job = await getGenerationStatus({ data: { projectId: project.id } });
-      while (!job.done && guard < 40) {
-        if (cancelRef.current) throw new Error(t("editor.cancelled"));
-        guard += 1;
-        job = await advanceGeneration({ data: { projectId: project.id } });
-        setProgress(job.progress > 0 ? job.progress : null);
-        if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
-        if (job.error && !job.retryable) break;
-      }
-
-      if (job.stage !== "ready" || !job.modelRef) {
-        throw new Error(job.error ?? t("editor.toast.genFail"));
-      }
-
-      setBusy(t("editor.busy.finalize"));
-      setProgress(100);
-      setModelRef(job.modelRef);
-
       sessionStorage.setItem("relievo:project", project.id);
-      setStep("preview");
+      await startGeneration({ data: { projectId: project.id } });
+      await driveJob(project.id);
       toast.success(t("editor.toast.ready"));
-
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
@@ -421,6 +400,85 @@ function EditorPage() {
 
     }
   }
+
+  /**
+   * Drives a persisted generation job to completion. The project id is kept in
+   * localStorage, so reloading the page picks the same job back up instead of
+   * losing the reconstruction.
+   */
+  async function driveJob(projectId: string) {
+    localStorage.setItem(JOB_KEY, projectId);
+    let guard = 0;
+    let job = await getGenerationStatus({ data: { projectId } });
+    while (!job.done && guard < 40) {
+      if (cancelRef.current) throw new Error(t("editor.cancelled"));
+      guard += 1;
+      job = await advanceGeneration({ data: { projectId } });
+      setProgress(job.progress > 0 ? job.progress : null);
+      if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+      if (job.error && !job.retryable) break;
+    }
+
+    if (job.stage !== "ready" || !job.modelRef) {
+      if (job.stage === "failed") localStorage.removeItem(JOB_KEY);
+      throw new Error(job.error ?? t("editor.toast.genFail"));
+    }
+
+    localStorage.removeItem(JOB_KEY);
+    setBusy(t("editor.busy.finalize"));
+    setProgress(100);
+    setModelRef(job.modelRef);
+    sessionStorage.setItem("relievo:project", projectId);
+    setStep("preview");
+  }
+
+  // Reopening the studio while a reconstruction is still queued or running:
+  // pick the job back up and keep showing its real state.
+  useEffect(() => {
+    if (!user) return;
+    const pending = localStorage.getItem(JOB_KEY);
+    if (!pending || busyRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const job = await getGenerationStatus({ data: { projectId: pending } });
+        if (cancelled) return;
+        if (job.stage === "ready" && job.modelRef) {
+          localStorage.removeItem(JOB_KEY);
+          setModelRef(job.modelRef);
+          sessionStorage.setItem("relievo:project", pending);
+          setStep("preview");
+          return;
+        }
+        if (job.stage === "failed") {
+          localStorage.removeItem(JOB_KEY);
+          setFailure(job.error ?? t("editor.toast.genFail"));
+          return;
+        }
+        cancelRef.current = false;
+        setStartedAt(Date.now());
+        setProgress(job.progress > 0 ? job.progress : null);
+        setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+        toast.info(t("editor.job.resumed"));
+        await driveJob(pending);
+        if (!cancelled) toast.success(t("editor.toast.ready"));
+      } catch (error) {
+        if (cancelled) return;
+        setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
+      } finally {
+        if (!cancelled) {
+          setBusy(null);
+          setProgress(null);
+          setStartedAt(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
 
   function goToCheckout() {
     const projectId = sessionStorage.getItem("relievo:project");
