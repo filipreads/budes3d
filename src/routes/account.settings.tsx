@@ -32,6 +32,28 @@ export const Route = createFileRoute("/account/settings")({
   component: SettingsTab,
 });
 
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div>
+          <h2 className="font-display text-lg">{title}</h2>
+          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+        </div>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SettingsTab() {
   const { user, signOut } = useAuth();
   const { t, locale, setLocale } = useI18n();
@@ -42,6 +64,7 @@ function SettingsTab() {
 
   const [displayName, setDisplayName] = useState("");
   const [address, setAddress] = useState<ShippingAddress>(EMPTY_SHIPPING_ADDRESS);
+  const [editingAddress, setEditingAddress] = useState(false);
   const [quality, setQuality] = useState<ViewerQualityPreference>("auto");
   const [saving, setSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -56,6 +79,11 @@ function SettingsTab() {
   useEffect(() => {
     setQuality(getViewerQualityPreference());
   }, []);
+
+  const addressSummary = [address.name, address.line1, address.city, address.postalCode, address.country]
+    .map((value) => (value ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
 
   async function saveProfile(patch: {
     displayName?: string;
@@ -116,42 +144,39 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="font-display text-lg">{t("account.profile")}</h2>
-
-          <div className="flex items-center gap-4">
-            {data?.avatarUrl ? (
-              <img src={data.avatarUrl} alt="" className="size-16 rounded-full object-cover" />
-            ) : (
-              <span className="grid size-16 place-items-center rounded-full bg-muted font-display text-xl">
-                {(displayName || data?.email || "?").charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void onAvatar(file);
-                }}
-              />
-              <Button variant="secondary" size="sm" disabled={saving} onClick={() => fileRef.current?.click()}>
-                {t("account.uploadAvatar")}
-              </Button>
-              <p className="mt-1 text-xs text-muted-foreground">{t("account.avatarHint")}</p>
-            </div>
+      <Section title={t("account.profile")}>
+        <div className="flex items-center gap-4">
+          {data?.avatarUrl ? (
+            <img src={data.avatarUrl} alt="" className="size-16 rounded-full object-cover" />
+          ) : (
+            <span className="grid size-16 place-items-center rounded-full bg-muted font-display text-xl">
+              {(displayName || data?.email || "?").charAt(0).toUpperCase()}
+            </span>
+          )}
+          <div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void onAvatar(file);
+              }}
+            />
+            <Button variant="secondary" size="sm" disabled={saving} onClick={() => fileRef.current?.click()}>
+              {t("account.uploadAvatar")}
+            </Button>
+            <p className="mt-1 text-xs text-muted-foreground">{t("account.avatarHint")}</p>
           </div>
+        </div>
 
-          <div className="grid gap-2 sm:max-w-sm">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
             <Label htmlFor="display-name">{t("account.displayName")}</Label>
             <Input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </div>
-
-          <div className="grid gap-2 sm:max-w-sm">
+          <div className="grid gap-2">
             <Label htmlFor="locale">{t("account.language")}</Label>
             <select
               id="locale"
@@ -167,21 +192,76 @@ function SettingsTab() {
               <option value="cs">Čeština</option>
             </select>
           </div>
+        </div>
 
-          <Button disabled={saving} onClick={() => void saveProfile({ displayName })}>
-            {t("account.save")}
-          </Button>
-        </CardContent>
-      </Card>
+        <Button disabled={saving} onClick={() => void saveProfile({ displayName })}>
+          {t("account.save")}
+        </Button>
+      </Section>
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="font-display text-lg">{t("account.signInDetails")}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t("account.email")}: {data?.email}
-          </p>
+      <Section title={t("account.shipping")} description={t("account.shippingHint")}>
+        {!editingAddress ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">{addressSummary || t("account.addressEmpty")}</p>
+            <Button size="sm" variant="secondary" onClick={() => setEditingAddress(true)}>
+              {addressSummary ? t("account.editAddress") : t("account.addAddress")}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(
+                [
+                  ["name", "checkout.fullName"],
+                  ["line1", "checkout.address"],
+                  ["line2", "checkout.address2"],
+                  ["city", "checkout.city"],
+                  ["postalCode", "checkout.postalCode"],
+                  ["country", "checkout.country"],
+                  ["phone", "account.phone"],
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="space-y-1.5">
+                  <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
+                  <Input
+                    id={`ship-${key}`}
+                    value={address[key]}
+                    onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={saving}
+                onClick={async () => {
+                  await saveProfile({ shippingAddress: address });
+                  setEditingAddress(false);
+                }}
+              >
+                {t("account.saveAddress")}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAddress(data?.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
+                  setEditingAddress(false);
+                }}
+              >
+                {t("account.cancel")}
+              </Button>
+            </div>
+          </>
+        )}
+      </Section>
 
-          <div className="grid gap-2 sm:max-w-sm">
+      <Section title={t("account.security")}>
+        <p className="text-sm text-muted-foreground">
+          {t("account.email")}: {data?.email}
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
             <Label htmlFor="new-email">{t("account.newEmail")}</Label>
             <Input
               id="new-email"
@@ -190,12 +270,12 @@ function SettingsTab() {
               onChange={(event) => setNewEmail(event.target.value)}
               autoComplete="email"
             />
-            <Button variant="secondary" onClick={() => void changeEmail()}>
+            <Button variant="secondary" size="sm" onClick={() => void changeEmail()}>
               {t("account.changeEmail")}
             </Button>
           </div>
 
-          <div className="grid gap-2 sm:max-w-sm">
+          <div className="grid gap-2">
             <Label htmlFor="new-password">{t("account.newPassword")}</Label>
             <Input
               id="new-password"
@@ -204,79 +284,45 @@ function SettingsTab() {
               onChange={(event) => setNewPassword(event.target.value)}
               autoComplete="new-password"
             />
-            <Button variant="secondary" onClick={() => void changePassword()}>
+            <Button variant="secondary" size="sm" onClick={() => void changePassword()}>
               {t("account.changePassword")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <h2 className="font-display text-lg">{t("account.shipping")}</h2>
-          <p className="text-sm text-muted-foreground">{t("account.shippingHint")}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(
-              [
-                ["name", "checkout.fullName"],
-                ["line1", "checkout.address"],
-                ["line2", "checkout.address2"],
-                ["city", "checkout.city"],
-                ["postalCode", "checkout.postalCode"],
-                ["country", "checkout.country"],
-                ["phone", "account.phone"],
-              ] as const
-            ).map(([key, label]) => (
-              <div key={key} className="space-y-1.5">
-                <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
-                <Input
-                  id={`ship-${key}`}
-                  value={address[key]}
-                  onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
-                />
-              </div>
-            ))}
-          </div>
-          <Button disabled={saving} onClick={() => void saveProfile({ shippingAddress: address })}>
-            {t("account.saveAddress")}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 p-5">
-          <h2 className="font-display text-lg">{t("account.viewerQuality")}</h2>
-          <p className="text-sm text-muted-foreground">{t("account.viewerQualityHint")}</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["auto", "account.qualityAuto"],
-                ["high", "account.qualityHigh"],
-                ["low", "account.qualityLow"],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                key={value}
-                type="button"
-                size="sm"
-                variant={quality === value ? "default" : "secondary"}
-                aria-pressed={quality === value}
-                onClick={() => {
-                  setQuality(value);
-                  rememberViewerQuality(value);
-                }}
-              >
-                {t(label)}
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
 
       <TwoFactorCard />
 
-      <Card>
+      <Section title={t("account.viewerQuality")} description={t("account.viewerQualityHint")}>
+        <div className="inline-flex rounded-lg border border-border p-1">
+          {(
+            [
+              ["auto", "account.qualityAuto"],
+              ["high", "account.qualityHigh"],
+              ["low", "account.qualityLow"],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={quality === value}
+              onClick={() => {
+                setQuality(value);
+                rememberViewerQuality(value);
+              }}
+              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+                quality === value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t(label)}
+            </button>
+          ))}
+        </div>
+      </Section>
 
+      <Card>
         <CardContent className="space-y-3 p-5">
           <p className="text-sm text-muted-foreground">{t("account.dataNote")}</p>
           <Button variant="ghost" onClick={() => void signOut()}>
