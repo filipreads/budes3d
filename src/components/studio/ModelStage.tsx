@@ -60,12 +60,29 @@ export default function ModelStage({
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [loadPercent, setLoadPercent] = useState(0);
+  const [quality, setQuality] = useState<ViewerQuality>("high");
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+
+  const settings = QUALITY_SETTINGS[quality];
+
+  // Weak devices start in the light preset so the first frame arrives quickly.
+  useEffect(() => {
+    const detected = detectViewerQuality();
+    setQuality(detected);
+    setAutoRotate(QUALITY_SETTINGS[detected].autoRotate);
+  }, []);
+
+  function switchQuality(next: ViewerQuality) {
+    setQuality(next);
+    rememberViewerQuality(next);
+    if (next === "low") setAutoRotate(false);
+  }
 
   // There is no stand-in mesh: either the real generated file loads, or the
   // customer sees an explicit error instead of an approvable placeholder.
@@ -81,11 +98,14 @@ export default function ModelStage({
     let cancelled = false;
     setLoadedScene(null);
     setLoadFailed(false);
+    setLoadPercent(0);
     void (async () => {
       try {
         const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
         const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-        const gltf = await new GLTFLoader().loadAsync(url);
+        const gltf = await new GLTFLoader().loadAsync(url, (event) => {
+          if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
+        });
         if (cancelled) return;
         gltf.scene.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -93,6 +113,7 @@ export default function ModelStage({
             child.receiveShadow = true;
           }
         });
+        setLoadPercent(100);
         setLoadedScene(gltf.scene);
       } catch {
         if (!cancelled) setLoadFailed(true);
@@ -102,6 +123,28 @@ export default function ModelStage({
       cancelled = true;
     };
   }, [modelRef, modelUrl, hasFile, attempt]);
+
+  // Free GPU memory when the viewer unmounts or swaps models — mobile browsers
+  // drop the whole WebGL context once too many buffers pile up.
+  useEffect(() => {
+    if (!loadedScene) return;
+    return () => {
+      loadedScene.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) {
+          const standard = material as THREE.MeshStandardMaterial;
+          standard.map?.dispose();
+          standard.normalMap?.dispose();
+          standard.roughnessMap?.dispose();
+          standard.dispose?.();
+        }
+      });
+    };
+  }, [loadedScene]);
+
 
   useEffect(() => {
     if (!loadedScene) return;
