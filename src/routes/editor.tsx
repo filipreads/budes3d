@@ -364,19 +364,43 @@ function EditorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
-        <h1 className="font-display text-3xl">{t("editor.title")}</h1>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 sm:px-5 sm:py-10 lg:pb-10">
+        <h1 className="font-display text-2xl sm:text-3xl">{t("editor.title")}</h1>
+
+        {resumable ? (
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-primary/50 bg-primary/10 p-3 sm:flex sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t("editor.resume.title")}</p>
+              <p className="truncate text-xs text-muted-foreground">{t("editor.resume.body")}</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" onClick={restoreDraft}>
+                {t("editor.resume.action")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={discardDraft}>
+                {t("editor.resume.discard")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {offline ? (
+          <p className="mt-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            {t("editor.offline")}
+          </p>
+        ) : null}
 
         <div className="mt-5">
           <StudioProgress states={stageStates} message={busy} progress={progress} error={failure} />
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <Card className="min-h-[460px]">
-            <CardContent className="h-full p-4">
+          <Card className="min-h-[320px] sm:min-h-[460px]">
+            <CardContent className="h-full p-3 sm:p-4">
               {step === "preview" || step === "configure" ? (
                 modelRef ? (
-                  <div className="h-[460px]">
+                  <div className="h-[340px] sm:h-[460px]">
                     <ModelStage
                       modelRef={modelRef}
                       materialId={config.materialId}
@@ -389,7 +413,8 @@ function EditorPage() {
                   </div>
                 ) : null
               ) : photo ? (
-                <div className="relative flex h-[460px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep">
+                <div className="relative flex h-[340px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep sm:h-[460px]">
+
                   {originalPhoto && originalPhoto !== photo ? (
                     <Button
                       size="sm"
