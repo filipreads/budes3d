@@ -405,6 +405,12 @@ const en = {
   "mfa.challengeTitle": "Enter your authentication code",
   "mfa.challengeHint": "Open your authenticator app and enter the current 6-digit code.",
   "mfa.continue": "Continue",
+  "mfa.rememberDevice": "Remember this device",
+  "mfa.rememberHint": "Skip the code on this browser for the next 30 days.",
+  "mfa.trustedDevices": "Remembered devices",
+  "mfa.trustedCount": "This account skips the code on {count} device(s).",
+  "mfa.forgetDevices": "Forget all devices",
+  "mfa.forgotten": "Remembered devices cleared",
 } as const;
 
 
