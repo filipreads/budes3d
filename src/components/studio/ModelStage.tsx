@@ -345,17 +345,18 @@ export default function ModelStage({
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setWireframe((value) => !value)}>
+            <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWireframe((value) => !value)}>
               <Boxes className="mr-1.5 size-3.5" />
               {wireframe ? t("viewer.solid") : t("viewer.wireframe")}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => setWarmLight((value) => !value)}>
+            <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWarmLight((value) => !value)}>
               <Lightbulb className="mr-1.5 size-3.5" />
               {warmLight ? t("viewer.warm") : t("viewer.cool")}
             </Button>
           </div>
+
           {canDownload ? (
             <div className="pointer-events-auto flex gap-2">
               <Button size="sm" onClick={() => void exportModel("glb")}>
