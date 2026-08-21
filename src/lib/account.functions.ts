@@ -13,8 +13,8 @@ export type AccountOrder = {
   created_at: string;
   paid_at: string | null;
   contact_email: string | null;
-  line_items: unknown;
-  shipping_address: unknown;
+  line_items: { label: string; cents: number }[];
+  shipping_address: Record<string, string> | null;
   share_token: string | null;
   share_enabled: boolean;
 };
@@ -66,7 +66,7 @@ export const listAccountOrders = createServerFn({ method: "POST" })
     const { data: rows, count, error } = await query.range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
 
-    return { rows: (rows ?? []) as AccountOrder[], total: count ?? 0 };
+    return { rows: (rows ?? []) as unknown as AccountOrder[], total: count ?? 0 };
   });
 
 export type AccountSummary = {
@@ -102,7 +102,7 @@ export const getAccountSummary = createServerFn({ method: "GET" })
       supabase.from("order_downloads").select("id, order_id, storage_path").eq("user_id", userId),
     ]);
 
-    const orders = (ordersResult.data ?? []) as AccountOrder[];
+    const orders = (ordersResult.data ?? []) as unknown as AccountOrder[];
     const paidIds = new Set(orders.filter((order) => order.payment_status === "paid").map((order) => order.id));
     const downloads = (downloadsResult.data ?? []).filter(
       (row) => paidIds.has(row.order_id) && row.storage_path && !String(row.storage_path).startsWith("sample://"),
@@ -225,10 +225,12 @@ export const updateAccountProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const patch: Record<string, string> = { id: userId };
-    if (typeof data.displayName === "string") patch["display_name"] = data.displayName.trim().slice(0, 80);
-    if (data.preferredLocale === "en" || data.preferredLocale === "cs") patch["preferred_locale"] = data.preferredLocale;
-    if (typeof data.avatarPath === "string" && data.avatarPath) patch["avatar_url"] = data.avatarPath;
+    const patch: { id: string; display_name?: string; preferred_locale?: string; avatar_url?: string } = {
+      id: userId,
+    };
+    if (typeof data.displayName === "string") patch.display_name = data.displayName.trim().slice(0, 80);
+    if (data.preferredLocale === "en" || data.preferredLocale === "cs") patch.preferred_locale = data.preferredLocale;
+    if (typeof data.avatarPath === "string" && data.avatarPath) patch.avatar_url = data.avatarPath;
 
     const { error } = await supabase.from("profiles").upsert(patch, { onConflict: "id" });
     if (error) throw new Error(error.message);
