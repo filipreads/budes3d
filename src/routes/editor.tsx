@@ -607,30 +607,48 @@ function EditorPage() {
                     <>
                       <ChoiceRow
                         label={t("editor.size")}
-                        options={SIZES.map((s) => ({ id: s.id, label: `${s.label} · ${s.heightMm}mm` }))}
+                        options={SIZES.map((s) => ({
+                          id: s.id,
+                          label: `${s.label} · ${s.heightMm}mm`,
+                          delta: deltaFor({ sizeId: s.id }),
+                        }))}
                         value={config.sizeId}
                         onChange={(id) => setConfig({ ...config, sizeId: id as StudioConfig["sizeId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.material")}
-                        options={MATERIALS.map((m) => ({ id: m.id, label: m.label }))}
+                        options={MATERIALS.map((m) => ({
+                          id: m.id,
+                          label: m.label,
+                          delta: deltaFor({ materialId: m.id }),
+                        }))}
                         value={config.materialId}
                         onChange={(id) => setConfig({ ...config, materialId: id as StudioConfig["materialId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.finish")}
-                        options={FINISHES.map((f) => ({ id: f.id, label: f.label }))}
+                        options={FINISHES.map((f) => ({
+                          id: f.id,
+                          label: f.label,
+                          delta: deltaFor({ finishId: f.id }),
+                        }))}
                         value={config.finishId}
                         onChange={(id) => setConfig({ ...config, finishId: id as StudioConfig["finishId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.plinth")}
-                        options={BASES.map((b) => ({ id: b.id, label: b.label }))}
+                        options={BASES.map((b) => ({
+                          id: b.id,
+                          label: b.label,
+                          delta: deltaFor({ baseId: b.id }),
+                        }))}
                         value={config.baseId}
                         onChange={(id) => setConfig({ ...config, baseId: id as StudioConfig["baseId"] })}
                       />
+                      <p className="text-[11px] text-muted-foreground">{t("editor.compare")}</p>
                     </>
                   ) : null}
+
 
                   <div className="space-y-1.5">
                     <Label htmlFor="engraving">{t("editor.engraving")}</Label>
