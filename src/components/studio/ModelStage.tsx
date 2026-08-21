@@ -16,7 +16,10 @@ import {
   Play,
   Pause,
   Gauge,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
