@@ -70,6 +70,8 @@ export default function ModelStage({
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
+  const [zoom, setZoom] = useState<{ factor: number; nonce: number }>({ factor: 1, nonce: 0 });
+
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -260,6 +262,8 @@ export default function ModelStage({
           autoRotateSpeed={0.6}
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
+        <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
+
       </Canvas>
 
 
