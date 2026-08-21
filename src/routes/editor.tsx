@@ -104,16 +104,53 @@ function EditorPage() {
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
   const [offline, setOffline] = useState(false);
+  const [savedVersion, setSavedVersion] = useState<{ config: StudioConfig; edits: EditSettings; at: number } | null>(null);
   const cancelRef = useRef(false);
+  const busyRef = useRef(false);
+  busyRef.current = Boolean(busy);
+
+  // Undo/redo over everything the customer authors by hand.
+  const snapshot = useMemo(() => ({ config, edits }), [config, edits]);
+  const applySnapshot = useCallback((value: { config: StudioConfig; edits: EditSettings }) => {
+    setConfig(sanitizeConfig(value.config));
+    setEdits(value.edits);
+  }, []);
+  const history = useEditorHistory(snapshot, applySnapshot);
 
   // Interrupted mobile sessions: keep a local copy of the working photo and
   // settings so the customer never has to pick the photo again.
   useEffect(() => {
     if (projectParam) return;
     void loadDraft().then((draft) => {
-      if (draft?.photo) setResumable(draft);
+      if (draft && (draft.photo || draft.config)) setResumable(draft);
     });
   }, [projectParam]);
+
+  // Manually saved configuration version ("restore last saved").
+  useEffect(() => {
+    const raw = localStorage.getItem(SAVED_KEY);
+    if (!raw) return;
+    try {
+      setSavedVersion(JSON.parse(raw));
+    } catch {
+      localStorage.removeItem(SAVED_KEY);
+    }
+  }, []);
+
+  function saveVersion() {
+    const payload = { config, edits, at: Date.now() };
+    localStorage.setItem(SAVED_KEY, JSON.stringify(payload));
+    setSavedVersion(payload);
+    toast.success(t("editor.version.saved"));
+  }
+
+  function restoreVersion() {
+    if (!savedVersion) return;
+    setConfig(sanitizeConfig(savedVersion.config));
+    if (savedVersion.edits) setEdits(savedVersion.edits);
+    toast.success(t("editor.version.restored"));
+  }
+
 
   useEffect(() => {
     const update = () => setOffline(!navigator.onLine);
