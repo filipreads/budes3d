@@ -191,6 +191,11 @@ function AccountPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {order.payment_status !== "paid" ? (
+                          <Button size="sm" onClick={() => setPaying(paying === order.id ? null : order.id)}>
+                            {paying === order.id ? t("account.payCancel") : t("account.pay")}
+                          </Button>
+                        ) : null}
                         <Button size="sm" variant="secondary" onClick={() => void makeInvoice(order)}>
                           <FileText className="mr-1.5 size-3.5" />
                           {t("account.invoice")}
