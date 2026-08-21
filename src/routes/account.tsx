@@ -221,6 +221,15 @@ function AccountPage() {
                     </div>
                   </div>
 
+                  {paying === order.id ? (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <OrderCheckout
+                        orderId={order.id}
+                        returnUrl={`${window.location.origin}/checkout-return?order=${order.id}`}
+                      />
+                    </div>
+                  ) : null}
+
                   {(downloads[order.id]?.length ?? 0) > 0 ? (
                     <div className="mt-4 border-t border-border pt-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
