@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
+import { countTrustedDevices, forgetTrustedDevices } from "@/lib/mfa-devices.functions";
 
 type Enrolling = { factorId: string; qr: string; secret: string };
 
@@ -16,11 +17,33 @@ export function TwoFactorCard() {
   const [enrolling, setEnrolling] = useState<Enrolling | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [trustedCount, setTrustedCount] = useState(0);
+
 
   const refresh = useCallback(async () => {
     const { data } = await supabase.auth.mfa.listFactors();
     setFactors((data?.totp ?? []).map((factor) => ({ id: factor.id, status: factor.status })));
+    try {
+      const { count } = await countTrustedDevices();
+      setTrustedCount(count);
+    } catch {
+      setTrustedCount(0);
+    }
   }, []);
+
+  async function forgetDevices() {
+    setBusy(true);
+    try {
+      await forgetTrustedDevices();
+      await refresh();
+      toast.success(t("mfa.forgotten"));
+    } catch {
+      toast.error(t("mfa.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   useEffect(() => {
     void refresh();
@@ -104,9 +127,27 @@ export function TwoFactorCard() {
         </div>
 
         {verified ? (
-          <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
-            {t("mfa.disable")}
-          </Button>
+          <div className="space-y-3">
+            <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
+              {t("mfa.disable")}
+            </Button>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-sm font-medium">{t("mfa.trustedDevices")}</p>
+              <p className="text-sm text-muted-foreground">{t("mfa.trustedCount", { count: trustedCount })}</p>
+              {trustedCount > 0 ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 px-0"
+                  disabled={busy}
+                  onClick={() => void forgetDevices()}
+                >
+                  {t("mfa.forgetDevices")}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
         ) : enrolling ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">{t("mfa.scan")}</p>

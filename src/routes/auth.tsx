@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { getDeviceId, getDeviceLabel } from "@/lib/device-id";
+import { isDeviceTrusted, trustDevice } from "@/lib/mfa-devices.functions";
+import { useI18n } from "@/lib/i18n";
+
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -29,12 +33,14 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { redirect } = useSearch({ from: "/auth" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const [mfaCode, setMfaCode] = useState("");
+  const [remember, setRemember] = useState(true);
 
   const safeRedirect = redirect.startsWith("/") ? redirect : "/editor";
 
@@ -45,6 +51,13 @@ function AuthPage() {
     const { data: factors } = await supabase.auth.mfa.listFactors();
     const factor = (factors?.totp ?? []).find((item) => item.status === "verified");
     if (!factor) return false;
+    // Skip the code step when this browser was remembered earlier.
+    try {
+      const { trusted } = await isDeviceTrusted({ data: { deviceId: getDeviceId() } });
+      if (trusted) return false;
+    } catch {
+      /* fall through to the code prompt */
+    }
     setMfaFactorId(factor.id);
     setMfaCode("");
     return true;
@@ -67,11 +80,19 @@ function AuthPage() {
       factorId: mfaFactorId,
       code: mfaCode,
     });
+    if (error) { setBusy(false); toast.error(t("mfa.invalidCode")); return; }
+    if (remember) {
+      try {
+        await trustDevice({ data: { deviceId: getDeviceId(), label: getDeviceLabel() } });
+      } catch {
+        /* remembering is best-effort */
+      }
+    }
     setBusy(false);
-    if (error) { toast.error("Invalid code"); return; }
     setMfaFactorId(null);
     void navigate({ to: safeRedirect });
   }
+
 
   async function signUp() {
     setBusy(true);
@@ -120,7 +141,20 @@ function AuthPage() {
                     onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
                   />
                 </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-primary"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
+                  <span>
+                    {t("mfa.rememberDevice")}
+                    <span className="block text-xs text-muted-foreground">{t("mfa.rememberHint")}</span>
+                  </span>
+                </label>
                 <Button className="w-full" disabled={busy || mfaCode.length < 6} onClick={() => void verifyMfa()}>
+
                   Continue
                 </Button>
                 <Button

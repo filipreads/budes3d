@@ -405,6 +405,12 @@ const en = {
   "mfa.challengeTitle": "Enter your authentication code",
   "mfa.challengeHint": "Open your authenticator app and enter the current 6-digit code.",
   "mfa.continue": "Continue",
+  "mfa.rememberDevice": "Remember this device",
+  "mfa.rememberHint": "Skip the code on this browser for the next 30 days.",
+  "mfa.trustedDevices": "Remembered devices",
+  "mfa.trustedCount": "This account skips the code on {count} device(s).",
+  "mfa.forgetDevices": "Forget all devices",
+  "mfa.forgotten": "Remembered devices cleared",
 } as const;
 
 
@@ -813,6 +819,12 @@ const cs: Record<TranslationKey, string> = {
   "mfa.challengeTitle": "Zadejte ověřovací kód",
   "mfa.challengeHint": "Otevřete ověřovací aplikaci a zadejte aktuální šestimístný kód.",
   "mfa.continue": "Pokračovat",
+  "mfa.rememberDevice": "Zapamatovat toto zařízení",
+  "mfa.rememberHint": "V tomto prohlížeči se dalších 30 dní nebudeme ptát na kód.",
+  "mfa.trustedDevices": "Zapamatovaná zařízení",
+  "mfa.trustedCount": "Kód se přeskakuje na {count} zařízeních.",
+  "mfa.forgetDevices": "Zapomenout všechna zařízení",
+  "mfa.forgotten": "Zapamatovaná zařízení byla smazána",
 };
 
 
