@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Check, CircleDashed, Loader2, TriangleAlert } from "lucide-react";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
@@ -11,20 +12,50 @@ const STAGES: { id: StageId; labelKey: TranslationKey }[] = [
   { id: "configure", labelKey: "editor.step.configure" },
 ];
 
+/** A full TRELLIS run typically finishes in roughly this many seconds. */
+const TYPICAL_RUN_SECONDS = 180;
+
+function formatDuration(seconds: number) {
+  const total = Math.max(0, Math.round(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
 export function StudioProgress({
   states,
   message,
   progress,
   error,
+  startedAt = null,
 }: {
   states: Record<StageId, StageState>;
   message?: string | null;
   progress?: number | null;
   error?: string | null;
+  /** Timestamp of the running generation, used for elapsed time and an ETA. */
+  startedAt?: number | null;
 }) {
   const { t } = useI18n();
   const done = STAGES.filter((stage) => states[stage.id] === "done").length;
   const pct = progress ?? Math.round((done / STAGES.length) * 100);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!startedAt) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [startedAt]);
+
+  const elapsed = startedAt ? (now - startedAt) / 1000 : null;
+  // Once real progress is reported, extrapolate from it; before that fall back
+  // to the typical run length so the wait never feels open-ended.
+  const remaining =
+    elapsed === null
+      ? null
+      : progress && progress > 5
+        ? Math.max(0, (elapsed / progress) * (100 - progress))
+        : Math.max(0, TYPICAL_RUN_SECONDS - elapsed);
+
 
   return (
     <section aria-label={t("editor.title")} className="rounded-xl border border-border bg-card/60 p-4">
@@ -81,10 +112,19 @@ export function StudioProgress({
           <TriangleAlert className="size-4 shrink-0" /> {error}
         </p>
       ) : message ? (
-        <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 shrink-0 animate-spin" /> {message}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <p className="flex items-center gap-2">
+            <Loader2 className="size-4 shrink-0 animate-spin" /> {message}
+          </p>
+          {elapsed !== null ? (
+            <p className="text-xs tabular-nums">
+              {t("editor.elapsed", { mm: formatDuration(elapsed) })}
+              {remaining !== null ? ` · ${t("editor.eta", { mm: formatDuration(remaining) })}` : ""}
+            </p>
+          ) : null}
+        </div>
       ) : null}
+
     </section>
   );
 }

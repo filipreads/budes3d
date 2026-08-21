@@ -93,6 +93,8 @@ function EditorPage() {
   const [dragOver, setDragOver] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [readPercent, setReadPercent] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
   const [offline, setOffline] = useState(false);
@@ -125,6 +127,9 @@ function EditorPage() {
   const heightMm = SIZES.find((size) => size.id === config.sizeId)?.heightMm ?? null;
 
   const priced = useMemo(() => quote(config), [config]);
+  /** Price difference a configurator option would make, shown next to each choice. */
+  const deltaFor = (patch: Partial<StudioConfig>) => quote({ ...config, ...patch }).totalCents - priced.totalCents;
+
 
   // Reopening a saved project from "My studio projects".
   useEffect(() => {
@@ -289,8 +294,10 @@ function EditorPage() {
     }
     setFailure(null);
     cancelRef.current = false;
+    setStartedAt(Date.now());
     setBusy(t("editor.busy.upload"));
     setProgress(20);
+
     try {
       const baked = await renderEdited(photo, edits);
       // Reuse the same storage slot across retries so a dropped mobile
@@ -363,6 +370,8 @@ function EditorPage() {
     } finally {
       setBusy(null);
       setProgress(null);
+      setStartedAt(null);
+
     }
   }
 
@@ -372,6 +381,27 @@ function EditorPage() {
     sessionStorage.setItem("relievo:config", JSON.stringify(config));
     void navigate({ to: "/checkout" });
   }
+
+  // Shared by the approval step and the configurator so the sculpture can be
+  // fine-tuned right up to checkout.
+  const placementPanel = (
+    <div className="space-y-4 rounded-lg border border-border p-4">
+      <p className="text-sm font-semibold">{t("editor.placement")}</p>
+      <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
+      <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+      <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
+      <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
+          {t("editor.placement.center")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
+          {t("editor.placement.reset")}
+        </Button>
+      </div>
+    </div>
+  );
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -404,7 +434,14 @@ function EditorPage() {
         ) : null}
 
         <div className="mt-5">
-          <StudioProgress states={stageStates} message={busy} progress={progress} error={failure} />
+          <StudioProgress
+            states={stageStates}
+            message={busy}
+            progress={progress}
+            error={failure}
+            startedAt={startedAt}
+          />
+
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -567,21 +604,8 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
-                  <div className="space-y-4 rounded-lg border border-border p-4">
-                    <p className="text-sm font-semibold">{t("editor.placement")}</p>
-                    <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
-                    <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
-                    <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
-                    <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
-                        {t("editor.placement.center")}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
-                        {t("editor.placement.reset")}
-                      </Button>
-                    </div>
-                  </div>
+                  {placementPanel}
+
                   <Button className="w-full" onClick={() => setStep("configure")}>
                     {t("editor.approve")}
                   </Button>
@@ -607,30 +631,48 @@ function EditorPage() {
                     <>
                       <ChoiceRow
                         label={t("editor.size")}
-                        options={SIZES.map((s) => ({ id: s.id, label: `${s.label} · ${s.heightMm}mm` }))}
+                        options={SIZES.map((s) => ({
+                          id: s.id,
+                          label: `${s.label} · ${s.heightMm}mm`,
+                          delta: deltaFor({ sizeId: s.id }),
+                        }))}
                         value={config.sizeId}
                         onChange={(id) => setConfig({ ...config, sizeId: id as StudioConfig["sizeId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.material")}
-                        options={MATERIALS.map((m) => ({ id: m.id, label: m.label }))}
+                        options={MATERIALS.map((m) => ({
+                          id: m.id,
+                          label: m.label,
+                          delta: deltaFor({ materialId: m.id }),
+                        }))}
                         value={config.materialId}
                         onChange={(id) => setConfig({ ...config, materialId: id as StudioConfig["materialId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.finish")}
-                        options={FINISHES.map((f) => ({ id: f.id, label: f.label }))}
+                        options={FINISHES.map((f) => ({
+                          id: f.id,
+                          label: f.label,
+                          delta: deltaFor({ finishId: f.id }),
+                        }))}
                         value={config.finishId}
                         onChange={(id) => setConfig({ ...config, finishId: id as StudioConfig["finishId"] })}
                       />
                       <ChoiceRow
                         label={t("editor.plinth")}
-                        options={BASES.map((b) => ({ id: b.id, label: b.label }))}
+                        options={BASES.map((b) => ({
+                          id: b.id,
+                          label: b.label,
+                          delta: deltaFor({ baseId: b.id }),
+                        }))}
                         value={config.baseId}
                         onChange={(id) => setConfig({ ...config, baseId: id as StudioConfig["baseId"] })}
                       />
+                      <p className="text-[11px] text-muted-foreground">{t("editor.compare")}</p>
                     </>
                   ) : null}
+
 
                   <div className="space-y-1.5">
                     <Label htmlFor="engraving">{t("editor.engraving")}</Label>
@@ -660,9 +702,12 @@ function EditorPage() {
                     />
                   </div>
 
+                  {placementPanel}
+
                   <Button className="w-full" onClick={goToCheckout}>
                     {t("editor.checkout")}
                   </Button>
+
                 </>
               ) : null}
             </CardContent>
@@ -683,10 +728,28 @@ function EditorPage() {
                     </div>
                   ))}
                 </div>
+                <div className="mt-2 space-y-0.5 border-t border-border pt-2">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">{t("editor.subtotal")}</span>
+                    <span>{formatPrice(priced.subtotalCents)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">{t("editor.shipping")}</span>
+                    <span>
+                      {priced.shippingCents ? formatPrice(priced.shippingCents) : t("editor.shippingFree")}
+                    </span>
+                  </div>
+                </div>
                 <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
                   <span>{t("editor.total")}</span>
                   <span>{formatPrice(priced.totalCents)}</span>
                 </div>
+                {config.quantity > 1 ? (
+                  <p className="mt-1 text-right text-xs text-muted-foreground">
+                    {formatPrice(Math.round(priced.subtotalCents / config.quantity))} {t("editor.perUnit")}
+                  </p>
+                ) : null}
+
               </CardContent>
             </Card>
           ) : null}
@@ -740,7 +803,7 @@ function ChoiceRow({
   onChange,
 }: {
   label: string;
-  options: { id: string; label: string }[];
+  options: { id: string; label: string; delta?: number }[];
   value: string;
   onChange: (id: string) => void;
 }) {
@@ -748,19 +811,29 @@ function ChoiceRow({
     <div className="space-y-2">
       <Label>{label}</Label>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {options.map((option) => (
-          <Button
-            key={option.id}
-            size="sm"
-            className="h-10 w-full justify-center whitespace-normal px-3 text-xs leading-tight sm:h-9 sm:w-auto sm:text-sm"
-            variant={value === option.id ? "default" : "outline"}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </Button>
-        ))}
+        {options.map((option) => {
+          const delta = option.delta ?? 0;
+          return (
+            <Button
+              key={option.id}
+              size="sm"
+              className="h-auto min-h-10 w-full flex-col items-center justify-center gap-0.5 whitespace-normal px-3 py-1.5 text-xs leading-tight sm:w-auto sm:text-sm"
+              variant={value === option.id ? "default" : "outline"}
+              onClick={() => onChange(option.id)}
+            >
+              <span>{option.label}</span>
+              {value !== option.id && delta !== 0 ? (
+                <span className="text-[11px] opacity-70">
+                  {delta > 0 ? "+" : "−"}
+                  {formatPrice(Math.abs(delta))}
+                </span>
+              ) : null}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
+
 
 }

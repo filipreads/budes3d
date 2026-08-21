@@ -16,7 +16,10 @@ import {
   Play,
   Pause,
   Gauge,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
@@ -67,6 +70,8 @@ export default function ModelStage({
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
+  const [zoom, setZoom] = useState<{ factor: number; nonce: number }>({ factor: 1, nonce: 0 });
+
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -257,6 +262,8 @@ export default function ModelStage({
           autoRotateSpeed={0.6}
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
+        <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
+
       </Canvas>
 
 
@@ -293,7 +300,7 @@ export default function ModelStage({
       {loadedScene ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex flex-wrap gap-1.5">
-            {(["front", "side", "top"] as const).map((preset) => (
+            {(["front", "angle", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
                 size="sm"
@@ -304,6 +311,25 @@ export default function ModelStage({
                 {t(`viewer.view.${preset}`)}
               </Button>
             ))}
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
+              aria-label={t("viewer.zoomIn")}
+              onClick={() => setZoom((state) => ({ factor: 0.82, nonce: state.nonce + 1 }))}
+            >
+              <ZoomIn className="size-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
+              aria-label={t("viewer.zoomOut")}
+              onClick={() => setZoom((state) => ({ factor: 1.22, nonce: state.nonce + 1 }))}
+            >
+              <ZoomOut className="size-3.5" />
+            </Button>
+
             <Button
               size="sm"
               variant="secondary"
@@ -381,13 +407,30 @@ export default function ModelStage({
   );
 }
 
-type ViewPreset = "front" | "side" | "top";
+type ViewPreset = "front" | "angle" | "side" | "top";
 
 const VIEW_POSITIONS: Record<ViewPreset, [number, number, number]> = {
   front: [0, 0.4, 3.4],
+  angle: [2.3, 1, 2.4],
   side: [3.3, 0.4, 0.2],
   top: [0, 3.2, 1.4],
 };
+
+/** Dollies the camera in or out whenever `nonce` changes, respecting orbit limits. */
+function CameraZoom({ factor, nonce }: { factor: number; nonce: number }) {
+  const camera = useThree((state) => state.camera);
+  const controls = useThree((state) => state.controls) as { target: THREE.Vector3; update: () => void } | null;
+  useEffect(() => {
+    if (nonce === 0) return;
+    const target = controls?.target ?? new THREE.Vector3();
+    const offset = camera.position.clone().sub(target);
+    const distance = Math.min(7, Math.max(1.8, offset.length() * factor));
+    camera.position.copy(target).add(offset.setLength(distance));
+    controls?.update();
+  }, [factor, nonce, camera, controls]);
+  return null;
+}
+
 
 /** Moves the camera to a preset whenever `nonce` changes. */
 function CameraRig({ preset, nonce }: { preset: ViewPreset; nonce: number }) {
