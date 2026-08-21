@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,6 +37,16 @@ function DownloadsTab() {
     staleTime: 2 * 60 * 1000,
   });
 
+  const groups = useMemo(() => {
+    const map = new Map<string, { orderNumber: string; entries: NonNullable<typeof data> }>();
+    for (const entry of data ?? []) {
+      const group = map.get(entry.orderNumber) ?? { orderNumber: entry.orderNumber, entries: [] };
+      group.entries.push(entry);
+      map.set(entry.orderNumber, group);
+    }
+    return [...map.values()];
+  }, [data]);
+
   async function run(downloadId: string, format: "glb" | "stl") {
     setPreparing(`${downloadId}-${format}`);
     try {
@@ -54,45 +64,52 @@ function DownloadsTab() {
     return (
       <div className="space-y-3">
         {[0, 1].map((key) => (
-          <div key={key} className="h-20 animate-pulse rounded-lg bg-muted" />
+          <div key={key} className="h-24 animate-pulse rounded-xl bg-muted" />
         ))}
       </div>
     );
   }
 
-  if ((data ?? []).length === 0) {
+  if (groups.length === 0) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-muted-foreground">{t("account.downloadsEmpty")}</CardContent>
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          {t("account.downloadsEmpty")}
+        </CardContent>
       </Card>
     );
   }
 
   return (
     <div className="space-y-3">
-      {(data ?? []).map((entry) => (
-        <Card key={entry.id}>
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-            <div>
-              <p className="font-display text-lg">{entry.label}</p>
-              <p className="text-sm text-muted-foreground">
-                {entry.orderNumber} · {new Date(entry.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(["glb", "stl"] as const).map((format) => (
-                <Button
-                  key={format}
-                  size="sm"
-                  variant="secondary"
-                  disabled={preparing === `${entry.id}-${format}`}
-                  onClick={() => void run(entry.id, format)}
-                >
-                  <Download className="mr-1.5 size-3.5" />
-                  {preparing === `${entry.id}-${format}`
-                    ? t("account.preparing")
-                    : `${t("account.download")} ${format.toUpperCase()}`}
-                </Button>
+      {groups.map((group) => (
+        <Card key={group.orderNumber}>
+          <CardContent className="p-5">
+            <p className="font-display text-lg">{group.orderNumber}</p>
+            <div className="mt-3 divide-y divide-border">
+              {group.entries.map((entry) => (
+                <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{entry.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(entry.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {(["glb", "stl"] as const).map((format) => (
+                      <Button
+                        key={format}
+                        size="sm"
+                        variant={format === "glb" ? "default" : "secondary"}
+                        disabled={preparing === `${entry.id}-${format}`}
+                        onClick={() => void run(entry.id, format)}
+                      >
+                        <Download className="mr-1.5 size-3.5" />
+                        {preparing === `${entry.id}-${format}` ? t("account.preparing") : format.toUpperCase()}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </CardContent>
