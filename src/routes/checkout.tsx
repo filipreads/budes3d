@@ -89,6 +89,7 @@ function CheckoutPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <PaymentTestModeBanner />
       <SiteHeader />
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-5 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
         <Card>
