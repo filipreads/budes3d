@@ -1,0 +1,149 @@
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/lib/i18n";
+
+type Enrolling = { factorId: string; qr: string; secret: string };
+
+export function TwoFactorCard() {
+  const { t } = useI18n();
+  const [factors, setFactors] = useState<{ id: string; status: string }[]>([]);
+  const [enrolling, setEnrolling] = useState<Enrolling | null>(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const { data } = await supabase.auth.mfa.listFactors();
+    setFactors((data?.totp ?? []).map((factor) => ({ id: factor.id, status: factor.status })));
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const verified = factors.find((factor) => factor.status === "verified") ?? null;
+
+  async function startEnroll() {
+    setBusy(true);
+    try {
+      // Clear any half-finished factor so re-enrolling never hits a name clash.
+      for (const factor of factors.filter((f) => f.status !== "verified")) {
+        await supabase.auth.mfa.unenroll({ factorId: factor.id });
+      }
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: `authenticator-${Date.now()}`,
+      });
+      if (error || !data) throw error ?? new Error("enroll failed");
+      setEnrolling({ factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
+      setCode("");
+    } catch {
+      toast.error(t("mfa.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmEnroll() {
+    if (!enrolling || code.trim().length < 6) return;
+    setBusy(true);
+    const { error } = await supabase.auth.mfa.challengeAndVerify({
+      factorId: enrolling.factorId,
+      code: code.trim(),
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(t("mfa.invalidCode"));
+      return;
+    }
+    setEnrolling(null);
+    setCode("");
+    await refresh();
+    toast.success(t("mfa.enrolled"));
+  }
+
+  async function cancelEnroll() {
+    if (enrolling) await supabase.auth.mfa.unenroll({ factorId: enrolling.factorId });
+    setEnrolling(null);
+    setCode("");
+    await refresh();
+  }
+
+  async function disable() {
+    if (!verified) return;
+    setBusy(true);
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: verified.id });
+    setBusy(false);
+    if (error) {
+      toast.error(t("mfa.failed"));
+      return;
+    }
+    await refresh();
+    toast.success(t("mfa.removed"));
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 p-5">
+        <div className="flex items-start gap-3">
+          {verified ? (
+            <ShieldCheck className="mt-0.5 size-5 text-primary" aria-hidden />
+          ) : (
+            <ShieldAlert className="mt-0.5 size-5 text-muted-foreground" aria-hidden />
+          )}
+          <div className="space-y-1">
+            <h2 className="font-display text-lg">{t("mfa.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("mfa.subtitle")}</p>
+            <p className="text-sm font-medium">{verified ? t("mfa.enabled") : t("mfa.disabled")}</p>
+          </div>
+        </div>
+
+        {verified ? (
+          <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
+            {t("mfa.disable")}
+          </Button>
+        ) : enrolling ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t("mfa.scan")}</p>
+            <img
+              src={enrolling.qr}
+              alt=""
+              className="size-44 rounded-md border border-border bg-white p-2"
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("mfa.secret")}: <code className="font-mono">{enrolling.secret}</code>
+            </p>
+            <div className="grid gap-2 sm:max-w-xs">
+              <Label htmlFor="mfa-code">{t("mfa.code")}</Label>
+              <Input
+                id="mfa-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button disabled={busy || code.length < 6} onClick={() => void confirmEnroll()}>
+                {t("mfa.verify")}
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => void cancelEnroll()}>
+                {t("mfa.cancel")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button disabled={busy} onClick={() => void startEnroll()}>
+            {t("mfa.enable")}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

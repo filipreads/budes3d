@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale } from "@/lib/i18n";
 import { getAccountProfile, updateAccountProfile } from "@/lib/account.functions";
+import { TwoFactorCard } from "@/components/account/TwoFactorCard";
 
 export const Route = createFileRoute("/account/settings")({
   head: () => ({
@@ -196,7 +197,10 @@ function SettingsTab() {
         </CardContent>
       </Card>
 
+      <TwoFactorCard />
+
       <Card>
+
         <CardContent className="space-y-3 p-5">
           <p className="text-sm text-muted-foreground">{t("account.dataNote")}</p>
           <Button variant="ghost" onClick={() => void signOut()}>

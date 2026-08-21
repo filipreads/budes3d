@@ -386,7 +386,27 @@ const en = {
   "account.passwordShort": "Use at least 8 characters",
   "account.dataNote":
     "Your photos, models and orders stay private to your account. Need something removed? Contact support and we handle it within one working day.",
+  "mfa.title": "Two-factor authentication",
+  "mfa.subtitle":
+    "Add a second step at sign-in using an authenticator app such as Google Authenticator, 1Password or Authy.",
+  "mfa.enabled": "Two-factor authentication is on",
+  "mfa.disabled": "Two-factor authentication is off",
+  "mfa.enable": "Enable two-factor",
+  "mfa.disable": "Turn off",
+  "mfa.scan": "Scan this QR code with your authenticator app, then enter the 6-digit code.",
+  "mfa.secret": "Can't scan? Enter this key manually",
+  "mfa.code": "6-digit code",
+  "mfa.verify": "Verify and enable",
+  "mfa.cancel": "Cancel",
+  "mfa.enrolled": "Two-factor authentication enabled",
+  "mfa.removed": "Two-factor authentication turned off",
+  "mfa.invalidCode": "That code didn't work. Try the next one from your app.",
+  "mfa.failed": "Could not update two-factor settings",
+  "mfa.challengeTitle": "Enter your authentication code",
+  "mfa.challengeHint": "Open your authenticator app and enter the current 6-digit code.",
+  "mfa.continue": "Continue",
 } as const;
+
 
 
 
@@ -774,6 +794,25 @@ const cs: Record<TranslationKey, string> = {
   "account.passwordShort": "Použijte alespoň 8 znaků",
   "account.dataNote":
     "Vaše fotografie, modely a objednávky zůstávají soukromé. Potřebujete něco smazat? Ozvěte se podpoře, vyřídíme to do jednoho pracovního dne.",
+  "mfa.title": "Dvoufázové ověření",
+  "mfa.subtitle":
+    "Přidejte druhý krok při přihlášení pomocí aplikace jako Google Authenticator, 1Password nebo Authy.",
+  "mfa.enabled": "Dvoufázové ověření je zapnuté",
+  "mfa.disabled": "Dvoufázové ověření je vypnuté",
+  "mfa.enable": "Zapnout dvoufázové ověření",
+  "mfa.disable": "Vypnout",
+  "mfa.scan": "Naskenujte QR kód v ověřovací aplikaci a zadejte šestimístný kód.",
+  "mfa.secret": "Nejde naskenovat? Zadejte tento klíč ručně",
+  "mfa.code": "Šestimístný kód",
+  "mfa.verify": "Ověřit a zapnout",
+  "mfa.cancel": "Zrušit",
+  "mfa.enrolled": "Dvoufázové ověření zapnuto",
+  "mfa.removed": "Dvoufázové ověření vypnuto",
+  "mfa.invalidCode": "Kód nesedí. Zkuste další kód z aplikace.",
+  "mfa.failed": "Nastavení dvoufázového ověření se nepodařilo změnit",
+  "mfa.challengeTitle": "Zadejte ověřovací kód",
+  "mfa.challengeHint": "Otevřete ověřovací aplikaci a zadejte aktuální šestimístný kód.",
+  "mfa.continue": "Pokračovat",
 };
 
 
