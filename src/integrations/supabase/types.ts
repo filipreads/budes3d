@@ -356,6 +356,36 @@ export type Database = {
         }
         Relationships: []
       }
+      trusted_mfa_devices: {
+        Row: {
+          created_at: string
+          device_hash: string
+          expires_at: string
+          id: string
+          label: string | null
+          last_used_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_hash: string
+          expires_at?: string
+          id?: string
+          label?: string | null
+          last_used_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_hash?: string
+          expires_at?: string
+          id?: string
+          label?: string | null
+          last_used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
