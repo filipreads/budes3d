@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,13 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale } from "@/lib/i18n";
-import { getAccountProfile, updateAccountProfile } from "@/lib/account.functions";
+import { updateAccountProfile, EMPTY_SHIPPING_ADDRESS, type ShippingAddress } from "@/lib/account.functions";
+import { useProfile } from "@/hooks/useProfile";
+import {
+  getViewerQualityPreference,
+  rememberViewerQuality,
+  type ViewerQualityPreference,
+} from "@/lib/viewer-quality";
 import { TwoFactorCard } from "@/components/account/TwoFactorCard";
 
 export const Route = createFileRoute("/account/settings")({
@@ -32,23 +38,31 @@ function SettingsTab() {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data } = useQuery({
-    queryKey: ["account-profile", user?.id],
-    queryFn: () => getAccountProfile(),
-    enabled: Boolean(user),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { profile: data } = useProfile();
 
   const [displayName, setDisplayName] = useState("");
+  const [address, setAddress] = useState<ShippingAddress>(EMPTY_SHIPPING_ADDRESS);
+  const [quality, setQuality] = useState<ViewerQualityPreference>("auto");
   const [saving, setSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
-    if (data) setDisplayName(data.displayName);
+    if (!data) return;
+    setDisplayName(data.displayName);
+    setAddress(data.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
   }, [data]);
 
-  async function saveProfile(patch: { displayName?: string; preferredLocale?: string; avatarPath?: string }) {
+  useEffect(() => {
+    setQuality(getViewerQualityPreference());
+  }, []);
+
+  async function saveProfile(patch: {
+    displayName?: string;
+    preferredLocale?: string;
+    avatarPath?: string;
+    shippingAddress?: ShippingAddress | null;
+  }) {
     setSaving(true);
     try {
       await updateAccountProfile({ data: patch });
@@ -193,6 +207,68 @@ function SettingsTab() {
             <Button variant="secondary" onClick={() => void changePassword()}>
               {t("account.changePassword")}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <h2 className="font-display text-lg">{t("account.shipping")}</h2>
+          <p className="text-sm text-muted-foreground">{t("account.shippingHint")}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["name", "checkout.fullName"],
+                ["line1", "checkout.address"],
+                ["line2", "checkout.address2"],
+                ["city", "checkout.city"],
+                ["postalCode", "checkout.postalCode"],
+                ["country", "checkout.country"],
+                ["phone", "account.phone"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="space-y-1.5">
+                <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
+                <Input
+                  id={`ship-${key}`}
+                  value={address[key]}
+                  onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+          <Button disabled={saving} onClick={() => void saveProfile({ shippingAddress: address })}>
+            {t("account.saveAddress")}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="space-y-3 p-5">
+          <h2 className="font-display text-lg">{t("account.viewerQuality")}</h2>
+          <p className="text-sm text-muted-foreground">{t("account.viewerQualityHint")}</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["auto", "account.qualityAuto"],
+                ["high", "account.qualityHigh"],
+                ["low", "account.qualityLow"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={quality === value ? "default" : "secondary"}
+                aria-pressed={quality === value}
+                onClick={() => {
+                  setQuality(value);
+                  rememberViewerQuality(value);
+                }}
+              >
+                {t(label)}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
