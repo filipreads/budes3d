@@ -93,6 +93,8 @@ function EditorPage() {
   const [dragOver, setDragOver] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [readPercent, setReadPercent] = useState<number | null>(null);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
   const [offline, setOffline] = useState(false);
@@ -292,8 +294,10 @@ function EditorPage() {
     }
     setFailure(null);
     cancelRef.current = false;
+    setStartedAt(Date.now());
     setBusy(t("editor.busy.upload"));
     setProgress(20);
+
     try {
       const baked = await renderEdited(photo, edits);
       // Reuse the same storage slot across retries so a dropped mobile
