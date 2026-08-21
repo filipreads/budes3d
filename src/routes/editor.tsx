@@ -451,13 +451,19 @@ function EditorPage() {
                     setDragOver(false);
                     onFile(event.dataTransfer.files?.[0]);
                   }}
-                  className={`flex h-[460px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-muted-foreground transition-colors ${
+                  className={`flex h-[300px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center text-muted-foreground transition-colors sm:h-[460px] ${
                     dragOver ? "border-primary bg-primary/5" : "border-border"
                   }`}
                 >
                   <Upload className="size-6" />
                   <span className="text-sm">{t("editor.uploadPrompt")}</span>
-                  <span className="text-xs">{t("editor.dropHint")}</span>
+                  <span className="hidden text-xs sm:block">{t("editor.dropHint")}</span>
+                  <span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground sm:hidden">
+                    {t("editor.choosePhoto")}
+                  </span>
+                  {readPercent !== null ? (
+                    <span className="text-xs tabular-nums">{t("editor.reading")} {readPercent}%</span>
+                  ) : null}
                   <input
                     type="file"
                     accept="image/*"
@@ -465,6 +471,7 @@ function EditorPage() {
                     onChange={(event) => onFile(event.target.files?.[0])}
                   />
                 </label>
+
               )}
             </CardContent>
           </Card>
