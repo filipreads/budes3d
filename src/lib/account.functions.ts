@@ -125,7 +125,6 @@ export const getAccountSummary = createServerFn({ method: "GET" })
       displayName: profileResult.data?.display_name ?? null,
       avatarUrl,
       email: (claims as { email?: string } | null)?.email ?? null,
-      shippingAddress: normalizeAddress(data?.shipping_address),
       totals: {
         orders: orders.length,
         awaitingPayment: orders.filter((order) => order.payment_status !== "paid").length,
