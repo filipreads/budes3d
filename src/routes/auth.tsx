@@ -174,6 +174,9 @@ function AuthPage() {
                 </Button>
               </TabsContent>
             </Tabs>
+              </>
+            )}
+
           </CardContent>
         </Card>
       </main>
