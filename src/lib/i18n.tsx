@@ -794,6 +794,25 @@ const cs: Record<TranslationKey, string> = {
   "account.passwordShort": "Použijte alespoň 8 znaků",
   "account.dataNote":
     "Vaše fotografie, modely a objednávky zůstávají soukromé. Potřebujete něco smazat? Ozvěte se podpoře, vyřídíme to do jednoho pracovního dne.",
+  "mfa.title": "Dvoufázové ověření",
+  "mfa.subtitle":
+    "Přidejte druhý krok při přihlášení pomocí aplikace jako Google Authenticator, 1Password nebo Authy.",
+  "mfa.enabled": "Dvoufázové ověření je zapnuté",
+  "mfa.disabled": "Dvoufázové ověření je vypnuté",
+  "mfa.enable": "Zapnout dvoufázové ověření",
+  "mfa.disable": "Vypnout",
+  "mfa.scan": "Naskenujte QR kód v ověřovací aplikaci a zadejte šestimístný kód.",
+  "mfa.secret": "Nejde naskenovat? Zadejte tento klíč ručně",
+  "mfa.code": "Šestimístný kód",
+  "mfa.verify": "Ověřit a zapnout",
+  "mfa.cancel": "Zrušit",
+  "mfa.enrolled": "Dvoufázové ověření zapnuto",
+  "mfa.removed": "Dvoufázové ověření vypnuto",
+  "mfa.invalidCode": "Kód nesedí. Zkuste další kód z aplikace.",
+  "mfa.failed": "Nastavení dvoufázového ověření se nepodařilo změnit",
+  "mfa.challengeTitle": "Zadejte ověřovací kód",
+  "mfa.challengeHint": "Otevřete ověřovací aplikaci a zadejte aktuální šestimístný kód.",
+  "mfa.continue": "Pokračovat",
 };
 
 
