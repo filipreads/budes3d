@@ -747,11 +747,12 @@ function ChoiceRow({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {options.map((option) => (
           <Button
             key={option.id}
             size="sm"
+            className="h-10 w-full justify-center whitespace-normal px-3 text-xs leading-tight sm:h-9 sm:w-auto sm:text-sm"
             variant={value === option.id ? "default" : "outline"}
             onClick={() => onChange(option.id)}
           >
@@ -761,4 +762,5 @@ function ChoiceRow({
       </div>
     </div>
   );
+
 }
