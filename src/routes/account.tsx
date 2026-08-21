@@ -13,6 +13,8 @@ import { listOrderDownloads, getOrderDownloadUrl, type OrderDownload } from "@/l
 import { downloadModelFile } from "@/lib/mesh-export";
 import { toast } from "sonner";
 import { FileText, Link2, LinkIcon, Download } from "lucide-react";
+import { OrderCheckout } from "@/components/payments/OrderCheckout";
+import { PaymentTestModeBanner } from "@/components/payments/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
