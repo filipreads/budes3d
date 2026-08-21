@@ -543,19 +543,6 @@ function EditorPage() {
                     />
                   </div>
 
-                  <div className="rounded-lg border border-border p-4 text-sm">
-                    {priced.lineItems.map((item) => (
-                      <div key={item.label} className="flex justify-between gap-3 py-0.5">
-                        <span className="text-muted-foreground">{item.label}</span>
-                        <span>{item.cents ? formatPrice(item.cents) : "—"}</span>
-                      </div>
-                    ))}
-                    <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
-                      <span>{t("editor.total")}</span>
-                      <span>{formatPrice(priced.totalCents)}</span>
-                    </div>
-                  </div>
-
                   <Button className="w-full" onClick={goToCheckout}>
                     {t("editor.checkout")}
                   </Button>
@@ -563,6 +550,29 @@ function EditorPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          {step !== "upload" ? (
+            <Card className="lg:col-start-2 lg:sticky lg:top-6">
+              <CardContent className="p-5 text-sm">
+                <div className="flex items-center justify-between">
+                  <p className="font-display text-lg">{t("editor.summary")}</p>
+                  {savedAt ? <span className="text-xs text-muted-foreground">{t("editor.autosaved")}</span> : null}
+                </div>
+                <div className="mt-3 space-y-0.5">
+                  {priced.lineItems.map((item) => (
+                    <div key={item.label} className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">{item.label}</span>
+                      <span>{item.cents ? formatPrice(item.cents) : "—"}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
+                  <span>{t("editor.total")}</span>
+                  <span>{formatPrice(priced.totalCents)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </main>
     </div>
