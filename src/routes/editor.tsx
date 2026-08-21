@@ -52,7 +52,12 @@ const STAGE_LABEL: Record<string, string> = {
   storing: "Saving your model…",
 };
 
-import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check } from "lucide-react";
+/** Project id of a reconstruction that is still running server-side. */
+const JOB_KEY = "relievo:job";
+/** Manually saved configuration snapshot the customer can roll back to. */
+const SAVED_KEY = "relievo:saved-version";
+
+import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
   validateSearch: (search: Record<string, unknown>): { project?: string } =>
