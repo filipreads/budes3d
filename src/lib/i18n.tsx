@@ -848,10 +848,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       setLocaleState(stored);
       return;
     }
-    if (navigator.language && !navigator.language.toLowerCase().startsWith("cs")) {
-      setLocaleState("en");
-    }
   }, []);
+
 
 
   useEffect(() => {
