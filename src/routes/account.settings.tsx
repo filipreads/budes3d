@@ -196,7 +196,10 @@ function SettingsTab() {
         </CardContent>
       </Card>
 
+      <TwoFactorCard />
+
       <Card>
+
         <CardContent className="space-y-3 p-5">
           <p className="text-sm text-muted-foreground">{t("account.dataNote")}</p>
           <Button variant="ghost" onClick={() => void signOut()}>
