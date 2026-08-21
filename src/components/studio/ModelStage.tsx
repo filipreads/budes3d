@@ -15,10 +15,18 @@ import {
   RotateCcw,
   Play,
   Pause,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
+import {
+  QUALITY_SETTINGS,
+  detectViewerQuality,
+  rememberViewerQuality,
+  type ViewerQuality,
+} from "@/lib/viewer-quality";
+
 
 type Props = {
   modelRef: string;
