@@ -39,6 +39,9 @@ import {
 } from "@/lib/pricing";
 import { removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
+import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
+import { uploadWithProgress } from "@/lib/storage-upload";
+
 
 const STAGE_LABEL: Record<string, string> = {
   queued: "Waiting for a free GPU slot…",
@@ -89,7 +92,32 @@ function EditorPage() {
   const [quality, setQuality] = useState<QualityReport | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [readPercent, setReadPercent] = useState<number | null>(null);
+
+  const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
+  const [offline, setOffline] = useState(false);
   const cancelRef = useRef(false);
+
+  // Interrupted mobile sessions: keep a local copy of the working photo and
+  // settings so the customer never has to pick the photo again.
+  useEffect(() => {
+    if (projectParam) return;
+    void loadDraft().then((draft) => {
+      if (draft?.photo) setResumable(draft);
+    });
+  }, [projectParam]);
+
+  useEffect(() => {
+    const update = () => setOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
 
   const placement = config.placement ?? DEFAULT_PLACEMENT;
   const setPlacement = (next: Partial<Placement>) =>
@@ -156,6 +184,42 @@ function EditorPage() {
     return () => clearTimeout(timer);
   }, [config, edits, user]);
 
+  // Local mirror of the session: survives a closed tab, lost connection or an
+  // app switch on the phone.
+  useEffect(() => {
+    if (!photo) return;
+    const timer = setTimeout(() => {
+      void saveDraft({
+        photo,
+        originalPhoto,
+        edits,
+        config,
+        step,
+        projectId: sessionStorage.getItem("relievo:project"),
+      });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [photo, originalPhoto, edits, config, step]);
+
+  function restoreDraft() {
+    if (!resumable) return;
+    setPhoto(resumable.photo);
+    setOriginalPhoto(resumable.originalPhoto ?? resumable.photo);
+    if (resumable.edits) setEdits(resumable.edits as EditSettings);
+    if (resumable.config) setConfig(sanitizeConfig(resumable.config as StudioConfig));
+    if (resumable.projectId) sessionStorage.setItem("relievo:project", resumable.projectId);
+    setStep(resumable.step === "configure" || resumable.step === "preview" ? "retouch" : (resumable.step as Step));
+    setResumable(null);
+    if (resumable.photo) void analyzeImageQuality(resumable.photo).then(setQuality).catch(() => setQuality(null));
+  }
+
+  function discardDraft() {
+    setResumable(null);
+    void clearDraft();
+  }
+
+
+
   async function rotatePhoto(direction: 1 | -1) {
     if (!photo) return;
     try {
@@ -171,8 +235,17 @@ function EditorPage() {
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error(t("editor.toast.imageOnly")); return; }
     const reader = new FileReader();
+    setReadPercent(0);
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) setReadPercent(Math.round((event.loaded / event.total) * 100));
+    };
+    reader.onerror = () => {
+      setReadPercent(null);
+      toast.error(t("editor.toast.imageOnly"));
+    };
     reader.onload = () => {
       const dataUrl = String(reader.result);
+      setReadPercent(null);
       setPhoto(dataUrl);
       setOriginalPhoto(dataUrl);
       setShowBefore(false);
@@ -184,6 +257,7 @@ function EditorPage() {
     };
     reader.readAsDataURL(file);
   }
+
 
   async function clearBackground() {
     if (!photo) return;
@@ -219,12 +293,23 @@ function EditorPage() {
     setProgress(20);
     try {
       const baked = await renderEdited(photo, edits);
-      const path = `${user.id}/${crypto.randomUUID()}.jpg`;
-      const upload = await supabase.storage.from("portrait-uploads").upload(path, baked, {
+      // Reuse the same storage slot across retries so a dropped mobile
+      // connection resumes the upload instead of starting a new object.
+      const pendingKey = "relievo:upload-path";
+      const path = sessionStorage.getItem(pendingKey) ?? `${user.id}/${crypto.randomUUID()}.jpg`;
+      sessionStorage.setItem(pendingKey, path);
+      await uploadWithProgress({
+        bucket: "portrait-uploads",
+        path,
+        body: baked,
         contentType: "image/jpeg",
-        upsert: true,
+        onProgress: (percent) => {
+          setProgress(20 + Math.round(percent * 0.2));
+          setBusy(`${t("editor.busy.upload")} ${percent}%`);
+        },
       });
-      if (upload.error) throw new Error(upload.error.message);
+      sessionStorage.removeItem(pendingKey);
+
 
       setProgress(45);
       const { data: project, error } = await supabase
@@ -291,19 +376,43 @@ function EditorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
-        <h1 className="font-display text-3xl">{t("editor.title")}</h1>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 sm:px-5 sm:py-10 lg:pb-10">
+        <h1 className="font-display text-2xl sm:text-3xl">{t("editor.title")}</h1>
+
+        {resumable ? (
+          <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-primary/50 bg-primary/10 p-3 sm:flex sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{t("editor.resume.title")}</p>
+              <p className="truncate text-xs text-muted-foreground">{t("editor.resume.body")}</p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" onClick={restoreDraft}>
+                {t("editor.resume.action")}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={discardDraft}>
+                {t("editor.resume.discard")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {offline ? (
+          <p className="mt-4 flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            {t("editor.offline")}
+          </p>
+        ) : null}
 
         <div className="mt-5">
           <StudioProgress states={stageStates} message={busy} progress={progress} error={failure} />
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <Card className="min-h-[460px]">
-            <CardContent className="h-full p-4">
+          <Card className="min-h-[320px] sm:min-h-[460px]">
+            <CardContent className="h-full p-3 sm:p-4">
               {step === "preview" || step === "configure" ? (
                 modelRef ? (
-                  <div className="h-[460px]">
+                  <div className="h-[340px] sm:h-[460px]">
                     <ModelStage
                       modelRef={modelRef}
                       materialId={config.materialId}
@@ -316,7 +425,8 @@ function EditorPage() {
                   </div>
                 ) : null
               ) : photo ? (
-                <div className="relative flex h-[460px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep">
+                <div className="relative flex h-[340px] items-center justify-center overflow-hidden rounded-lg bg-stone-deep sm:h-[460px]">
+
                   {originalPhoto && originalPhoto !== photo ? (
                     <Button
                       size="sm"
@@ -353,13 +463,19 @@ function EditorPage() {
                     setDragOver(false);
                     onFile(event.dataTransfer.files?.[0]);
                   }}
-                  className={`flex h-[460px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-muted-foreground transition-colors ${
+                  className={`flex h-[300px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center text-muted-foreground transition-colors sm:h-[460px] ${
                     dragOver ? "border-primary bg-primary/5" : "border-border"
                   }`}
                 >
                   <Upload className="size-6" />
                   <span className="text-sm">{t("editor.uploadPrompt")}</span>
-                  <span className="text-xs">{t("editor.dropHint")}</span>
+                  <span className="hidden text-xs sm:block">{t("editor.dropHint")}</span>
+                  <span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground sm:hidden">
+                    {t("editor.choosePhoto")}
+                  </span>
+                  {readPercent !== null ? (
+                    <span className="text-xs tabular-nums">{t("editor.reading")} {readPercent}%</span>
+                  ) : null}
                   <input
                     type="file"
                     accept="image/*"
@@ -367,6 +483,7 @@ function EditorPage() {
                     onChange={(event) => onFile(event.target.files?.[0])}
                   />
                 </label>
+
               )}
             </CardContent>
           </Card>
@@ -575,6 +692,19 @@ function EditorPage() {
           ) : null}
         </div>
       </main>
+
+      {step === "configure" ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">{t("editor.total")}</p>
+            <p className="truncate font-display text-lg">{formatPrice(priced.totalCents)}</p>
+          </div>
+          <Button className="shrink-0" onClick={goToCheckout}>
+            {t("editor.checkout")}
+          </Button>
+        </div>
+      ) : null}
+
     </div>
   );
 }
@@ -617,11 +747,12 @@ function ChoiceRow({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {options.map((option) => (
           <Button
             key={option.id}
             size="sm"
+            className="h-10 w-full justify-center whitespace-normal px-3 text-xs leading-tight sm:h-9 sm:w-auto sm:text-sm"
             variant={value === option.id ? "default" : "outline"}
             onClick={() => onChange(option.id)}
           >
@@ -631,4 +762,5 @@ function ChoiceRow({
       </div>
     </div>
   );
+
 }

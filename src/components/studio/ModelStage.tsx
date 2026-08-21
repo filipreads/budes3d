@@ -15,10 +15,18 @@ import {
   RotateCcw,
   Play,
   Pause,
+  Gauge,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
+import {
+  QUALITY_SETTINGS,
+  detectViewerQuality,
+  rememberViewerQuality,
+  type ViewerQuality,
+} from "@/lib/viewer-quality";
+
 
 type Props = {
   modelRef: string;
@@ -52,12 +60,29 @@ export default function ModelStage({
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [loadPercent, setLoadPercent] = useState(0);
+  const [quality, setQuality] = useState<ViewerQuality>("high");
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+
+  const settings = QUALITY_SETTINGS[quality];
+
+  // Weak devices start in the light preset so the first frame arrives quickly.
+  useEffect(() => {
+    const detected = detectViewerQuality();
+    setQuality(detected);
+    setAutoRotate(QUALITY_SETTINGS[detected].autoRotate);
+  }, []);
+
+  function switchQuality(next: ViewerQuality) {
+    setQuality(next);
+    rememberViewerQuality(next);
+    if (next === "low") setAutoRotate(false);
+  }
 
   // There is no stand-in mesh: either the real generated file loads, or the
   // customer sees an explicit error instead of an approvable placeholder.
@@ -73,11 +98,14 @@ export default function ModelStage({
     let cancelled = false;
     setLoadedScene(null);
     setLoadFailed(false);
+    setLoadPercent(0);
     void (async () => {
       try {
         const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
         const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-        const gltf = await new GLTFLoader().loadAsync(url);
+        const gltf = await new GLTFLoader().loadAsync(url, (event) => {
+          if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
+        });
         if (cancelled) return;
         gltf.scene.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
@@ -85,6 +113,7 @@ export default function ModelStage({
             child.receiveShadow = true;
           }
         });
+        setLoadPercent(100);
         setLoadedScene(gltf.scene);
       } catch {
         if (!cancelled) setLoadFailed(true);
@@ -94,6 +123,28 @@ export default function ModelStage({
       cancelled = true;
     };
   }, [modelRef, modelUrl, hasFile, attempt]);
+
+  // Free GPU memory when the viewer unmounts or swaps models — mobile browsers
+  // drop the whole WebGL context once too many buffers pile up.
+  useEffect(() => {
+    if (!loadedScene) return;
+    return () => {
+      loadedScene.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.geometry?.dispose();
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) {
+          const standard = material as THREE.MeshStandardMaterial;
+          standard.map?.dispose();
+          standard.normalMap?.dispose();
+          standard.roughnessMap?.dispose();
+          standard.dispose?.();
+        }
+      });
+    };
+  }, [loadedScene]);
+
 
   useEffect(() => {
     if (!loadedScene) return;
@@ -151,14 +202,20 @@ export default function ModelStage({
       ref={shellRef}
       className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-stone-deep"
     >
-      <Canvas shadows camera={{ position: [0, 0.4, 3.4], fov: 38 }} dpr={[1, 2]}>
+      <Canvas
+        shadows={settings.shadows}
+        camera={{ position: [0, 0.4, 3.4], fov: 38 }}
+        dpr={settings.dpr}
+        gl={{ antialias: settings.antialias, powerPreference: "high-performance" }}
+        frameloop={autoRotate ? "always" : "demand"}
+      >
         <color attach="background" args={["#141311"]} />
         <ambientLight intensity={warmLight ? 0.5 : 0.25} />
         <directionalLight
           position={[3, 4, 3]}
           intensity={warmLight ? 2.4 : 1.4}
           color={warmLight ? "#ffd9a8" : "#cfe0ff"}
-          castShadow
+          castShadow={settings.shadows}
         />
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
         <Suspense fallback={null}>
@@ -171,18 +228,21 @@ export default function ModelStage({
             >
               {loadedScene ? <primitive object={loadedScene} /> : null}
               {showBase && loadedScene ? (
-                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow>
-                  <cylinderGeometry args={[0.95, 1.05, 0.22, 64]} />
+                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow={settings.shadows}>
+                  <cylinderGeometry args={[0.95, 1.05, 0.22, settings.shadows ? 64 : 28]} />
                   <meshStandardMaterial color="#3c2f24" roughness={0.6} metalness={0.05} />
                 </mesh>
               ) : null}
             </group>
           </Center>
-          <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
+          {settings.contactShadows ? (
+            <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
+          ) : null}
         </Suspense>
         <OrbitControls
           makeDefault
           enablePan
+          enableDamping={quality === "high"}
           minDistance={1.8}
           maxDistance={7}
           autoRotate={autoRotate}
@@ -190,6 +250,7 @@ export default function ModelStage({
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
       </Canvas>
+
 
       {loadFailed ? (
         <div
@@ -204,19 +265,32 @@ export default function ModelStage({
           </Button>
         </div>
       ) : !loadedScene ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-stone-deep/80">
-          <p className="text-sm text-muted-foreground">{t("viewer.loading")}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6">
+          <p className="text-sm text-muted-foreground">
+            {t("viewer.loading")} {loadPercent > 0 ? `${loadPercent}%` : ""}
+          </p>
+          <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
+              style={{ width: `${Math.max(6, loadPercent)}%` }}
+              role="progressbar"
+              aria-valuenow={loadPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
         </div>
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex flex-wrap gap-1.5">
             {(["front", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
                 size="sm"
                 variant="secondary"
+                className="h-8 px-2.5 text-xs sm:text-sm"
                 onClick={() => setView((state) => ({ preset, nonce: state.nonce + 1 }))}
               >
                 {t(`viewer.view.${preset}`)}
@@ -225,6 +299,7 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={t("viewer.reset")}
               onClick={() => setView((state) => ({ preset: "front", nonce: state.nonce + 1 }))}
             >
@@ -233,6 +308,7 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={autoRotate ? t("viewer.pause") : t("viewer.play")}
               onClick={() => setAutoRotate((value) => !value)}
             >
@@ -241,12 +317,25 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 gap-1 px-2 text-xs"
+              aria-pressed={quality === "low"}
+              title={t("viewer.qualityHint")}
+              onClick={() => switchQuality(quality === "low" ? "high" : "low")}
+            >
+              <Gauge className="size-3.5" />
+              {quality === "low" ? t("viewer.qualityLow") : t("viewer.qualityHigh")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={t("viewer.fullscreen")}
               onClick={() => void toggleFullscreen()}
             >
               {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             </Button>
           </div>
+
           {heightMm ? (
             <span className="pointer-events-auto rounded-full bg-background/85 px-3 py-1 text-xs text-foreground">
               {t("viewer.scale").replace("{mm}", String(Math.round(heightMm * placement.scale)))}
@@ -256,17 +345,18 @@ export default function ModelStage({
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setWireframe((value) => !value)}>
+            <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWireframe((value) => !value)}>
               <Boxes className="mr-1.5 size-3.5" />
               {wireframe ? t("viewer.solid") : t("viewer.wireframe")}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => setWarmLight((value) => !value)}>
+            <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWarmLight((value) => !value)}>
               <Lightbulb className="mr-1.5 size-3.5" />
               {warmLight ? t("viewer.warm") : t("viewer.cool")}
             </Button>
           </div>
+
           {canDownload ? (
             <div className="pointer-events-auto flex gap-2">
               <Button size="sm" onClick={() => void exportModel("glb")}>
