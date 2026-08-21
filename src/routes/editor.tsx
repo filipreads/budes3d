@@ -382,6 +382,27 @@ function EditorPage() {
     void navigate({ to: "/checkout" });
   }
 
+  // Shared by the approval step and the configurator so the sculpture can be
+  // fine-tuned right up to checkout.
+  const placementPanel = (
+    <div className="space-y-4 rounded-lg border border-border p-4">
+      <p className="text-sm font-semibold">{t("editor.placement")}</p>
+      <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
+      <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+      <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
+      <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
+          {t("editor.placement.center")}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
+          {t("editor.placement.reset")}
+        </Button>
+      </div>
+    </div>
+  );
+
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
