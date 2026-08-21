@@ -265,19 +265,32 @@ export default function ModelStage({
           </Button>
         </div>
       ) : !loadedScene ? (
-        <div className="absolute inset-0 flex items-center justify-center bg-stone-deep/80">
-          <p className="text-sm text-muted-foreground">{t("viewer.loading")}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6">
+          <p className="text-sm text-muted-foreground">
+            {t("viewer.loading")} {loadPercent > 0 ? `${loadPercent}%` : ""}
+          </p>
+          <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
+              style={{ width: `${Math.max(6, loadPercent)}%` }}
+              role="progressbar"
+              aria-valuenow={loadPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
         </div>
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
           <div className="pointer-events-auto flex flex-wrap gap-1.5">
             {(["front", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
                 size="sm"
                 variant="secondary"
+                className="h-8 px-2.5 text-xs sm:text-sm"
                 onClick={() => setView((state) => ({ preset, nonce: state.nonce + 1 }))}
               >
                 {t(`viewer.view.${preset}`)}
@@ -286,6 +299,7 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={t("viewer.reset")}
               onClick={() => setView((state) => ({ preset: "front", nonce: state.nonce + 1 }))}
             >
@@ -294,6 +308,7 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={autoRotate ? t("viewer.pause") : t("viewer.play")}
               onClick={() => setAutoRotate((value) => !value)}
             >
@@ -302,12 +317,25 @@ export default function ModelStage({
             <Button
               size="sm"
               variant="secondary"
+              className="h-8 gap-1 px-2 text-xs"
+              aria-pressed={quality === "low"}
+              title={t("viewer.qualityHint")}
+              onClick={() => switchQuality(quality === "low" ? "high" : "low")}
+            >
+              <Gauge className="size-3.5" />
+              {quality === "low" ? t("viewer.qualityLow") : t("viewer.qualityHigh")}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 w-8 p-0"
               aria-label={t("viewer.fullscreen")}
               onClick={() => void toggleFullscreen()}
             >
               {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             </Button>
           </div>
+
           {heightMm ? (
             <span className="pointer-events-auto rounded-full bg-background/85 px-3 py-1 text-xs text-foreground">
               {t("viewer.scale").replace("{mm}", String(Math.round(heightMm * placement.scale)))}
