@@ -298,8 +298,9 @@ export default function ModelStage({
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
-          <div className="pointer-events-auto flex flex-wrap gap-1.5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+          <div className="scroll-x pointer-events-auto flex min-w-0 flex-nowrap gap-1.5 [&>button]:shrink-0 sm:flex-wrap">
+
             {(["front", "angle", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
@@ -371,7 +372,7 @@ export default function ModelStage({
           </div>
 
           {heightMm ? (
-            <span className="pointer-events-auto rounded-full bg-background/85 px-3 py-1 text-xs text-foreground">
+            <span className="pointer-events-auto shrink-0 rounded-full border border-border/60 bg-background/85 px-3 py-1 text-xs tabular-nums text-foreground backdrop-blur">
               {t("viewer.scale").replace("{mm}", String(Math.round(heightMm * placement.scale)))}
             </span>
           ) : null}
@@ -380,7 +381,8 @@ export default function ModelStage({
 
       {loadedScene ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3">
-          <div className="pointer-events-auto flex gap-2">
+          <div className="pointer-events-auto flex shrink-0 gap-2">
+
             <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWireframe((value) => !value)}>
               <Boxes className="mr-1.5 size-3.5" />
               {wireframe ? t("viewer.solid") : t("viewer.wireframe")}
