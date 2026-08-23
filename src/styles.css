@@ -129,3 +129,92 @@
     radial-gradient(120% 90% at 50% -10%, oklch(0.28 0.03 70 / 0.9), transparent 60%),
     linear-gradient(180deg, var(--color-background), var(--color-stone-deep));
 }
+
+/* --- Studio Relief: depth, light and motion ------------------------------ */
+
+@utility surface-glow {
+  background-image:
+    radial-gradient(70% 55% at 15% 0%, color-mix(in oklab, var(--color-primary) 16%, transparent), transparent 70%),
+    radial-gradient(60% 60% at 95% 20%, color-mix(in oklab, var(--color-chart-2) 12%, transparent), transparent 70%);
+}
+
+/* Hairline gradient frame used on hero media and feature panels. */
+@utility panel-edge {
+  border: 1px solid color-mix(in oklab, var(--color-primary) 22%, var(--color-border));
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, var(--color-foreground) 8%, transparent) inset,
+    0 24px 60px -30px color-mix(in oklab, var(--color-primary) 45%, transparent);
+}
+
+@utility elevate {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms ease;
+  &:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in oklab, var(--color-primary) 35%, var(--color-border));
+    box-shadow: 0 20px 45px -28px color-mix(in oklab, var(--color-primary) 60%, transparent);
+  }
+}
+
+@utility rise-in {
+  animation: rise-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Horizontal control strips that must not wrap on narrow screens. */
+@utility scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* Avoid iOS zoom-on-focus while keeping desktop type scale. */
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
