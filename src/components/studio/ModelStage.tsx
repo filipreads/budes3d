@@ -33,6 +33,9 @@ import {
 
 
 
+/** Scene floor the plinth rests on; the sculpture is placed relative to it. */
+const BASE_FLOOR_Y = -1.33;
+
 type Props = {
   modelRef: string;
   materialId: string;
