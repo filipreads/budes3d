@@ -38,6 +38,8 @@ type Props = {
   materialId: string;
   finishId: string;
   showBase?: boolean;
+  /** Which plinth is ordered — drives the base size the sculpture is placed on. */
+  baseId?: string;
   canDownload?: boolean;
   /** Pre-signed model URL (used by public share links, which cannot sign one). */
   modelUrl?: string | null;
@@ -52,11 +54,13 @@ export default function ModelStage({
   materialId,
   finishId,
   showBase = true,
+  baseId = "walnut",
   canDownload = false,
   modelUrl = null,
   placement = DEFAULT_PLACEMENT,
   heightMm = null,
 }: Props) {
+
   void materialId;
   void finishId;
   const { t } = useI18n();
