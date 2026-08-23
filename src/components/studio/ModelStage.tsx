@@ -22,7 +22,7 @@ import {
 
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
+import { BASE_GEOMETRY, DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
 import {
   QUALITY_SETTINGS,
   resolveViewerQuality,
