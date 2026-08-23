@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { Check, CircleDashed, Loader2, TriangleAlert } from "lucide-react";
+import { Check, CircleDashed, Loader2, RotateCw, TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
+
 
 export type StageId = "upload" | "retouch" | "preview" | "configure";
 export type StageState = "pending" | "active" | "done" | "error";
