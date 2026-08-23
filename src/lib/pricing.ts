@@ -154,7 +154,10 @@ export function sanitizePlacement(input: unknown): Placement {
     yaw: clampNumber(raw.yaw, -180, 180, 0),
     tilt: clampNumber(raw.tilt, -30, 30, 0),
     lift: clampNumber(raw.lift, -0.5, 0.5, 0),
+    offsetX: clampNumber(raw.offsetX, -0.6, 0.6, 0),
+    offsetZ: clampNumber(raw.offsetZ, -0.6, 0.6, 0),
     scale: clampNumber(raw.scale, 0.6, 1.6, 1),
+
   };
 }
 
