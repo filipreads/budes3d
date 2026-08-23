@@ -420,7 +420,11 @@ function EditorPage() {
       setJobStage(job.stage as JobStage);
       setProgress(job.progress > 0 ? job.progress : null);
       if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
+      // Extraction is done — move the customer to the preview step right away
+      // so the model appears the moment it finishes saving.
+      if (job.stage === "storing" || job.stage === "ready") setStep("preview");
       if (job.error && !job.retryable) break;
+
     }
 
     if (job.stage !== "ready" || !job.modelRef) {
