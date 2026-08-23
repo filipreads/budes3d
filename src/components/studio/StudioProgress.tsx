@@ -20,12 +20,20 @@ function formatDuration(seconds: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
+/** Ordered pipeline of the TRELLIS 2 conversion job. */
+const JOB_STAGES = ["queued", "preprocessing", "sculpting", "extracting", "storing"] as const;
+export type JobStage = (typeof JOB_STAGES)[number] | "ready" | "failed";
+
 export function StudioProgress({
   states,
   message,
   progress,
   error,
   startedAt = null,
+  jobStage = null,
+  onRetry,
+  onCancel,
+  onPreview,
 }: {
   states: Record<StageId, StageState>;
   message?: string | null;
@@ -33,7 +41,13 @@ export function StudioProgress({
   error?: string | null;
   /** Timestamp of the running generation, used for elapsed time and an ETA. */
   startedAt?: number | null;
+  /** Current stage of the TRELLIS conversion job, when one exists. */
+  jobStage?: JobStage | null;
+  onRetry?: () => void;
+  onCancel?: () => void;
+  onPreview?: () => void;
 }) {
+
   const { t } = useI18n();
   const done = STAGES.filter((stage) => states[stage.id] === "done").length;
   const pct = progress ?? Math.round((done / STAGES.length) * 100);
