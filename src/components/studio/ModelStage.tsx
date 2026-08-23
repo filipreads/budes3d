@@ -22,7 +22,7 @@ import {
 
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
+import { BASE_GEOMETRY, DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
 import {
   QUALITY_SETTINGS,
   resolveViewerQuality,
@@ -33,11 +33,16 @@ import {
 
 
 
+/** Scene floor the plinth rests on; the sculpture is placed relative to it. */
+const BASE_FLOOR_Y = -1.33;
+
 type Props = {
   modelRef: string;
   materialId: string;
   finishId: string;
   showBase?: boolean;
+  /** Which plinth is ordered — drives the base size the sculpture is placed on. */
+  baseId?: string;
   canDownload?: boolean;
   /** Pre-signed model URL (used by public share links, which cannot sign one). */
   modelUrl?: string | null;
@@ -52,11 +57,13 @@ export default function ModelStage({
   materialId,
   finishId,
   showBase = true,
+  baseId = "walnut",
   canDownload = false,
   modelUrl = null,
   placement = DEFAULT_PLACEMENT,
   heightMm = null,
 }: Props) {
+
   void materialId;
   void finishId;
   const { t } = useI18n();
@@ -77,6 +84,8 @@ export default function ModelStage({
   const groupRef = useRef<THREE.Group>(null);
 
   const settings = QUALITY_SETTINGS[quality];
+  const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
+
 
   // Manual preference wins; otherwise weak devices start in the light preset.
   useEffect(() => {
@@ -233,21 +242,44 @@ export default function ModelStage({
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
         <Suspense fallback={null}>
           <Center>
-            <group
-              ref={groupRef}
-              rotation={[(placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0]}
-              position={[0, placement.lift, 0]}
-              scale={placement.scale}
-            >
-              {loadedScene ? <primitive object={loadedScene} /> : null}
-              {showBase && loadedScene ? (
-                <mesh ref={meshRef} position={[0, -1.22, 0]} receiveShadow={settings.shadows}>
-                  <cylinderGeometry args={[0.95, 1.05, 0.22, settings.shadows ? 64 : 28]} />
-                  <meshStandardMaterial color="#3c2f24" roughness={0.6} metalness={0.05} />
+            <group>
+              {/* The plinth stays put; the sculpture is positioned on top of it. */}
+              <group
+                ref={groupRef}
+                rotation={[(placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0]}
+                position={[
+                  placement.offsetX ?? 0,
+                  placement.lift + (baseGeometry.height - BASE_GEOMETRY["walnut"]!.height),
+                  placement.offsetZ ?? 0,
+                ]}
+                scale={placement.scale}
+              >
+                {loadedScene ? <primitive object={loadedScene} /> : null}
+              </group>
+              {showBase && loadedScene && baseGeometry.height > 0 ? (
+                <mesh
+                  ref={meshRef}
+                  position={[0, BASE_FLOOR_Y + baseGeometry.height / 2, 0]}
+                  receiveShadow={settings.shadows}
+                >
+                  <cylinderGeometry
+                    args={[
+                      baseGeometry.radius,
+                      baseGeometry.radius * 1.1,
+                      baseGeometry.height,
+                      settings.shadows ? 64 : 28,
+                    ]}
+                  />
+                  <meshStandardMaterial
+                    color={baseGeometry.color}
+                    roughness={baseId === "marble" ? 0.25 : 0.6}
+                    metalness={0.05}
+                  />
                 </mesh>
               ) : null}
             </group>
           </Center>
+
           {settings.contactShadows ? (
             <ContactShadows position={[0, -1.4, 0]} opacity={0.55} scale={7} blur={2.6} far={4} />
           ) : null}

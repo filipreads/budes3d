@@ -38,11 +38,23 @@ export type Placement = {
   tilt: number;
   /** Vertical offset relative to the plinth, in scene units. */
   lift: number;
+  /** Left/right offset on the plinth, in scene units. */
+  offsetX: number;
+  /** Front/back offset on the plinth, in scene units. */
+  offsetZ: number;
   /** Relative scale against the auto-fitted size. */
   scale: number;
 };
 
-export const DEFAULT_PLACEMENT: Placement = { yaw: 0, tilt: 0, lift: 0, scale: 1 };
+export const DEFAULT_PLACEMENT: Placement = { yaw: 0, tilt: 0, lift: 0, offsetX: 0, offsetZ: 0, scale: 1 };
+
+/** Physical proportions of each plinth, used by the viewer and the exporter. */
+export const BASE_GEOMETRY: Record<string, { radius: number; height: number; color: string }> = {
+  none: { radius: 0, height: 0, color: "#000000" },
+  walnut: { radius: 0.95, height: 0.22, color: "#3c2f24" },
+  marble: { radius: 1.02, height: 0.28, color: "#cfc8ba" },
+};
+
 
 export type StudioConfig = {
   delivery: DeliveryType;
@@ -142,7 +154,10 @@ export function sanitizePlacement(input: unknown): Placement {
     yaw: clampNumber(raw.yaw, -180, 180, 0),
     tilt: clampNumber(raw.tilt, -30, 30, 0),
     lift: clampNumber(raw.lift, -0.5, 0.5, 0),
+    offsetX: clampNumber(raw.offsetX, -0.6, 0.6, 0),
+    offsetZ: clampNumber(raw.offsetZ, -0.6, 0.6, 0),
     scale: clampNumber(raw.scale, 0.6, 1.6, 1),
+
   };
 }
 
