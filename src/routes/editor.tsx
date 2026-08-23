@@ -632,14 +632,18 @@ function EditorPage() {
                     setDragOver(false);
                     onFile(event.dataTransfer.files?.[0]);
                   }}
-                  className={`flex h-[300px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center text-muted-foreground transition-colors sm:h-[460px] ${
-                    dragOver ? "border-primary bg-primary/5" : "border-border"
+                  className={`flex h-[300px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed px-6 text-center text-muted-foreground transition-all duration-200 sm:h-[460px] ${
+                    dragOver
+                      ? "scale-[1.01] border-primary bg-primary/10"
+                      : "border-border bg-stone-deep/40 hover:border-primary/50 hover:bg-primary/5"
                   }`}
                 >
-                  <Upload className="size-6" />
-                  <span className="text-sm">{t("editor.uploadPrompt")}</span>
+                  <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <Upload className="size-5" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{t("editor.uploadPrompt")}</span>
                   <span className="hidden text-xs sm:block">{t("editor.dropHint")}</span>
-                  <span className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground sm:hidden">
+                  <span className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground sm:hidden">
                     {t("editor.choosePhoto")}
                   </span>
                   {readPercent !== null ? (
@@ -652,6 +656,7 @@ function EditorPage() {
                     onChange={(event) => onFile(event.target.files?.[0])}
                   />
                 </label>
+
 
               )}
             </CardContent>
