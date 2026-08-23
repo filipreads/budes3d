@@ -548,7 +548,7 @@ function EditorPage() {
           />
 
           {step !== "upload" ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="scroll-x mt-3 flex flex-nowrap items-center gap-2 pb-1 sm:flex-wrap [&>button]:shrink-0">
               <Button size="sm" variant="outline" disabled={!history.canUndo} onClick={history.undo}>
                 <Undo2 className="mr-1.5 size-3.5" />
                 {t("editor.undo")}
@@ -566,12 +566,13 @@ function EditorPage() {
                 {t("editor.version.restore")}
               </Button>
               {savedVersion ? (
-                <span className="text-xs text-muted-foreground">
+                <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
                   {t("editor.version.savedAt")} {new Date(savedVersion.at).toLocaleTimeString()}
                 </span>
               ) : null}
             </div>
           ) : null}
+
         </div>
 
 
