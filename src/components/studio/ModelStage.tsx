@@ -81,6 +81,8 @@ export default function ModelStage({
   const groupRef = useRef<THREE.Group>(null);
 
   const settings = QUALITY_SETTINGS[quality];
+  const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
+
 
   // Manual preference wins; otherwise weak devices start in the light preset.
   useEffect(() => {
