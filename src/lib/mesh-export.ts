@@ -17,7 +17,7 @@ export async function downloadModelFile(
   format: string,
   filename: string,
   heightMm?: number,
-  placement?: { yaw: number; tilt: number; scale: number },
+  placement?: { yaw: number; tilt: number; scale: number; lift?: number; offsetX?: number; offsetZ?: number },
 ) {
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Could not fetch the model file");
@@ -34,11 +34,13 @@ export async function downloadModelFile(
   ]);
   const gltf = await new GLTFLoader().parseAsync(buffer, "");
 
-  // Bake the orientation the customer approved in the studio into the mesh.
+  // Bake the orientation and base placement the customer approved in the studio.
   if (placement) {
     gltf.scene.rotation.set((placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0);
+    gltf.scene.position.set(placement.offsetX ?? 0, placement.lift ?? 0, placement.offsetZ ?? 0);
     gltf.scene.updateMatrixWorld(true);
   }
+
 
   // Slicers read STL as millimetres. The generated mesh is unit-less, so
   // normalise it to the ordered print height before exporting.
