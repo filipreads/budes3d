@@ -139,7 +139,92 @@ export function StudioProgress({
         </div>
       ) : null}
 
+      {jobStage ? (
+        <div
+          aria-live="polite"
+          className={`mt-4 rounded-lg border p-3 ${
+            jobStage === "failed"
+              ? "border-destructive/60 bg-destructive/10"
+              : jobStage === "ready"
+                ? "border-primary/50 bg-primary/5"
+                : "border-border bg-background/60"
+          }`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold">{t("editor.job.title")}</p>
+            <span className="text-xs text-muted-foreground">
+              {jobStage === "failed"
+                ? t("editor.job.failedTitle")
+                : jobStage === "ready"
+                  ? t("editor.job.readyTitle")
+                  : t(`editor.job.stage.${jobStage}` as TranslationKey)}
+            </span>
+          </div>
+
+          <ol className="scroll-x mt-2 flex flex-nowrap gap-1.5 pb-1">
+            {JOB_STAGES.map((stage) => {
+              const index = JOB_STAGES.indexOf(stage);
+              const currentIndex = JOB_STAGES.indexOf(jobStage as (typeof JOB_STAGES)[number]);
+              const state: StageState =
+                jobStage === "ready"
+                  ? "done"
+                  : jobStage === "failed"
+                    ? currentIndex === -1 && index === 0
+                      ? "error"
+                      : "pending"
+                    : index < currentIndex
+                      ? "done"
+                      : index === currentIndex
+                        ? "active"
+                        : "pending";
+              return (
+                <li
+                  key={stage}
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] ${
+                    state === "active"
+                      ? "border-primary/60 bg-primary/10 text-foreground"
+                      : state === "done"
+                        ? "border-border text-foreground"
+                        : "border-border/60 text-muted-foreground"
+                  }`}
+                >
+                  <StageIcon state={state} />
+                  {t(`editor.job.stage.${stage}` as TranslationKey)}
+                </li>
+              );
+            })}
+          </ol>
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            {jobStage === "failed"
+              ? t("editor.job.failedBody")
+              : jobStage === "ready"
+                ? t("editor.job.readyBody")
+                : t("editor.job.running")}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {jobStage === "ready" && onPreview ? (
+              <Button size="sm" onClick={onPreview}>
+                {t("editor.job.openPreview")}
+              </Button>
+            ) : null}
+            {jobStage !== "ready" && jobStage !== "failed" && onCancel ? (
+              <Button size="sm" variant="ghost" onClick={onCancel}>
+                {t("editor.cancel")}
+              </Button>
+            ) : null}
+            {jobStage !== "ready" && onRetry ? (
+              <Button size="sm" variant="outline" onClick={onRetry} disabled={jobStage !== "failed"}>
+                <RotateCw className="mr-1.5 size-3.5" aria-hidden />
+                {t("editor.retry")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </section>
+
   );
 }
 
