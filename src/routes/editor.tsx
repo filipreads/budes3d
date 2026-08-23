@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import ModelStage from "@/components/studio/LazyModelStage";
-import { StudioProgress, type StageId, type StageState } from "@/components/studio/StudioProgress";
+import { StudioProgress, type JobStage, type StageId, type StageState } from "@/components/studio/StudioProgress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -100,6 +100,7 @@ function EditorPage() {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [readPercent, setReadPercent] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [jobStage, setJobStage] = useState<JobStage | null>(null);
 
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
@@ -342,6 +343,7 @@ function EditorPage() {
     setFailure(null);
     cancelRef.current = false;
     setStartedAt(Date.now());
+    setJobStage("queued");
     setBusy(t("editor.busy.upload"));
     setProgress(20);
 
@@ -392,6 +394,7 @@ function EditorPage() {
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
+      setJobStage("failed");
       toast.error(message);
     } finally {
       setBusy(null);
@@ -414,6 +417,7 @@ function EditorPage() {
       if (cancelRef.current) throw new Error(t("editor.cancelled"));
       guard += 1;
       job = await advanceGeneration({ data: { projectId } });
+      setJobStage(job.stage as JobStage);
       setProgress(job.progress > 0 ? job.progress : null);
       if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
       if (job.error && !job.retryable) break;
@@ -425,6 +429,7 @@ function EditorPage() {
     }
 
     localStorage.removeItem(JOB_KEY);
+    setJobStage("ready");
     setBusy(t("editor.busy.finalize"));
     setProgress(100);
     setModelRef(job.modelRef);
@@ -445,6 +450,7 @@ function EditorPage() {
         if (cancelled) return;
         if (job.stage === "ready" && job.modelRef) {
           localStorage.removeItem(JOB_KEY);
+          setJobStage("ready");
           setModelRef(job.modelRef);
           sessionStorage.setItem("relievo:project", pending);
           setStep("preview");
@@ -452,11 +458,13 @@ function EditorPage() {
         }
         if (job.stage === "failed") {
           localStorage.removeItem(JOB_KEY);
+          setJobStage("failed");
           setFailure(job.error ?? t("editor.toast.genFail"));
           return;
         }
         cancelRef.current = false;
         setStartedAt(Date.now());
+        setJobStage(job.stage as JobStage);
         setProgress(job.progress > 0 ? job.progress : null);
         setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
         toast.info(t("editor.job.resumed"));
@@ -464,6 +472,7 @@ function EditorPage() {
         if (!cancelled) toast.success(t("editor.toast.ready"));
       } catch (error) {
         if (cancelled) return;
+        setJobStage("failed");
         setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
       } finally {
         if (!cancelled) {
@@ -495,10 +504,15 @@ function EditorPage() {
       <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
       <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
       <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
+      <SliderRow label={t("editor.placement.offsetX")} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
+      <SliderRow label={t("editor.placement.offsetZ")} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
       <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
           {t("editor.placement.center")}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ offsetX: 0, offsetZ: 0, lift: 0 })}>
+          {t("editor.placement.snap")}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
           {t("editor.placement.reset")}
@@ -545,6 +559,12 @@ function EditorPage() {
             progress={progress}
             error={failure}
             startedAt={startedAt}
+            jobStage={jobStage}
+            onRetry={() => void generate()}
+            onCancel={() => {
+              cancelRef.current = true;
+            }}
+            onPreview={() => setStep("preview")}
           />
 
           {step !== "upload" ? (
@@ -587,6 +607,7 @@ function EditorPage() {
                       materialId={config.materialId}
                       finishId={config.finishId}
                       showBase={config.baseId !== "none"}
+                      baseId={config.baseId}
                       placement={placement}
                       heightMm={config.delivery === "print" ? heightMm : null}
                       canDownload
