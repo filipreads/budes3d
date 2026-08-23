@@ -298,8 +298,9 @@ export default function ModelStage({
       ) : null}
 
       {loadedScene ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
-          <div className="pointer-events-auto flex flex-wrap gap-1.5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+          <div className="scroll-x pointer-events-auto flex min-w-0 flex-nowrap gap-1.5 [&>button]:shrink-0 sm:flex-wrap">
+
             {(["front", "angle", "side", "top"] as const).map((preset) => (
               <Button
                 key={preset}
