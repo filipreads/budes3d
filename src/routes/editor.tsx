@@ -101,6 +101,19 @@ function EditorPage() {
   const [readPercent, setReadPercent] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [jobStage, setJobStage] = useState<JobStage | null>(null);
+  /** Last stage we toasted about, so each transition is announced exactly once. */
+  const toastedStageRef = useRef<JobStage | null>(null);
+
+  /** Sets the job stage and shows a one-time toast for every new stage. */
+  function trackStage(stage: JobStage) {
+    setJobStage(stage);
+    if (toastedStageRef.current === stage) return;
+    toastedStageRef.current = stage;
+    if (stage === "ready") toast.success(t("editor.job.readyTitle"), { description: t("editor.job.readyBody") });
+    else if (stage === "failed") toast.error(t("editor.job.failedTitle"), { description: t("editor.job.failedBody") });
+    else toast.info(t(`editor.job.stage.${stage}`), { description: t("editor.job.running") });
+  }
+
 
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
