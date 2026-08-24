@@ -20,11 +20,23 @@ import {
   ZoomOut,
   Move,
   Layers,
+  Magnet,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { BASE_GEOMETRY, DEFAULT_PLACEMENT, type Placement } from "@/lib/pricing";
+import {
+  placementMetrics,
+  snapToGrid,
+  unitsPerMm,
+  formatMm,
+  SNAP_STEP_MM,
+  FINE_STEP_MM,
+  COARSE_STEP_MM,
+} from "@/lib/placement-metrics";
 import {
   QUALITY_SETTINGS,
   resolveViewerQuality,
