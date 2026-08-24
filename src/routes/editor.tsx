@@ -515,21 +515,88 @@ function EditorPage() {
 
   // Shared by the approval step and the configurator so the sculpture can be
   // fine-tuned right up to checkout.
+  const baseGeometry = BASE_GEOMETRY[config.baseId] ?? BASE_GEOMETRY["walnut"]!;
+  const hasBase = config.baseId !== "none" && baseGeometry.height > 0;
+  const offCentre =
+    hasBase &&
+    Math.hypot(
+      (placement.offsetX ?? 0) - (placement.baseOffsetX ?? 0),
+      (placement.offsetZ ?? 0) - (placement.baseOffsetZ ?? 0),
+    ) > baseGeometry.radius * 0.55;
+  const floating = hasBase && placement.lift > 0.08;
+
   const placementPanel = (
     <div className="space-y-4 rounded-lg border border-border p-4">
       <p className="text-sm font-semibold">{t("editor.placement")}</p>
-      <SliderRow label={t("editor.placement.yaw")} value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
-      <SliderRow label={t("editor.placement.tilt")} value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+      <p className="text-xs text-muted-foreground">{t("editor.placement.dragHint")}</p>
+      <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
+      <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
       <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
       <SliderRow label={t("editor.placement.offsetX")} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
       <SliderRow label={t("editor.placement.offsetZ")} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
-      <SliderRow label={t("editor.placement.scale")} value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+      <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+
+      {hasBase ? (
+        <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("editor.placement.baseGroup")}
+          </p>
+          <SliderRow
+            label={t("editor.placement.baseOffsetX")}
+            value={(placement.baseOffsetX ?? 0) * 100}
+            min={-80}
+            max={80}
+            onChange={(v) => setPlacement({ baseOffsetX: v / 100 })}
+          />
+          <SliderRow
+            label={t("editor.placement.baseOffsetZ")}
+            value={(placement.baseOffsetZ ?? 0) * 100}
+            min={-80}
+            max={80}
+            onChange={(v) => setPlacement({ baseOffsetZ: v / 100 })}
+          />
+          <SliderRow
+            label={t("editor.placement.baseYaw")}
+            unit="°"
+            value={placement.baseYaw ?? 0}
+            min={-180}
+            max={180}
+            onChange={(v) => setPlacement({ baseYaw: v })}
+          />
+        </div>
+      ) : null}
+
+      {offCentre || floating ? (
+        <p className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+          <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          {offCentre ? t("editor.placement.warnOffBase") : t("editor.placement.warnFloating")}
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
           {t("editor.placement.center")}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setPlacement({ offsetX: 0, offsetZ: 0, lift: 0 })}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            setPlacement({
+              offsetX: placement.baseOffsetX ?? 0,
+              offsetZ: placement.baseOffsetZ ?? 0,
+              lift: 0,
+            })
+          }
+        >
           {t("editor.placement.snap")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setPlacement({ baseOffsetX: 0, baseOffsetZ: 0, baseYaw: 0 })}
+          disabled={!hasBase}
+        >
+          {t("editor.placement.baseReset")}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => setPlacement(DEFAULT_PLACEMENT)}>
           {t("editor.placement.reset")}
@@ -537,6 +604,7 @@ function EditorPage() {
       </div>
     </div>
   );
+
 
 
   return (
