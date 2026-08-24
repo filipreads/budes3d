@@ -44,9 +44,26 @@ export type Placement = {
   offsetZ: number;
   /** Relative scale against the auto-fitted size. */
   scale: number;
+  /** Left/right offset of the plinth itself, in scene units. */
+  baseOffsetX: number;
+  /** Front/back offset of the plinth itself, in scene units. */
+  baseOffsetZ: number;
+  /** Rotation of the plinth around the vertical axis, degrees. */
+  baseYaw: number;
 };
 
-export const DEFAULT_PLACEMENT: Placement = { yaw: 0, tilt: 0, lift: 0, offsetX: 0, offsetZ: 0, scale: 1 };
+export const DEFAULT_PLACEMENT: Placement = {
+  yaw: 0,
+  tilt: 0,
+  lift: 0,
+  offsetX: 0,
+  offsetZ: 0,
+  scale: 1,
+  baseOffsetX: 0,
+  baseOffsetZ: 0,
+  baseYaw: 0,
+};
+
 
 /** Physical proportions of each plinth, used by the viewer and the exporter. */
 export const BASE_GEOMETRY: Record<string, { radius: number; height: number; color: string }> = {
