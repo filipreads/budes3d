@@ -67,6 +67,11 @@ type Props = {
   heightMm?: number | null;
   /** When provided, the sculpture and plinth can be dragged directly in the scene. */
   onPlacementChange?: (patch: Partial<Placement>) => void;
+  /** Placement history, surfaced as undo/redo buttons inside the viewer. */
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 };
 
 type DragTarget = "model" | "base";
