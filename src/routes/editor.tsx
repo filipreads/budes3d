@@ -404,7 +404,6 @@ function EditorPage() {
       sessionStorage.setItem("relievo:project", project.id);
       await startGeneration({ data: { projectId: project.id } });
       await driveJob(project.id);
-      toast.success(t("editor.toast.ready"));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
