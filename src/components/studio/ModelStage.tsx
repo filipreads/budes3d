@@ -295,6 +295,8 @@ export default function ModelStage({
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
         <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
+        <FitCamera object={loadedScene} />
+
 
       </Canvas>
 
@@ -450,8 +452,34 @@ const VIEW_POSITIONS: Record<ViewPreset, [number, number, number]> = {
   top: [0, 3.2, 1.4],
 };
 
+/** Frames the freshly extracted model so it fills the preview without manual zooming. */
+function FitCamera({ object }: { object: THREE.Object3D | null }) {
+  const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera;
+  const controls = useThree((state) => state.controls) as { target: THREE.Vector3; update: () => void } | null;
+  useEffect(() => {
+    if (!object) return;
+    // Wait a frame so <Center> has laid the scene out before measuring it.
+    const id = requestAnimationFrame(() => {
+      const box = new THREE.Box3().setFromObject(object);
+      if (box.isEmpty()) return;
+      const sphere = box.getBoundingSphere(new THREE.Sphere());
+      const fov = ((camera.fov ?? 38) * Math.PI) / 180;
+      const distance = Math.min(7, Math.max(1.8, (sphere.radius * 1.5) / Math.sin(fov / 2)));
+      const direction = camera.position.clone().sub(controls?.target ?? new THREE.Vector3()).normalize();
+      if (direction.lengthSq() === 0) direction.set(0, 0.12, 1);
+      camera.position.copy(sphere.center).add(direction.multiplyScalar(distance));
+      controls?.target.copy(sphere.center);
+      controls?.update();
+      camera.updateProjectionMatrix();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [object, camera, controls]);
+  return null;
+}
+
 /** Dollies the camera in or out whenever `nonce` changes, respecting orbit limits. */
 function CameraZoom({ factor, nonce }: { factor: number; nonce: number }) {
+
   const camera = useThree((state) => state.camera);
   const controls = useThree((state) => state.controls) as { target: THREE.Vector3; update: () => void } | null;
   useEffect(() => {

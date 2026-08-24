@@ -101,6 +101,19 @@ function EditorPage() {
   const [readPercent, setReadPercent] = useState<number | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [jobStage, setJobStage] = useState<JobStage | null>(null);
+  /** Last stage we toasted about, so each transition is announced exactly once. */
+  const toastedStageRef = useRef<JobStage | null>(null);
+
+  /** Sets the job stage and shows a one-time toast for every new stage. */
+  function trackStage(stage: JobStage) {
+    setJobStage(stage);
+    if (toastedStageRef.current === stage) return;
+    toastedStageRef.current = stage;
+    if (stage === "ready") toast.success(t("editor.job.readyTitle"), { description: t("editor.job.readyBody") });
+    else if (stage === "failed") toast.error(t("editor.job.failedTitle"), { description: t("editor.job.failedBody") });
+    else toast.info(t(`editor.job.stage.${stage}`), { description: t("editor.job.running") });
+  }
+
 
 
   const [resumable, setResumable] = useState<Awaited<ReturnType<typeof loadDraft>>>(null);
@@ -343,7 +356,8 @@ function EditorPage() {
     setFailure(null);
     cancelRef.current = false;
     setStartedAt(Date.now());
-    setJobStage("queued");
+    toastedStageRef.current = null;
+    trackStage("queued");
     setBusy(t("editor.busy.upload"));
     setProgress(20);
 
@@ -390,11 +404,10 @@ function EditorPage() {
       sessionStorage.setItem("relievo:project", project.id);
       await startGeneration({ data: { projectId: project.id } });
       await driveJob(project.id);
-      toast.success(t("editor.toast.ready"));
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
       setFailure(message);
-      setJobStage("failed");
+      trackStage("failed");
       toast.error(message);
     } finally {
       setBusy(null);
@@ -417,7 +430,7 @@ function EditorPage() {
       if (cancelRef.current) throw new Error(t("editor.cancelled"));
       guard += 1;
       job = await advanceGeneration({ data: { projectId } });
-      setJobStage(job.stage as JobStage);
+      trackStage(job.stage as JobStage);
       setProgress(job.progress > 0 ? job.progress : null);
       if (job.stage !== "ready") setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
       // Extraction is done — move the customer to the preview step right away
@@ -433,7 +446,7 @@ function EditorPage() {
     }
 
     localStorage.removeItem(JOB_KEY);
-    setJobStage("ready");
+    trackStage("ready");
     setBusy(t("editor.busy.finalize"));
     setProgress(100);
     setModelRef(job.modelRef);
@@ -454,7 +467,7 @@ function EditorPage() {
         if (cancelled) return;
         if (job.stage === "ready" && job.modelRef) {
           localStorage.removeItem(JOB_KEY);
-          setJobStage("ready");
+          trackStage("ready");
           setModelRef(job.modelRef);
           sessionStorage.setItem("relievo:project", pending);
           setStep("preview");
@@ -462,21 +475,20 @@ function EditorPage() {
         }
         if (job.stage === "failed") {
           localStorage.removeItem(JOB_KEY);
-          setJobStage("failed");
+          trackStage("failed");
           setFailure(job.error ?? t("editor.toast.genFail"));
           return;
         }
         cancelRef.current = false;
         setStartedAt(Date.now());
-        setJobStage(job.stage as JobStage);
+        trackStage(job.stage as JobStage);
         setProgress(job.progress > 0 ? job.progress : null);
         setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
         toast.info(t("editor.job.resumed"));
         await driveJob(pending);
-        if (!cancelled) toast.success(t("editor.toast.ready"));
       } catch (error) {
         if (cancelled) return;
-        setJobStage("failed");
+        trackStage("failed");
         setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
       } finally {
         if (!cancelled) {
