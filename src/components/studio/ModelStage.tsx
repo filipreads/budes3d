@@ -93,6 +93,10 @@ export default function ModelStage({
   placement = DEFAULT_PLACEMENT,
   heightMm = null,
   onPlacementChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: Props) {
 
   void materialId;
