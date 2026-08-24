@@ -356,6 +356,7 @@ function EditorPage() {
     setFailure(null);
     cancelRef.current = false;
     setStartedAt(Date.now());
+    toastedStageRef.current = null;
     trackStage("queued");
     setBusy(t("editor.busy.upload"));
     setProgress(20);
