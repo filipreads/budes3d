@@ -26,6 +26,7 @@ import {
 } from "@/lib/image-edits";
 import {
   BASES,
+  BASE_GEOMETRY,
   DEFAULT_CONFIG,
   FINISHES,
   MATERIALS,
