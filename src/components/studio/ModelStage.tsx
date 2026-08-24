@@ -53,6 +53,16 @@ type Props = {
   placement?: Placement;
   /** Ordered print height, shown as a real-world scale reference. */
   heightMm?: number | null;
+  /** When provided, the sculpture and plinth can be dragged directly in the scene. */
+  onPlacementChange?: (patch: Partial<Placement>) => void;
+};
+
+type DragTarget = "model" | "base";
+type DragState = {
+  target: DragTarget;
+  axis: "xz" | "y";
+  origin: THREE.Vector3;
+  from: Placement;
 };
 
 export default function ModelStage({
@@ -65,6 +75,7 @@ export default function ModelStage({
   modelUrl = null,
   placement = DEFAULT_PLACEMENT,
   heightMm = null,
+  onPlacementChange,
 }: Props) {
 
   void materialId;
@@ -81,13 +92,56 @@ export default function ModelStage({
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
   const [zoom, setZoom] = useState<{ factor: number; nonce: number }>({ factor: 1, nonce: 0 });
+  const [moveMode, setMoveMode] = useState<DragTarget | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const placementRef = useRef(placement);
+  placementRef.current = placement;
 
+  const editable = Boolean(onPlacementChange);
   const settings = QUALITY_SETTINGS[quality];
   const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
+
+  const startDrag = useCallback(
+    (target: DragTarget, event: ThreeEvent<PointerEvent>) => {
+      if (!editable || moveMode !== target) return;
+      event.stopPropagation();
+      setAutoRotate(false);
+      setDrag({
+        target,
+        axis: target === "model" && (event.shiftKey || event.altKey) ? "y" : "xz",
+        origin: event.point.clone(),
+        from: { ...placementRef.current },
+      });
+    },
+    [editable, moveMode],
+  );
+
+  const applyDrag = useCallback(
+    (state: DragState, delta: THREE.Vector3) => {
+      if (!onPlacementChange) return;
+      if (state.target === "model") {
+        if (state.axis === "y") {
+          onPlacementChange({ lift: clamp(state.from.lift + delta.y, -0.5, 0.5) });
+        } else {
+          onPlacementChange({
+            offsetX: clamp((state.from.offsetX ?? 0) + delta.x, -0.6, 0.6),
+            offsetZ: clamp((state.from.offsetZ ?? 0) + delta.z, -0.6, 0.6),
+          });
+        }
+      } else {
+        onPlacementChange({
+          baseOffsetX: clamp((state.from.baseOffsetX ?? 0) + delta.x, -0.8, 0.8),
+          baseOffsetZ: clamp((state.from.baseOffsetZ ?? 0) + delta.z, -0.8, 0.8),
+        });
+      }
+    },
+    [onPlacementChange],
+  );
+
 
 
   // Manual preference wins; otherwise weak devices start in the light preset.
