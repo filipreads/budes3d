@@ -174,7 +174,9 @@ export function sanitizePlacement(input: unknown): Placement {
     offsetX: clampNumber(raw.offsetX, -0.6, 0.6, 0),
     offsetZ: clampNumber(raw.offsetZ, -0.6, 0.6, 0),
     scale: clampNumber(raw.scale, 0.6, 1.6, 1),
-
+    baseOffsetX: clampNumber(raw.baseOffsetX, -0.8, 0.8, 0),
+    baseOffsetZ: clampNumber(raw.baseOffsetZ, -0.8, 0.8, 0),
+    baseYaw: clampNumber(raw.baseYaw, -180, 180, 0),
   };
 }
 
