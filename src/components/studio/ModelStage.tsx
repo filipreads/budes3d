@@ -483,6 +483,32 @@ export default function ModelStage({
               <Gauge className="size-3.5" />
               {quality === "low" ? t("viewer.qualityLow") : t("viewer.qualityHigh")}
             </Button>
+            {editable ? (
+              <>
+                <Button
+                  size="sm"
+                  variant={moveMode === "model" ? "default" : "secondary"}
+                  className="h-8 gap-1 px-2 text-xs"
+                  aria-pressed={moveMode === "model"}
+                  onClick={() => setMoveMode((mode) => (mode === "model" ? null : "model"))}
+                >
+                  <Move className="size-3.5" />
+                  {t("viewer.moveModel")}
+                </Button>
+                {showBase && baseGeometry.height > 0 ? (
+                  <Button
+                    size="sm"
+                    variant={moveMode === "base" ? "default" : "secondary"}
+                    className="h-8 gap-1 px-2 text-xs"
+                    aria-pressed={moveMode === "base"}
+                    onClick={() => setMoveMode((mode) => (mode === "base" ? null : "base"))}
+                  >
+                    <Layers className="size-3.5" />
+                    {t("viewer.moveBase")}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
             <Button
               size="sm"
               variant="secondary"
@@ -501,6 +527,15 @@ export default function ModelStage({
           ) : null}
         </div>
       ) : null}
+
+      {loadedScene && moveMode ? (
+        <div className="pointer-events-none absolute inset-x-0 top-14 flex justify-center px-3 sm:top-16">
+          <span className="rounded-full border border-border/60 bg-background/85 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
+            {moveMode === "model" ? t("viewer.moveHintModel") : t("viewer.moveHintBase")}
+          </span>
+        </div>
+      ) : null}
+
 
       {loadedScene ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3">
