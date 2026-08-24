@@ -295,6 +295,8 @@ export default function ModelStage({
         />
         <CameraRig preset={view.preset} nonce={view.nonce} />
         <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
+        <FitCamera object={loadedScene} />
+
 
       </Canvas>
 
