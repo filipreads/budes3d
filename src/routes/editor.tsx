@@ -1020,24 +1020,42 @@ function SliderRow({
   value,
   min,
   max,
+  unit,
   onChange,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
+  unit?: string;
   onChange: (value: number) => void;
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex justify-between text-sm">
+      <div className="flex items-center justify-between gap-3 text-sm">
         <Label>{label}</Label>
-        <span className="text-muted-foreground">{Math.round(value)}</span>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={min}
+            max={max}
+            value={Math.round(value)}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              if (!Number.isFinite(next)) return;
+              onChange(Math.min(Math.max(next, min), max));
+            }}
+            className="h-8 w-[68px] px-2 text-right text-xs tabular-nums"
+          />
+          {unit ? <span className="w-3 text-xs text-muted-foreground">{unit}</span> : null}
+        </div>
       </div>
       <Slider value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
     </div>
   );
 }
+
 
 function ChoiceRow({
   label,
