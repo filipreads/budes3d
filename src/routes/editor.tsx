@@ -695,6 +695,7 @@ function EditorPage() {
                       baseId={config.baseId}
                       placement={placement}
                       heightMm={config.delivery === "print" ? heightMm : null}
+                      onPlacementChange={setPlacement}
                       canDownload
                     />
                   </div>
