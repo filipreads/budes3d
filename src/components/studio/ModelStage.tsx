@@ -289,7 +289,13 @@ export default function ModelStage({
         frameloop={autoRotate ? "always" : "demand"}
       >
         <color attach="background" args={["#141311"]} />
-        <ambientLight intensity={warmLight ? 0.5 : 0.25} />
+        {/* Gallery rig: soft ambient fill, warm key, cool fill and a rim light for silhouette. */}
+        <ambientLight intensity={warmLight ? 0.55 : 0.3} />
+        <hemisphereLight
+          intensity={warmLight ? 0.45 : 0.3}
+          color={warmLight ? "#ffe8c8" : "#dce8ff"}
+          groundColor="#1b1a17"
+        />
         <directionalLight
           position={[3, 4, 3]}
           intensity={warmLight ? 2.4 : 1.4}
@@ -297,10 +303,17 @@ export default function ModelStage({
           castShadow={settings.shadows}
         />
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
+        <spotLight
+          position={[-1.6, 2.6, -3.2]}
+          angle={0.7}
+          penumbra={1}
+          intensity={warmLight ? 1.5 : 1.1}
+          color={warmLight ? "#fff1dd" : "#e6f0ff"}
+        />
         <Suspense fallback={null}>
           <Center>
             <group>
-              {/* The plinth stays put; the sculpture is positioned on top of it. */}
+              {/* Sculpture and plinth are transformed independently. */}
               <group
                 ref={groupRef}
                 rotation={[(placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0]}
@@ -310,29 +323,45 @@ export default function ModelStage({
                   placement.offsetZ ?? 0,
                 ]}
                 scale={placement.scale}
+                onPointerDown={(event) => startDrag("model", event)}
               >
                 {loadedScene ? <primitive object={loadedScene} /> : null}
               </group>
               {showBase && loadedScene && baseGeometry.height > 0 ? (
-                <mesh
-                  ref={meshRef}
-                  position={[0, BASE_FLOOR_Y + baseGeometry.height / 2, 0]}
-                  receiveShadow={settings.shadows}
+                <group
+                  position={[
+                    placement.baseOffsetX ?? 0,
+                    BASE_FLOOR_Y + baseGeometry.height / 2,
+                    placement.baseOffsetZ ?? 0,
+                  ]}
+                  rotation={[0, ((placement.baseYaw ?? 0) * Math.PI) / 180, 0]}
+                  onPointerDown={(event) => startDrag("base", event)}
                 >
-                  <cylinderGeometry
-                    args={[
-                      baseGeometry.radius,
-                      baseGeometry.radius * 1.1,
-                      baseGeometry.height,
-                      settings.shadows ? 64 : 28,
-                    ]}
-                  />
-                  <meshStandardMaterial
-                    color={baseGeometry.color}
-                    roughness={baseId === "marble" ? 0.25 : 0.6}
-                    metalness={0.05}
-                  />
-                </mesh>
+                  <mesh ref={meshRef} receiveShadow={settings.shadows} castShadow={settings.shadows}>
+                    <cylinderGeometry
+                      args={[
+                        baseGeometry.radius,
+                        baseGeometry.radius * 1.1,
+                        baseGeometry.height,
+                        settings.shadows ? 64 : 28,
+                      ]}
+                    />
+                    <meshStandardMaterial
+                      color={baseGeometry.color}
+                      roughness={baseId === "marble" ? 0.18 : 0.55}
+                      metalness={baseId === "marble" ? 0.12 : 0.05}
+                    />
+                  </mesh>
+                  {/* Thin top plate reads as a machined bevel and catches the key light. */}
+                  <mesh position={[0, baseGeometry.height / 2 + 0.006, 0]} receiveShadow={settings.shadows}>
+                    <cylinderGeometry args={[baseGeometry.radius * 0.99, baseGeometry.radius * 0.99, 0.012, settings.shadows ? 64 : 28]} />
+                    <meshStandardMaterial
+                      color={baseGeometry.color}
+                      roughness={baseId === "marble" ? 0.1 : 0.35}
+                      metalness={0.18}
+                    />
+                  </mesh>
+                </group>
               ) : null}
             </group>
           </Center>
@@ -344,6 +373,7 @@ export default function ModelStage({
         <OrbitControls
           makeDefault
           enablePan
+          enabled={!drag}
           enableDamping={quality === "high"}
           minDistance={1.8}
           maxDistance={7}
@@ -353,6 +383,8 @@ export default function ModelStage({
         <CameraRig preset={view.preset} nonce={view.nonce} />
         <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
         <FitCamera object={loadedScene} />
+        <DragManager drag={drag} onMove={applyDrag} onEnd={() => setDrag(null)} />
+
 
 
       </Canvas>
