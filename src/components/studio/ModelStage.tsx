@@ -1,7 +1,7 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { getModelUrl } from "@/lib/studio.functions";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Center } from "@react-three/drei";
 import * as THREE from "three";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
   Gauge,
   ZoomIn,
   ZoomOut,
+  Move,
+  Layers,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ import {
   VIEWER_QUALITY_EVENT,
   type ViewerQuality,
 } from "@/lib/viewer-quality";
+
 
 
 
@@ -50,6 +53,16 @@ type Props = {
   placement?: Placement;
   /** Ordered print height, shown as a real-world scale reference. */
   heightMm?: number | null;
+  /** When provided, the sculpture and plinth can be dragged directly in the scene. */
+  onPlacementChange?: (patch: Partial<Placement>) => void;
+};
+
+type DragTarget = "model" | "base";
+type DragState = {
+  target: DragTarget;
+  axis: "xz" | "y";
+  origin: THREE.Vector3;
+  from: Placement;
 };
 
 export default function ModelStage({
@@ -62,6 +75,7 @@ export default function ModelStage({
   modelUrl = null,
   placement = DEFAULT_PLACEMENT,
   heightMm = null,
+  onPlacementChange,
 }: Props) {
 
   void materialId;
@@ -78,13 +92,56 @@ export default function ModelStage({
   const [fullscreen, setFullscreen] = useState(false);
   const [view, setView] = useState<{ preset: ViewPreset; nonce: number }>({ preset: "front", nonce: 0 });
   const [zoom, setZoom] = useState<{ factor: number; nonce: number }>({ factor: 1, nonce: 0 });
+  const [moveMode, setMoveMode] = useState<DragTarget | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const placementRef = useRef(placement);
+  placementRef.current = placement;
 
+  const editable = Boolean(onPlacementChange);
   const settings = QUALITY_SETTINGS[quality];
   const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
+
+  const startDrag = useCallback(
+    (target: DragTarget, event: ThreeEvent<PointerEvent>) => {
+      if (!editable || moveMode !== target) return;
+      event.stopPropagation();
+      setAutoRotate(false);
+      setDrag({
+        target,
+        axis: target === "model" && (event.shiftKey || event.altKey) ? "y" : "xz",
+        origin: event.point.clone(),
+        from: { ...placementRef.current },
+      });
+    },
+    [editable, moveMode],
+  );
+
+  const applyDrag = useCallback(
+    (state: DragState, delta: THREE.Vector3) => {
+      if (!onPlacementChange) return;
+      if (state.target === "model") {
+        if (state.axis === "y") {
+          onPlacementChange({ lift: clamp(state.from.lift + delta.y, -0.5, 0.5) });
+        } else {
+          onPlacementChange({
+            offsetX: clamp((state.from.offsetX ?? 0) + delta.x, -0.6, 0.6),
+            offsetZ: clamp((state.from.offsetZ ?? 0) + delta.z, -0.6, 0.6),
+          });
+        }
+      } else {
+        onPlacementChange({
+          baseOffsetX: clamp((state.from.baseOffsetX ?? 0) + delta.x, -0.8, 0.8),
+          baseOffsetZ: clamp((state.from.baseOffsetZ ?? 0) + delta.z, -0.8, 0.8),
+        });
+      }
+    },
+    [onPlacementChange],
+  );
+
 
 
   // Manual preference wins; otherwise weak devices start in the light preset.
@@ -232,7 +289,13 @@ export default function ModelStage({
         frameloop={autoRotate ? "always" : "demand"}
       >
         <color attach="background" args={["#141311"]} />
-        <ambientLight intensity={warmLight ? 0.5 : 0.25} />
+        {/* Gallery rig: soft ambient fill, warm key, cool fill and a rim light for silhouette. */}
+        <ambientLight intensity={warmLight ? 0.55 : 0.3} />
+        <hemisphereLight
+          intensity={warmLight ? 0.45 : 0.3}
+          color={warmLight ? "#ffe8c8" : "#dce8ff"}
+          groundColor="#1b1a17"
+        />
         <directionalLight
           position={[3, 4, 3]}
           intensity={warmLight ? 2.4 : 1.4}
@@ -240,10 +303,17 @@ export default function ModelStage({
           castShadow={settings.shadows}
         />
         <directionalLight position={[-3, 1, -2]} intensity={0.8} color="#6d7f9c" />
+        <spotLight
+          position={[-1.6, 2.6, -3.2]}
+          angle={0.7}
+          penumbra={1}
+          intensity={warmLight ? 1.5 : 1.1}
+          color={warmLight ? "#fff1dd" : "#e6f0ff"}
+        />
         <Suspense fallback={null}>
           <Center>
             <group>
-              {/* The plinth stays put; the sculpture is positioned on top of it. */}
+              {/* Sculpture and plinth are transformed independently. */}
               <group
                 ref={groupRef}
                 rotation={[(placement.tilt * Math.PI) / 180, (placement.yaw * Math.PI) / 180, 0]}
@@ -253,29 +323,45 @@ export default function ModelStage({
                   placement.offsetZ ?? 0,
                 ]}
                 scale={placement.scale}
+                onPointerDown={(event) => startDrag("model", event)}
               >
                 {loadedScene ? <primitive object={loadedScene} /> : null}
               </group>
               {showBase && loadedScene && baseGeometry.height > 0 ? (
-                <mesh
-                  ref={meshRef}
-                  position={[0, BASE_FLOOR_Y + baseGeometry.height / 2, 0]}
-                  receiveShadow={settings.shadows}
+                <group
+                  position={[
+                    placement.baseOffsetX ?? 0,
+                    BASE_FLOOR_Y + baseGeometry.height / 2,
+                    placement.baseOffsetZ ?? 0,
+                  ]}
+                  rotation={[0, ((placement.baseYaw ?? 0) * Math.PI) / 180, 0]}
+                  onPointerDown={(event) => startDrag("base", event)}
                 >
-                  <cylinderGeometry
-                    args={[
-                      baseGeometry.radius,
-                      baseGeometry.radius * 1.1,
-                      baseGeometry.height,
-                      settings.shadows ? 64 : 28,
-                    ]}
-                  />
-                  <meshStandardMaterial
-                    color={baseGeometry.color}
-                    roughness={baseId === "marble" ? 0.25 : 0.6}
-                    metalness={0.05}
-                  />
-                </mesh>
+                  <mesh ref={meshRef} receiveShadow={settings.shadows} castShadow={settings.shadows}>
+                    <cylinderGeometry
+                      args={[
+                        baseGeometry.radius,
+                        baseGeometry.radius * 1.1,
+                        baseGeometry.height,
+                        settings.shadows ? 64 : 28,
+                      ]}
+                    />
+                    <meshStandardMaterial
+                      color={baseGeometry.color}
+                      roughness={baseId === "marble" ? 0.18 : 0.55}
+                      metalness={baseId === "marble" ? 0.12 : 0.05}
+                    />
+                  </mesh>
+                  {/* Thin top plate reads as a machined bevel and catches the key light. */}
+                  <mesh position={[0, baseGeometry.height / 2 + 0.006, 0]} receiveShadow={settings.shadows}>
+                    <cylinderGeometry args={[baseGeometry.radius * 0.99, baseGeometry.radius * 0.99, 0.012, settings.shadows ? 64 : 28]} />
+                    <meshStandardMaterial
+                      color={baseGeometry.color}
+                      roughness={baseId === "marble" ? 0.1 : 0.35}
+                      metalness={0.18}
+                    />
+                  </mesh>
+                </group>
               ) : null}
             </group>
           </Center>
@@ -287,6 +373,7 @@ export default function ModelStage({
         <OrbitControls
           makeDefault
           enablePan
+          enabled={!drag}
           enableDamping={quality === "high"}
           minDistance={1.8}
           maxDistance={7}
@@ -296,6 +383,8 @@ export default function ModelStage({
         <CameraRig preset={view.preset} nonce={view.nonce} />
         <CameraZoom factor={zoom.factor} nonce={zoom.nonce} />
         <FitCamera object={loadedScene} />
+        <DragManager drag={drag} onMove={applyDrag} onEnd={() => setDrag(null)} />
+
 
 
       </Canvas>
@@ -394,6 +483,32 @@ export default function ModelStage({
               <Gauge className="size-3.5" />
               {quality === "low" ? t("viewer.qualityLow") : t("viewer.qualityHigh")}
             </Button>
+            {editable ? (
+              <>
+                <Button
+                  size="sm"
+                  variant={moveMode === "model" ? "default" : "secondary"}
+                  className="h-8 gap-1 px-2 text-xs"
+                  aria-pressed={moveMode === "model"}
+                  onClick={() => setMoveMode((mode) => (mode === "model" ? null : "model"))}
+                >
+                  <Move className="size-3.5" />
+                  {t("viewer.moveModel")}
+                </Button>
+                {showBase && baseGeometry.height > 0 ? (
+                  <Button
+                    size="sm"
+                    variant={moveMode === "base" ? "default" : "secondary"}
+                    className="h-8 gap-1 px-2 text-xs"
+                    aria-pressed={moveMode === "base"}
+                    onClick={() => setMoveMode((mode) => (mode === "base" ? null : "base"))}
+                  >
+                    <Layers className="size-3.5" />
+                    {t("viewer.moveBase")}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
             <Button
               size="sm"
               variant="secondary"
@@ -412,6 +527,15 @@ export default function ModelStage({
           ) : null}
         </div>
       ) : null}
+
+      {loadedScene && moveMode ? (
+        <div className="pointer-events-none absolute inset-x-0 top-14 flex justify-center px-3 sm:top-16">
+          <span className="rounded-full border border-border/60 bg-background/85 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
+            {moveMode === "model" ? t("viewer.moveHintModel") : t("viewer.moveHintBase")}
+          </span>
+        </div>
+      ) : null}
+
 
       {loadedScene ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3">
@@ -517,3 +641,70 @@ function downloadBlob(blob: Blob, filename: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Translates pointer movement into scene-space deltas while a sculpture or
+ * plinth is being dragged. Horizontal drags run on the ground plane; vertical
+ * drags run on a plane facing the camera.
+ */
+function DragManager({
+  drag,
+  onMove,
+  onEnd,
+}: {
+  drag: DragState | null;
+  onMove: (state: DragState, delta: THREE.Vector3) => void;
+  onEnd: () => void;
+}) {
+  const camera = useThree((state) => state.camera);
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+
+  useEffect(() => {
+    if (!drag) return;
+    const element = gl.domElement;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const hit = new THREE.Vector3();
+    const plane =
+      drag.axis === "y"
+        ? new THREE.Plane().setFromNormalAndCoplanarPoint(
+            new THREE.Vector3(camera.position.x, 0, camera.position.z).normalize(),
+            drag.origin,
+          )
+        : new THREE.Plane(new THREE.Vector3(0, 1, 0), -drag.origin.y);
+
+    function onPointerMove(event: PointerEvent) {
+      const rect = element.getBoundingClientRect();
+      pointer.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, camera);
+      if (!raycaster.ray.intersectPlane(plane, hit)) return;
+      onMove(drag!, hit.clone().sub(drag!.origin));
+      invalidate();
+    }
+
+    function stop() {
+      onEnd();
+      invalidate();
+    }
+
+    element.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      element.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [drag, camera, gl, invalidate, onMove, onEnd]);
+
+  return null;
+}
+
