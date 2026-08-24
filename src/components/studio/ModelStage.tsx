@@ -115,6 +115,7 @@ export default function ModelStage({
   const [zoom, setZoom] = useState<{ factor: number; nonce: number }>({ factor: 1, nonce: 0 });
   const [moveMode, setMoveMode] = useState<DragTarget | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [snap, setSnap] = useState(true);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -125,6 +126,13 @@ export default function ModelStage({
   const editable = Boolean(onPlacementChange);
   const settings = QUALITY_SETTINGS[quality];
   const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
+  const metrics = placementMetrics(placement, showBase ? baseId : "none", heightMm);
+
+  /** Rounds a dragged coordinate onto the millimetre grid when snapping is on. */
+  const grid = useCallback(
+    (value: number) => (snap ? snapToGrid(value, SNAP_STEP_MM, heightMm) : value),
+    [snap, heightMm],
+  );
 
   const startDrag = useCallback(
     (target: DragTarget, event: ThreeEvent<PointerEvent>) => {
@@ -146,22 +154,75 @@ export default function ModelStage({
       if (!onPlacementChange) return;
       if (state.target === "model") {
         if (state.axis === "y") {
-          onPlacementChange({ lift: clamp(state.from.lift + delta.y, -0.5, 0.5) });
+          onPlacementChange({ lift: clamp(grid(state.from.lift + delta.y), -0.5, 0.5) });
         } else {
           onPlacementChange({
-            offsetX: clamp((state.from.offsetX ?? 0) + delta.x, -0.6, 0.6),
-            offsetZ: clamp((state.from.offsetZ ?? 0) + delta.z, -0.6, 0.6),
+            offsetX: clamp(grid((state.from.offsetX ?? 0) + delta.x), -0.6, 0.6),
+            offsetZ: clamp(grid((state.from.offsetZ ?? 0) + delta.z), -0.6, 0.6),
           });
         }
       } else {
         onPlacementChange({
-          baseOffsetX: clamp((state.from.baseOffsetX ?? 0) + delta.x, -0.8, 0.8),
-          baseOffsetZ: clamp((state.from.baseOffsetZ ?? 0) + delta.z, -0.8, 0.8),
+          baseOffsetX: clamp(grid((state.from.baseOffsetX ?? 0) + delta.x), -0.8, 0.8),
+          baseOffsetZ: clamp(grid((state.from.baseOffsetZ ?? 0) + delta.z), -0.8, 0.8),
         });
       }
     },
-    [onPlacementChange],
+    [onPlacementChange, grid],
   );
+
+  // Keyboard nudging: arrows move by 1 mm, Shift+arrows by 10 mm, and while the
+  // sculpture is selected PageUp/PageDown (or Shift+↑/↓ with Alt) change height.
+  useEffect(() => {
+    if (!editable || !moveMode || !onPlacementChange) return;
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && /input|textarea|select/i.test(target.tagName)) return;
+      const perMm = unitsPerMm(heightMm) || 0.004;
+      const step = perMm * (event.shiftKey ? COARSE_STEP_MM : FINE_STEP_MM);
+      const current = placementRef.current;
+      const isModel = moveMode === "model";
+      const x = isModel ? (current.offsetX ?? 0) : (current.baseOffsetX ?? 0);
+      const z = isModel ? (current.offsetZ ?? 0) : (current.baseOffsetZ ?? 0);
+      const limit = isModel ? 0.6 : 0.8;
+      const move = (dx: number, dz: number) =>
+        onPlacementChange!(
+          isModel
+            ? { offsetX: clamp(x + dx, -limit, limit), offsetZ: clamp(z + dz, -limit, limit) }
+            : { baseOffsetX: clamp(x + dx, -limit, limit), baseOffsetZ: clamp(z + dz, -limit, limit) },
+        );
+
+      switch (event.key) {
+        case "ArrowLeft":
+          move(-step, 0);
+          break;
+        case "ArrowRight":
+          move(step, 0);
+          break;
+        case "ArrowUp":
+          move(0, -step);
+          break;
+        case "ArrowDown":
+          move(0, step);
+          break;
+        case "PageUp":
+          if (!isModel) return;
+          onPlacementChange!({ lift: clamp(current.lift + step, -0.5, 0.5) });
+          break;
+        case "PageDown":
+          if (!isModel) return;
+          onPlacementChange!({ lift: clamp(current.lift - step, -0.5, 0.5) });
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+      setAutoRotate(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [editable, moveMode, onPlacementChange, heightMm]);
+
 
 
 
