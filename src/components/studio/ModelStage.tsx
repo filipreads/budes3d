@@ -641,3 +641,70 @@ function downloadBlob(blob: Blob, filename: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+/**
+ * Translates pointer movement into scene-space deltas while a sculpture or
+ * plinth is being dragged. Horizontal drags run on the ground plane; vertical
+ * drags run on a plane facing the camera.
+ */
+function DragManager({
+  drag,
+  onMove,
+  onEnd,
+}: {
+  drag: DragState | null;
+  onMove: (state: DragState, delta: THREE.Vector3) => void;
+  onEnd: () => void;
+}) {
+  const camera = useThree((state) => state.camera);
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+
+  useEffect(() => {
+    if (!drag) return;
+    const element = gl.domElement;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const hit = new THREE.Vector3();
+    const plane =
+      drag.axis === "y"
+        ? new THREE.Plane().setFromNormalAndCoplanarPoint(
+            new THREE.Vector3(camera.position.x, 0, camera.position.z).normalize(),
+            drag.origin,
+          )
+        : new THREE.Plane(new THREE.Vector3(0, 1, 0), -drag.origin.y);
+
+    function onPointerMove(event: PointerEvent) {
+      const rect = element.getBoundingClientRect();
+      pointer.set(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+      );
+      raycaster.setFromCamera(pointer, camera);
+      if (!raycaster.ray.intersectPlane(plane, hit)) return;
+      onMove(drag!, hit.clone().sub(drag!.origin));
+      invalidate();
+    }
+
+    function stop() {
+      onEnd();
+      invalidate();
+    }
+
+    element.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      element.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, [drag, camera, gl, invalidate, onMove, onEnd]);
+
+  return null;
+}
+
