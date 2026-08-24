@@ -1,7 +1,7 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { getModelUrl } from "@/lib/studio.functions";
 
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, Center } from "@react-three/drei";
 import * as THREE from "three";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import {
   Gauge,
   ZoomIn,
   ZoomOut,
+  Move,
+  Layers,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ import {
   VIEWER_QUALITY_EVENT,
   type ViewerQuality,
 } from "@/lib/viewer-quality";
+
 
 
 
