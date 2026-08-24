@@ -486,7 +486,6 @@ function EditorPage() {
         setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
         toast.info(t("editor.job.resumed"));
         await driveJob(pending);
-        if (!cancelled) toast.success(t("editor.toast.ready"));
       } catch (error) {
         if (cancelled) return;
         trackStage("failed");
