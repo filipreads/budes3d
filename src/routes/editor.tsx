@@ -517,23 +517,70 @@ function EditorPage() {
   // fine-tuned right up to checkout.
   const baseGeometry = BASE_GEOMETRY[config.baseId] ?? BASE_GEOMETRY["walnut"]!;
   const hasBase = config.baseId !== "none" && baseGeometry.height > 0;
-  const offCentre =
-    hasBase &&
-    Math.hypot(
-      (placement.offsetX ?? 0) - (placement.baseOffsetX ?? 0),
-      (placement.offsetZ ?? 0) - (placement.baseOffsetZ ?? 0),
-    ) > baseGeometry.radius * 0.55;
-  const floating = hasBase && placement.lift > 0.08;
+  const metrics = placementMetrics(placement, config.baseId, heightMm);
+  const offCentre = metrics.hasBase && metrics.clearanceMm < 0;
+  const floating = metrics.hasBase && Math.abs(metrics.floatMm) > 1;
+  /** Millimetre read-out shown next to a scene-unit slider. */
+  const mmHint = (units: number) => (metrics.measured ? formatMm(toMm(units, heightMm), true) : undefined);
 
   const placementPanel = (
     <div className="space-y-4 rounded-lg border border-border p-4">
-      <p className="text-sm font-semibold">{t("editor.placement")}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold">{t("editor.placement")}</p>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 p-0"
+            aria-label={t("editor.undo")}
+            disabled={!history.canUndo}
+            onClick={history.undo}
+          >
+            <Undo2 className="size-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 p-0"
+            aria-label={t("editor.redo")}
+            disabled={!history.canRedo}
+            onClick={history.redo}
+          >
+            <Redo2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
       <p className="text-xs text-muted-foreground">{t("editor.placement.dragHint")}</p>
+      <p className="text-xs text-muted-foreground">{t("editor.placement.stepHint")}</p>
+
+      {/* Live measurement of the sculpture against the plinth edge. */}
+      {metrics.hasBase && metrics.measured ? (
+        <div
+          role="status"
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs tabular-nums ${
+            metrics.level === "error"
+              ? "border-destructive/50 bg-destructive/10 text-destructive"
+              : metrics.level === "warn"
+                ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                : "border-border bg-muted/40 text-muted-foreground"
+          }`}
+        >
+          <span>
+            {metrics.clearanceMm < 0
+              ? `${t("editor.placement.measureOverhang")} ${formatMm(Math.abs(metrics.clearanceMm))}`
+              : `${t("editor.placement.measureEdge")} ${formatMm(metrics.clearanceMm)}`}
+          </span>
+          <span>
+            {t("editor.placement.measureFloat")} {formatMm(metrics.floatMm, true)}
+          </span>
+        </div>
+      ) : null}
+
       <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
       <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
-      <SliderRow label={t("editor.placement.lift")} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetX")} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetZ")} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
+      <SliderRow label={t("editor.placement.lift")} hint={mmHint(placement.lift)} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
+      <SliderRow label={t("editor.placement.offsetX")} hint={mmHint(placement.offsetX ?? 0)} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
+      <SliderRow label={t("editor.placement.offsetZ")} hint={mmHint(placement.offsetZ ?? 0)} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
       <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
 
       {hasBase ? (
@@ -543,6 +590,7 @@ function EditorPage() {
           </p>
           <SliderRow
             label={t("editor.placement.baseOffsetX")}
+            hint={mmHint(placement.baseOffsetX ?? 0)}
             value={(placement.baseOffsetX ?? 0) * 100}
             min={-80}
             max={80}
@@ -550,6 +598,7 @@ function EditorPage() {
           />
           <SliderRow
             label={t("editor.placement.baseOffsetZ")}
+            hint={mmHint(placement.baseOffsetZ ?? 0)}
             value={(placement.baseOffsetZ ?? 0) * 100}
             min={-80}
             max={80}
@@ -567,7 +616,11 @@ function EditorPage() {
       ) : null}
 
       {offCentre || floating ? (
-        <p className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+        <p
+          className={`flex items-start gap-2 rounded-md p-2 text-xs ${
+            metrics.level === "error" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+          }`}
+        >
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           {offCentre ? t("editor.placement.warnOffBase") : t("editor.placement.warnFloating")}
         </p>
@@ -589,6 +642,21 @@ function EditorPage() {
           }
         >
           {t("editor.placement.snap")}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            setPlacement({
+              offsetX: snapToGrid(placement.offsetX ?? 0, SNAP_STEP_MM, heightMm),
+              offsetZ: snapToGrid(placement.offsetZ ?? 0, SNAP_STEP_MM, heightMm),
+              lift: snapToGrid(placement.lift, SNAP_STEP_MM, heightMm),
+              baseOffsetX: snapToGrid(placement.baseOffsetX ?? 0, SNAP_STEP_MM, heightMm),
+              baseOffsetZ: snapToGrid(placement.baseOffsetZ ?? 0, SNAP_STEP_MM, heightMm),
+            })
+          }
+        >
+          {t("editor.placement.snapGrid")}
         </Button>
         <Button
           size="sm"
