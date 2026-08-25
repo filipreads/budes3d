@@ -1118,7 +1118,7 @@ function SliderRow({
   max: number;
   unit?: string;
   /** Optional real-world read-out (e.g. "+12 mm") shown under the label. */
-  hint?: string;
+  hint?: string | undefined;
   onChange: (value: number) => void;
 }) {
   return (
