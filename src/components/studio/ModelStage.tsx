@@ -589,6 +589,41 @@ export default function ModelStage({
                     {t("viewer.moveBase")}
                   </Button>
                 ) : null}
+                <Button
+                  size="sm"
+                  variant={snap ? "default" : "secondary"}
+                  className="h-8 gap-1 px-2 text-xs"
+                  aria-pressed={snap}
+                  title={t("viewer.snapHint")}
+                  onClick={() => setSnap((value) => !value)}
+                >
+                  <Magnet className="size-3.5" />
+                  {snap ? t("viewer.snapOn") : t("viewer.snapOff")}
+                </Button>
+                {onUndo ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 w-8 p-0"
+                    disabled={!canUndo}
+                    aria-label={t("viewer.undo")}
+                    onClick={onUndo}
+                  >
+                    <Undo2 className="size-3.5" />
+                  </Button>
+                ) : null}
+                {onRedo ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 w-8 p-0"
+                    disabled={!canRedo}
+                    aria-label={t("viewer.redo")}
+                    onClick={onRedo}
+                  >
+                    <Redo2 className="size-3.5" />
+                  </Button>
+                ) : null}
               </>
             ) : null}
             <Button
@@ -611,12 +646,41 @@ export default function ModelStage({
       ) : null}
 
       {loadedScene && moveMode ? (
-        <div className="pointer-events-none absolute inset-x-0 top-14 flex justify-center px-3 sm:top-16">
+        <div className="pointer-events-none absolute inset-x-0 top-14 flex flex-col items-center gap-1.5 px-3 sm:top-16">
           <span className="rounded-full border border-border/60 bg-background/85 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
             {moveMode === "model" ? t("viewer.moveHintModel") : t("viewer.moveHintBase")}
           </span>
+          <span className="rounded-full border border-border/60 bg-background/85 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
+            {t("viewer.keysHint")}
+          </span>
         </div>
       ) : null}
+
+      {/* Live measurement of how the sculpture sits on its plinth. */}
+      {loadedScene && metrics.hasBase && metrics.measured ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center px-3 sm:bottom-14">
+          <span
+            className={`flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full border px-3 py-1 text-[11px] tabular-nums backdrop-blur ${
+              metrics.level === "error"
+                ? "border-destructive/60 bg-destructive/15 text-destructive"
+                : metrics.level === "warn"
+                  ? "border-amber-500/60 bg-amber-500/15 text-amber-500"
+                  : "border-border/60 bg-background/85 text-muted-foreground"
+            }`}
+            role="status"
+          >
+            <span>
+              {metrics.clearanceMm < 0
+                ? `${t("viewer.metric.overhang")} ${formatMm(Math.abs(metrics.clearanceMm))}`
+                : `${t("viewer.metric.edge")} ${formatMm(metrics.clearanceMm)}`}
+            </span>
+            <span>
+              {t("viewer.metric.float")} {formatMm(metrics.floatMm, true)}
+            </span>
+          </span>
+        </div>
+      ) : null}
+
 
 
       {loadedScene ? (
