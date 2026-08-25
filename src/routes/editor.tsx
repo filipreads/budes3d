@@ -42,6 +42,7 @@ import { removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
+import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
 import { uploadWithProgress } from "@/lib/storage-upload";
 
 
