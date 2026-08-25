@@ -1095,6 +1095,7 @@ function SliderRow({
   min,
   max,
   unit,
+  hint,
   onChange,
 }: {
   label: string;
@@ -1102,18 +1103,24 @@ function SliderRow({
   min: number;
   max: number;
   unit?: string;
+  /** Optional real-world read-out (e.g. "+12 mm") shown under the label. */
+  hint?: string;
   onChange: (value: number) => void;
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3 text-sm">
-        <Label>{label}</Label>
+        <div className="min-w-0">
+          <Label>{label}</Label>
+          {hint ? <p className="text-[11px] tabular-nums text-muted-foreground">{hint}</p> : null}
+        </div>
         <div className="flex items-center gap-1">
           <Input
             type="number"
             inputMode="numeric"
             min={min}
             max={max}
+            step={1}
             value={Math.round(value)}
             onChange={(event) => {
               const next = Number(event.target.value);
