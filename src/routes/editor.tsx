@@ -133,6 +133,20 @@ function EditorPage() {
   }, []);
   const history = useEditorHistory(snapshot, applySnapshot);
 
+  // Ctrl/⌘+Z and Ctrl/⌘+Shift+Z step through placement and retouch history.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      if (target && /input|textarea|select/i.test(target.tagName)) return;
+      event.preventDefault();
+      if (event.shiftKey) history.redo();
+      else history.undo();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [history]);
+
   // Interrupted mobile sessions: keep a local copy of the working photo and
   // settings so the customer never has to pick the photo again.
   useEffect(() => {
