@@ -694,8 +694,12 @@ function EditorPage() {
                       showBase={config.baseId !== "none"}
                       baseId={config.baseId}
                       placement={placement}
-                      heightMm={config.delivery === "print" ? heightMm : null}
+                      heightMm={heightMm}
                       onPlacementChange={setPlacement}
+                      onUndo={history.undo}
+                      onRedo={history.redo}
+                      canUndo={history.canUndo}
+                      canRedo={history.canRedo}
                       canDownload
                     />
                   </div>
