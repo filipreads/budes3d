@@ -139,6 +139,7 @@ export default function ModelStage({
   const settings = QUALITY_SETTINGS[quality];
   const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
   const metrics = placementMetrics(placement, showBase ? baseId : "none", heightMm);
+  const padStep = coarseStep ? COARSE_STEP_MM : FINE_STEP_MM;
 
   /** Rounds a dragged coordinate onto the millimetre grid when snapping is on. */
   const grid = useCallback(
