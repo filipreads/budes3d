@@ -593,9 +593,38 @@ function EditorPage() {
 
       <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
       <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
-      <SliderRow label={t("editor.placement.lift")} hint={mmHint(placement.lift)} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetX")} hint={mmHint(placement.offsetX ?? 0)} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetZ")} hint={mmHint(placement.offsetZ ?? 0)} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
+
+      {/* Explicit X / Y / Z movement sliders with pointer-only step buttons. */}
+      <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("editor.placement.axisGroup")}
+        </p>
+        <SliderRow
+          label={t("editor.placement.axisX")}
+          hint={mmHint(placement.offsetX ?? 0)}
+          value={(placement.offsetX ?? 0) * 100}
+          min={-60}
+          max={60}
+          onChange={(v) => setPlacement({ offsetX: v / 100 })}
+        />
+        <SliderRow
+          label={t("editor.placement.axisY")}
+          hint={mmHint(placement.lift)}
+          value={placement.lift * 100}
+          min={-50}
+          max={50}
+          onChange={(v) => setPlacement({ lift: v / 100 })}
+        />
+        <SliderRow
+          label={t("editor.placement.axisZ")}
+          hint={mmHint(placement.offsetZ ?? 0)}
+          value={(placement.offsetZ ?? 0) * 100}
+          min={-60}
+          max={60}
+          onChange={(v) => setPlacement({ offsetZ: v / 100 })}
+        />
+      </div>
+
       <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
 
       {hasBase ? (
