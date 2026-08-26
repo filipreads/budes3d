@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { getModelUrl } from "@/lib/studio.functions";
 
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -971,7 +971,7 @@ function PadButton({
 }: {
   label: string;
   onPress: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const pressRef = useRef(onPress);
