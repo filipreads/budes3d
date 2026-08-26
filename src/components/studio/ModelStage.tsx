@@ -124,6 +124,10 @@ export default function ModelStage({
   const [moveMode, setMoveMode] = useState<DragTarget | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [snap, setSnap] = useState(true);
+  /** Whether dragging the sculpture moves it on the floor or vertically — togglable without a keyboard. */
+  const [axisMode, setAxisMode] = useState<"xz" | "y">("xz");
+  /** Nudge step used by the on-screen pad: fine by default, coarse when switched on. */
+  const [coarseStep, setCoarseStep] = useState(false);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
