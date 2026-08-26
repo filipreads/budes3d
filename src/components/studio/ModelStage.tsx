@@ -153,12 +153,47 @@ export default function ModelStage({
       setAutoRotate(false);
       setDrag({
         target,
-        axis: target === "model" && (event.shiftKey || event.altKey) ? "y" : "xz",
+        axis: target === "model" && (axisMode === "y" || event.shiftKey || event.altKey) ? "y" : "xz",
         origin: event.point.clone(),
         from: { ...placementRef.current },
       });
     },
-    [editable, moveMode],
+    [editable, moveMode, axisMode],
+  );
+
+  /**
+   * Moves the current selection by whole millimetres. Shared by the on-screen
+   * pad (pointer only) and the keyboard shortcuts.
+   */
+  const nudgeMm = useCallback(
+    (axis: "x" | "y" | "z", direction: 1 | -1, stepMm: number) => {
+      if (!onPlacementChange || !moveMode) return;
+      const perMm = unitsPerMm(heightMm) || 0.004;
+      const delta = perMm * stepMm * direction;
+      const current = placementRef.current;
+      const isModel = moveMode === "model";
+      const limit = isModel ? 0.6 : 0.8;
+      if (axis === "y") {
+        if (!isModel) return;
+        onPlacementChange({ lift: clamp(current.lift + delta, -0.5, 0.5) });
+      } else if (axis === "x") {
+        const x = (isModel ? current.offsetX : current.baseOffsetX) ?? 0;
+        onPlacementChange(
+          isModel
+            ? { offsetX: clamp(x + delta, -limit, limit) }
+            : { baseOffsetX: clamp(x + delta, -limit, limit) },
+        );
+      } else {
+        const z = (isModel ? current.offsetZ : current.baseOffsetZ) ?? 0;
+        onPlacementChange(
+          isModel
+            ? { offsetZ: clamp(z + delta, -limit, limit) }
+            : { baseOffsetZ: clamp(z + delta, -limit, limit) },
+        );
+      }
+      setAutoRotate(false);
+    },
+    [onPlacementChange, moveMode, heightMm],
   );
 
   const applyDrag = useCallback(
