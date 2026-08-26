@@ -636,6 +636,19 @@ export default function ModelStage({
                     {t("viewer.moveBase")}
                   </Button>
                 ) : null}
+                {moveMode === "model" ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 gap-1 px-2 text-xs"
+                    aria-pressed={axisMode === "y"}
+                    title={t("viewer.axisHint")}
+                    onClick={() => setAxisMode((mode) => (mode === "y" ? "xz" : "y"))}
+                  >
+                    {axisMode === "y" ? <MoveVertical className="size-3.5" /> : <MoveDiagonal className="size-3.5" />}
+                    {axisMode === "y" ? t("viewer.axisY") : t("viewer.axisXZ")}
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant={snap ? "default" : "secondary"}
