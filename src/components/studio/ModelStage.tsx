@@ -23,6 +23,14 @@ import {
   Magnet,
   Undo2,
   Redo2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ChevronUp,
+  ChevronDown,
+  MoveVertical,
+  MoveDiagonal,
 } from "lucide-react";
 
 import { toast } from "sonner";
