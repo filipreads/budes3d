@@ -19,11 +19,6 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/pricing" className="hover:text-foreground">
-                {t("nav.pricing")}
-              </Link>
-            </li>
-            <li>
               <Link to="/account" className="hover:text-foreground">
                 {t("footer.orders")}
               </Link>
