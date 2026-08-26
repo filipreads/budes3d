@@ -15,9 +15,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 
-const NAV: { to: "/" | "/pricing" | "/editor"; labelKey: TranslationKey }[] = [
+const NAV: { to: "/" | "/editor"; labelKey: TranslationKey }[] = [
   { to: "/", labelKey: "nav.home" },
-  { to: "/pricing", labelKey: "nav.pricing" },
   { to: "/editor", labelKey: "nav.studio" },
 ];
 
