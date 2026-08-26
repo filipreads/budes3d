@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { getModelUrl } from "@/lib/studio.functions";
 
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -23,6 +23,14 @@ import {
   Magnet,
   Undo2,
   Redo2,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ChevronUp,
+  ChevronDown,
+  MoveVertical,
+  MoveDiagonal,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -116,6 +124,10 @@ export default function ModelStage({
   const [moveMode, setMoveMode] = useState<DragTarget | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [snap, setSnap] = useState(true);
+  /** Whether dragging the sculpture moves it on the floor or vertically — togglable without a keyboard. */
+  const [axisMode, setAxisMode] = useState<"xz" | "y">("xz");
+  /** Nudge step used by the on-screen pad: fine by default, coarse when switched on. */
+  const [coarseStep, setCoarseStep] = useState(false);
 
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -127,6 +139,7 @@ export default function ModelStage({
   const settings = QUALITY_SETTINGS[quality];
   const baseGeometry = BASE_GEOMETRY[baseId] ?? BASE_GEOMETRY["walnut"]!;
   const metrics = placementMetrics(placement, showBase ? baseId : "none", heightMm);
+  const padStep = coarseStep ? COARSE_STEP_MM : FINE_STEP_MM;
 
   /** Rounds a dragged coordinate onto the millimetre grid when snapping is on. */
   const grid = useCallback(
@@ -141,12 +154,47 @@ export default function ModelStage({
       setAutoRotate(false);
       setDrag({
         target,
-        axis: target === "model" && (event.shiftKey || event.altKey) ? "y" : "xz",
+        axis: target === "model" && (axisMode === "y" || event.shiftKey || event.altKey) ? "y" : "xz",
         origin: event.point.clone(),
         from: { ...placementRef.current },
       });
     },
-    [editable, moveMode],
+    [editable, moveMode, axisMode],
+  );
+
+  /**
+   * Moves the current selection by whole millimetres. Shared by the on-screen
+   * pad (pointer only) and the keyboard shortcuts.
+   */
+  const nudgeMm = useCallback(
+    (axis: "x" | "y" | "z", direction: 1 | -1, stepMm: number) => {
+      if (!onPlacementChange || !moveMode) return;
+      const perMm = unitsPerMm(heightMm) || 0.004;
+      const delta = perMm * stepMm * direction;
+      const current = placementRef.current;
+      const isModel = moveMode === "model";
+      const limit = isModel ? 0.6 : 0.8;
+      if (axis === "y") {
+        if (!isModel) return;
+        onPlacementChange({ lift: clamp(current.lift + delta, -0.5, 0.5) });
+      } else if (axis === "x") {
+        const x = (isModel ? current.offsetX : current.baseOffsetX) ?? 0;
+        onPlacementChange(
+          isModel
+            ? { offsetX: clamp(x + delta, -limit, limit) }
+            : { baseOffsetX: clamp(x + delta, -limit, limit) },
+        );
+      } else {
+        const z = (isModel ? current.offsetZ : current.baseOffsetZ) ?? 0;
+        onPlacementChange(
+          isModel
+            ? { offsetZ: clamp(z + delta, -limit, limit) }
+            : { baseOffsetZ: clamp(z + delta, -limit, limit) },
+        );
+      }
+      setAutoRotate(false);
+    },
+    [onPlacementChange, moveMode, heightMm],
   );
 
   const applyDrag = useCallback(
@@ -589,6 +637,19 @@ export default function ModelStage({
                     {t("viewer.moveBase")}
                   </Button>
                 ) : null}
+                {moveMode === "model" ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 gap-1 px-2 text-xs"
+                    aria-pressed={axisMode === "y"}
+                    title={t("viewer.axisHint")}
+                    onClick={() => setAxisMode((mode) => (mode === "y" ? "xz" : "y"))}
+                  >
+                    {axisMode === "y" ? <MoveVertical className="size-3.5" /> : <MoveDiagonal className="size-3.5" />}
+                    {axisMode === "y" ? t("viewer.axisY") : t("viewer.axisXZ")}
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant={snap ? "default" : "secondary"}
@@ -653,6 +714,53 @@ export default function ModelStage({
           <span className="rounded-full border border-border/60 bg-background/85 px-3 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
             {t("viewer.keysHint")}
           </span>
+        </div>
+      ) : null}
+
+      {/* Pointer-only movement pad: every axis is reachable without a keyboard. */}
+      {loadedScene && editable && moveMode ? (
+        <div className="pointer-events-auto absolute bottom-14 left-3 flex items-end gap-2 rounded-xl border border-border/60 bg-background/90 p-2 backdrop-blur sm:bottom-16">
+          <div className="grid grid-cols-3 gap-1">
+            <span />
+            <PadButton label={t("viewer.pad.back")} onPress={() => nudgeMm("z", -1, padStep)}>
+              <ArrowUp className="size-3.5" />
+            </PadButton>
+            <span />
+            <PadButton label={t("viewer.pad.left")} onPress={() => nudgeMm("x", -1, padStep)}>
+              <ArrowLeft className="size-3.5" />
+            </PadButton>
+            <span className="flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
+              XZ
+            </span>
+            <PadButton label={t("viewer.pad.right")} onPress={() => nudgeMm("x", 1, padStep)}>
+              <ArrowRight className="size-3.5" />
+            </PadButton>
+            <span />
+            <PadButton label={t("viewer.pad.front")} onPress={() => nudgeMm("z", 1, padStep)}>
+              <ArrowDown className="size-3.5" />
+            </PadButton>
+            <span />
+          </div>
+          {moveMode === "model" ? (
+            <div className="grid gap-1">
+              <PadButton label={t("viewer.pad.up")} onPress={() => nudgeMm("y", 1, padStep)}>
+                <ChevronUp className="size-3.5" />
+              </PadButton>
+              <span className="text-center text-[10px] font-semibold text-muted-foreground">Y</span>
+              <PadButton label={t("viewer.pad.down")} onPress={() => nudgeMm("y", -1, padStep)}>
+                <ChevronDown className="size-3.5" />
+              </PadButton>
+            </div>
+          ) : null}
+          <Button
+            size="sm"
+            variant={coarseStep ? "default" : "secondary"}
+            className="h-8 px-2 text-[11px] tabular-nums"
+            aria-pressed={coarseStep}
+            onClick={() => setCoarseStep((value) => !value)}
+          >
+            {padStep} mm
+          </Button>
         </div>
       ) : null}
 
@@ -854,3 +962,46 @@ function DragManager({
   return null;
 }
 
+
+/** Single arrow of the on-screen movement pad; repeats while held down. */
+function PadButton({
+  label,
+  onPress,
+  children,
+}: {
+  label: string;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressRef = useRef(onPress);
+  pressRef.current = onPress;
+
+  const stop = useCallback(() => {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+  }, []);
+
+  useEffect(() => stop, [stop]);
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="h-8 w-8 p-0 touch-none"
+      aria-label={label}
+      title={label}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        pressRef.current();
+        stop();
+        timer.current = setInterval(() => pressRef.current(), 140);
+      }}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+    >
+      {children}
+    </Button>
+  );
+}

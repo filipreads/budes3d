@@ -62,13 +62,11 @@ function LandingPage() {
                     {t("home.openStudio")} <ArrowRight className="ml-1.5 size-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                  <Link to="/pricing">{t("home.seePricing")}</Link>
-                </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
                 {t("home.priceLine", { digital: formatPrice(DIGITAL_CENTS), print: formatPrice(SIZES[0].cents) })}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("home.priceNote")}</p>
             </div>
             <div className="relative rise-in">
               <div className="pointer-events-none absolute -inset-6 -z-10 rounded-[2rem] bg-primary/15 blur-3xl" />

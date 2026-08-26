@@ -59,7 +59,7 @@ const JOB_KEY = "relievo:job";
 /** Manually saved configuration snapshot the customer can roll back to. */
 const SAVED_KEY = "relievo:saved-version";
 
-import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History } from "lucide-react";
+import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History, Minus, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
   validateSearch: (search: Record<string, unknown>): { project?: string } =>
@@ -593,9 +593,38 @@ function EditorPage() {
 
       <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
       <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
-      <SliderRow label={t("editor.placement.lift")} hint={mmHint(placement.lift)} value={placement.lift * 100} min={-50} max={50} onChange={(v) => setPlacement({ lift: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetX")} hint={mmHint(placement.offsetX ?? 0)} value={(placement.offsetX ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetX: v / 100 })} />
-      <SliderRow label={t("editor.placement.offsetZ")} hint={mmHint(placement.offsetZ ?? 0)} value={(placement.offsetZ ?? 0) * 100} min={-60} max={60} onChange={(v) => setPlacement({ offsetZ: v / 100 })} />
+
+      {/* Explicit X / Y / Z movement sliders with pointer-only step buttons. */}
+      <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("editor.placement.axisGroup")}
+        </p>
+        <SliderRow
+          label={t("editor.placement.axisX")}
+          hint={mmHint(placement.offsetX ?? 0)}
+          value={(placement.offsetX ?? 0) * 100}
+          min={-60}
+          max={60}
+          onChange={(v) => setPlacement({ offsetX: v / 100 })}
+        />
+        <SliderRow
+          label={t("editor.placement.axisY")}
+          hint={mmHint(placement.lift)}
+          value={placement.lift * 100}
+          min={-50}
+          max={50}
+          onChange={(v) => setPlacement({ lift: v / 100 })}
+        />
+        <SliderRow
+          label={t("editor.placement.axisZ")}
+          hint={mmHint(placement.offsetZ ?? 0)}
+          value={(placement.offsetZ ?? 0) * 100}
+          min={-60}
+          max={60}
+          onChange={(v) => setPlacement({ offsetZ: v / 100 })}
+        />
+      </div>
+
       <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
 
       {hasBase ? (
@@ -1129,6 +1158,17 @@ function SliderRow({
           {hint ? <p className="text-[11px] tabular-nums text-muted-foreground">{hint}</p> : null}
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 shrink-0 p-0"
+            aria-label={`${label} −`}
+            disabled={value <= min}
+            onClick={() => onChange(Math.max(Math.round(value) - 1, min))}
+          >
+            <Minus className="size-3.5" />
+          </Button>
           <Input
             type="number"
             inputMode="numeric"
@@ -1141,8 +1181,19 @@ function SliderRow({
               if (!Number.isFinite(next)) return;
               onChange(Math.min(Math.max(next, min), max));
             }}
-            className="h-8 w-[68px] px-2 text-right text-xs tabular-nums"
+            className="h-8 w-[64px] px-2 text-right text-xs tabular-nums"
           />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 shrink-0 p-0"
+            aria-label={`${label} +`}
+            disabled={value >= max}
+            onClick={() => onChange(Math.min(Math.round(value) + 1, max))}
+          >
+            <Plus className="size-3.5" />
+          </Button>
           {unit ? <span className="w-3 text-xs text-muted-foreground">{unit}</span> : null}
         </div>
       </div>
