@@ -962,3 +962,46 @@ function DragManager({
   return null;
 }
 
+
+/** Single arrow of the on-screen movement pad; repeats while held down. */
+function PadButton({
+  label,
+  onPress,
+  children,
+}: {
+  label: string;
+  onPress: () => void;
+  children: React.ReactNode;
+}) {
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressRef = useRef(onPress);
+  pressRef.current = onPress;
+
+  const stop = useCallback(() => {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+  }, []);
+
+  useEffect(() => stop, [stop]);
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="h-8 w-8 p-0 touch-none"
+      aria-label={label}
+      title={label}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        pressRef.current();
+        stop();
+        timer.current = setInterval(() => pressRef.current(), 140);
+      }}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+    >
+      {children}
+    </Button>
+  );
+}
