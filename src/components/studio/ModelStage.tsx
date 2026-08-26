@@ -716,6 +716,53 @@ export default function ModelStage({
         </div>
       ) : null}
 
+      {/* Pointer-only movement pad: every axis is reachable without a keyboard. */}
+      {loadedScene && editable && moveMode ? (
+        <div className="pointer-events-auto absolute bottom-14 left-3 flex items-end gap-2 rounded-xl border border-border/60 bg-background/90 p-2 backdrop-blur sm:bottom-16">
+          <div className="grid grid-cols-3 gap-1">
+            <span />
+            <PadButton label={t("viewer.pad.back")} onPress={() => nudgeMm("z", -1, padStep)}>
+              <ArrowUp className="size-3.5" />
+            </PadButton>
+            <span />
+            <PadButton label={t("viewer.pad.left")} onPress={() => nudgeMm("x", -1, padStep)}>
+              <ArrowLeft className="size-3.5" />
+            </PadButton>
+            <span className="flex items-center justify-center text-[10px] font-semibold text-muted-foreground">
+              XZ
+            </span>
+            <PadButton label={t("viewer.pad.right")} onPress={() => nudgeMm("x", 1, padStep)}>
+              <ArrowRight className="size-3.5" />
+            </PadButton>
+            <span />
+            <PadButton label={t("viewer.pad.front")} onPress={() => nudgeMm("z", 1, padStep)}>
+              <ArrowDown className="size-3.5" />
+            </PadButton>
+            <span />
+          </div>
+          {moveMode === "model" ? (
+            <div className="grid gap-1">
+              <PadButton label={t("viewer.pad.up")} onPress={() => nudgeMm("y", 1, padStep)}>
+                <ChevronUp className="size-3.5" />
+              </PadButton>
+              <span className="text-center text-[10px] font-semibold text-muted-foreground">Y</span>
+              <PadButton label={t("viewer.pad.down")} onPress={() => nudgeMm("y", -1, padStep)}>
+                <ChevronDown className="size-3.5" />
+              </PadButton>
+            </div>
+          ) : null}
+          <Button
+            size="sm"
+            variant={coarseStep ? "default" : "secondary"}
+            className="h-8 px-2 text-[11px] tabular-nums"
+            aria-pressed={coarseStep}
+            onClick={() => setCoarseStep((value) => !value)}
+          >
+            {padStep} mm
+          </Button>
+        </div>
+      ) : null}
+
       {/* Live measurement of how the sculpture sits on its plinth. */}
       {loadedScene && metrics.hasBase && metrics.measured ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center px-3 sm:bottom-14">
