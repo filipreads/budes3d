@@ -59,7 +59,7 @@ const JOB_KEY = "relievo:job";
 /** Manually saved configuration snapshot the customer can roll back to. */
 const SAVED_KEY = "relievo:saved-version";
 
-import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History } from "lucide-react";
+import { Loader2, Upload, RotateCcw, RotateCw, TriangleAlert, Check, Undo2, Redo2, Save, History, Minus, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/editor")({
   validateSearch: (search: Record<string, unknown>): { project?: string } =>
@@ -1158,6 +1158,17 @@ function SliderRow({
           {hint ? <p className="text-[11px] tabular-nums text-muted-foreground">{hint}</p> : null}
         </div>
         <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 shrink-0 p-0"
+            aria-label={`${label} −`}
+            disabled={value <= min}
+            onClick={() => onChange(Math.max(Math.round(value) - 1, min))}
+          >
+            <Minus className="size-3.5" />
+          </Button>
           <Input
             type="number"
             inputMode="numeric"
@@ -1170,8 +1181,19 @@ function SliderRow({
               if (!Number.isFinite(next)) return;
               onChange(Math.min(Math.max(next, min), max));
             }}
-            className="h-8 w-[68px] px-2 text-right text-xs tabular-nums"
+            className="h-8 w-[64px] px-2 text-right text-xs tabular-nums"
           />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 shrink-0 p-0"
+            aria-label={`${label} +`}
+            disabled={value >= max}
+            onClick={() => onChange(Math.min(Math.round(value) + 1, max))}
+          >
+            <Plus className="size-3.5" />
+          </Button>
           {unit ? <span className="w-3 text-xs text-muted-foreground">{unit}</span> : null}
         </div>
       </div>
