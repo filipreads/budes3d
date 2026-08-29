@@ -1132,6 +1132,10 @@ function EditorPage() {
   );
 }
 
+function clampInt(value: number, min: number, max: number) {
+  return Math.min(Math.max(Math.round(value), min), max);
+}
+
 function SliderRow({
   label,
   value,
@@ -1150,6 +1154,32 @@ function SliderRow({
   hint?: string | undefined;
   onChange: (value: number) => void;
 }) {
+  const committed = Math.round(value);
+  const [raw, setRaw] = useState(String(committed));
+  const [editing, setEditing] = useState(false);
+
+  // Sync the input display with external changes (slider, buttons, undo/redo)
+  // only while the user is not actively typing.
+  useEffect(() => {
+    if (!editing) setRaw(String(committed));
+  }, [committed, editing]);
+
+  function commit(text: string) {
+    setEditing(false);
+    if (text === "" || text === "-") {
+      setRaw(String(committed));
+      return;
+    }
+    const parsed = Number(text);
+    if (!Number.isFinite(parsed)) {
+      setRaw(String(committed));
+      return;
+    }
+    const next = clampInt(parsed, min, max);
+    setRaw(String(next));
+    if (next !== value) onChange(next);
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3 text-sm">
@@ -1165,21 +1195,28 @@ function SliderRow({
             className="h-8 w-8 shrink-0 p-0"
             aria-label={`${label} −`}
             disabled={value <= min}
-            onClick={() => onChange(Math.max(Math.round(value) - 1, min))}
+            onClick={() => onChange(clampInt(value - 1, min, max))}
           >
             <Minus className="size-3.5" />
           </Button>
           <Input
-            type="number"
+            type="text"
             inputMode="numeric"
             min={min}
             max={max}
             step={1}
-            value={Math.round(value)}
-            onChange={(event) => {
-              const next = Number(event.target.value);
-              if (!Number.isFinite(next)) return;
-              onChange(Math.min(Math.max(next, min), max));
+            value={raw}
+            onFocus={() => setEditing(true)}
+            onChange={(event) => setRaw(event.target.value)}
+            onBlur={() => commit(raw)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit(raw);
+              } else if (event.key === "Escape") {
+                setEditing(false);
+                setRaw(String(committed));
+              }
             }}
             className="h-8 w-[64px] px-2 text-right text-xs tabular-nums"
           />
@@ -1190,7 +1227,7 @@ function SliderRow({
             className="h-8 w-8 shrink-0 p-0"
             aria-label={`${label} +`}
             disabled={value >= max}
-            onClick={() => onChange(Math.min(Math.round(value) + 1, max))}
+            onClick={() => onChange(clampInt(value + 1, min, max))}
           >
             <Plus className="size-3.5" />
           </Button>
