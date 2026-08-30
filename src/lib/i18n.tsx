@@ -856,6 +856,7 @@ const cs: Record<TranslationKey, string> = {
   "viewer.pad.up": "Nahoru (Y+)",
   "viewer.pad.down": "Dolů (Y−)",
   "home.priceNote": "Orientační ceny — přesnou částku spočítá Studio a uvidíte ji před objednáním.",
+  "editor.input.outOfRange": "Mimo rozsah ({min} až {max})",
 
   "editor.subtotal": "Mezisoučet",
   "editor.shipping": "Doprava",
