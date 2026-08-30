@@ -324,6 +324,7 @@ const en = {
   "viewer.pad.up": "Raise (Y+)",
   "viewer.pad.down": "Lower (Y−)",
   "home.priceNote": "Indicative pricing — the exact total is calculated in the Studio and shown before you order.",
+  "editor.input.outOfRange": "Out of range ({min} to {max})",
 
   "editor.subtotal": "Subtotal",
   "editor.shipping": "Shipping",
