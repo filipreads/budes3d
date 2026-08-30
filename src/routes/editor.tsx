@@ -1138,6 +1138,12 @@ function clampInt(value: number, min: number, max: number) {
   return Math.min(Math.max(Math.round(value), min), max);
 }
 
+function parseRawNumber(text: string): number | null {
+  if (text === "" || text === "-") return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function SliderRow({
   label,
   value,
@@ -1156,15 +1162,20 @@ function SliderRow({
   hint?: string | undefined;
   onChange: (value: number) => void;
 }) {
+  const { t } = useI18n();
   const committed = Math.round(value);
   const [raw, setRaw] = useState(String(committed));
   const [editing, setEditing] = useState(false);
+  const warningId = useMemo(() => `slider-warning-${label.replace(/\W+/g, "-")}-${min}-${max}`, [label, min, max]);
 
   // Sync the input display with external changes (slider, buttons, undo/redo)
   // only while the user is not actively typing.
   useEffect(() => {
     if (!editing) setRaw(String(committed));
   }, [committed, editing]);
+
+  const parsed = parseRawNumber(raw);
+  const isOutOfRange = parsed !== null && (parsed < min || parsed > max);
 
   function commit(text: string) {
     setEditing(false);
@@ -1208,6 +1219,8 @@ function SliderRow({
             max={max}
             step={1}
             value={raw}
+            aria-invalid={isOutOfRange}
+            aria-describedby={isOutOfRange ? warningId : undefined}
             onFocus={() => setEditing(true)}
             onChange={(event) => setRaw(event.target.value)}
             onBlur={() => commit(raw)}
@@ -1220,7 +1233,10 @@ function SliderRow({
                 setRaw(String(committed));
               }
             }}
-            className="h-8 w-[64px] px-2 text-right text-xs tabular-nums"
+            className={cn(
+              "h-8 w-[64px] px-2 text-right text-xs tabular-nums",
+              isOutOfRange && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive",
+            )}
           />
           <Button
             type="button"
@@ -1236,10 +1252,16 @@ function SliderRow({
           {unit ? <span className="w-3 text-xs text-muted-foreground">{unit}</span> : null}
         </div>
       </div>
+      {isOutOfRange ? (
+        <p id={warningId} className="text-[11px] text-destructive" role="alert">
+          {t("editor.input.outOfRange", { min: String(min), max: String(max) })}
+        </p>
+      ) : null}
       <Slider value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
     </div>
   );
 }
+
 
 
 function ChoiceRow({
