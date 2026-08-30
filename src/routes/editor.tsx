@@ -44,6 +44,8 @@ import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
 import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
 import { uploadWithProgress } from "@/lib/storage-upload";
+import { cn } from "@/lib/utils";
+
 
 
 const STAGE_LABEL: Record<string, string> = {
