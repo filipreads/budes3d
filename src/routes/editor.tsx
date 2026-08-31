@@ -1151,6 +1151,8 @@ function SliderRow({
   max,
   unit,
   hint,
+  formatExcess,
+  onPending,
   onChange,
 }: {
   label: string;
@@ -1160,6 +1162,10 @@ function SliderRow({
   unit?: string;
   /** Optional real-world read-out (e.g. "+12 mm") shown under the label. */
   hint?: string | undefined;
+  /** Formats how far a typed value sits beyond the allowed range (e.g. in mm). */
+  formatExcess?: ((excess: number) => string) | undefined;
+  /** Reports whether the row currently holds an unconfirmed out-of-range value. */
+  onPending?: ((pending: boolean) => void) | undefined;
   onChange: (value: number) => void;
 }) {
   const { t } = useI18n();
@@ -1176,6 +1182,14 @@ function SliderRow({
 
   const parsed = parseRawNumber(raw);
   const isOutOfRange = parsed !== null && (parsed < min || parsed > max);
+  const excess = isOutOfRange && parsed !== null ? (parsed > max ? parsed - max : min - parsed) : 0;
+
+  // Surface the pending invalid state to the parent (drives the 3D highlight);
+  // the model itself only moves once the value is committed.
+  useEffect(() => {
+    onPending?.(isOutOfRange);
+    return () => onPending?.(false);
+  }, [isOutOfRange, onPending]);
 
   function commit(text: string) {
     setEditing(false);
@@ -1254,7 +1268,11 @@ function SliderRow({
       </div>
       {isOutOfRange ? (
         <p id={warningId} className="text-[11px] text-destructive" role="alert">
-          {t("editor.input.outOfRange", { min: String(min), max: String(max) })}
+          {t("editor.input.outOfRangeBy", {
+            excess: formatExcess ? formatExcess(excess) : `${excess}${unit ?? ""}`,
+            min: String(min),
+            max: String(max),
+          })}
         </p>
       ) : null}
       <Slider value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
