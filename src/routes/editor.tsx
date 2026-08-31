@@ -539,6 +539,19 @@ function EditorPage() {
   const floating = metrics.hasBase && Math.abs(metrics.floatMm) > 1;
   /** Millimetre read-out shown next to a scene-unit slider. */
   const mmHint = (units: number) => (metrics.measured ? formatMm(toMm(units, heightMm), true) : undefined);
+  /** Converts how far a typed slider value is out of range into millimetres. */
+  const mmExcess = (sliderUnits: number) => formatMm(toMm(sliderUnits / 100, heightMm));
+
+  // Rows holding an unconfirmed out-of-range value; any of them flags the 3D scene.
+  const pendingRowsRef = useRef(new Set<string>());
+  const [pendingInvalid, setPendingInvalid] = useState(false);
+  const reportPending = useCallback((key: string, pending: boolean) => {
+    const rows = pendingRowsRef.current;
+    const before = rows.size;
+    if (pending) rows.add(key);
+    else rows.delete(key);
+    if (rows.size !== before) setPendingInvalid(rows.size > 0);
+  }, []);
 
   const placementPanel = (
     <div className="space-y-4 rounded-lg border border-border p-4">
