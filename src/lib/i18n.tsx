@@ -325,6 +325,8 @@ const en = {
   "viewer.pad.down": "Lower (Y−)",
   "home.priceNote": "Indicative pricing — the exact total is calculated in the Studio and shown before you order.",
   "editor.input.outOfRange": "Out of range ({min} to {max})",
+  "editor.input.outOfRangeBy": "Out of range by {excess} (allowed {min} to {max})",
+  "viewer.pendingInvalid": "Entered value is out of range — the preview updates after you confirm",
 
   "editor.subtotal": "Subtotal",
   "editor.shipping": "Shipping",
@@ -857,6 +859,8 @@ const cs: Record<TranslationKey, string> = {
   "viewer.pad.down": "Dolů (Y−)",
   "home.priceNote": "Orientační ceny — přesnou částku spočítá Studio a uvidíte ji před objednáním.",
   "editor.input.outOfRange": "Mimo rozsah ({min} až {max})",
+  "editor.input.outOfRangeBy": "Mimo rozsah o {excess} (povoleno {min} až {max})",
+  "viewer.pendingInvalid": "Zadaná hodnota je mimo rozsah — náhled se změní až po potvrzení",
 
   "editor.subtotal": "Mezisoučet",
   "editor.shipping": "Doprava",
