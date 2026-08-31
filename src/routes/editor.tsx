@@ -606,8 +606,8 @@ function EditorPage() {
         </div>
       ) : null}
 
-      <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
-      <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+      <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onPending={(p) => reportPending("yaw", p)} onChange={(v) => setPlacement({ yaw: v })} />
+      <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onPending={(p) => reportPending("tilt", p)} onChange={(v) => setPlacement({ tilt: v })} />
 
       {/* Explicit X / Y / Z movement sliders with pointer-only step buttons. */}
       <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
@@ -620,6 +620,8 @@ function EditorPage() {
           value={(placement.offsetX ?? 0) * 100}
           min={-60}
           max={60}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisX", p)}
           onChange={(v) => setPlacement({ offsetX: v / 100 })}
         />
         <SliderRow
@@ -628,6 +630,8 @@ function EditorPage() {
           value={placement.lift * 100}
           min={-50}
           max={50}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisY", p)}
           onChange={(v) => setPlacement({ lift: v / 100 })}
         />
         <SliderRow
@@ -636,11 +640,13 @@ function EditorPage() {
           value={(placement.offsetZ ?? 0) * 100}
           min={-60}
           max={60}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisZ", p)}
           onChange={(v) => setPlacement({ offsetZ: v / 100 })}
         />
       </div>
 
-      <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+      <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onPending={(p) => reportPending("scale", p)} onChange={(v) => setPlacement({ scale: v / 100 })} />
 
       {hasBase ? (
         <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
@@ -653,6 +659,8 @@ function EditorPage() {
             value={(placement.baseOffsetX ?? 0) * 100}
             min={-80}
             max={80}
+            formatExcess={metrics.measured ? mmExcess : undefined}
+            onPending={(p) => reportPending("baseX", p)}
             onChange={(v) => setPlacement({ baseOffsetX: v / 100 })}
           />
           <SliderRow
@@ -661,6 +669,8 @@ function EditorPage() {
             value={(placement.baseOffsetZ ?? 0) * 100}
             min={-80}
             max={80}
+            formatExcess={metrics.measured ? mmExcess : undefined}
+            onPending={(p) => reportPending("baseZ", p)}
             onChange={(v) => setPlacement({ baseOffsetZ: v / 100 })}
           />
           <SliderRow
@@ -669,6 +679,7 @@ function EditorPage() {
             value={placement.baseYaw ?? 0}
             min={-180}
             max={180}
+            onPending={(p) => reportPending("baseYaw", p)}
             onChange={(v) => setPlacement({ baseYaw: v })}
           />
         </div>
