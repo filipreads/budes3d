@@ -791,6 +791,19 @@ export default function ModelStage({
         </div>
       ) : null}
 
+      {/* Unconfirmed out-of-range value — the scene stays put until the entry is confirmed. */}
+      {pendingInvalid ? (
+        <div className="pointer-events-none absolute inset-x-0 top-12 flex justify-center px-3">
+          <span
+            role="alert"
+            className="flex items-center gap-1.5 rounded-full border border-destructive/60 bg-destructive/15 px-3 py-1 text-[11px] font-medium text-destructive backdrop-blur"
+          >
+            <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+            {t("viewer.pendingInvalid")}
+          </span>
+        </div>
+      ) : null}
+
       {/* Live measurement of how the sculpture sits on its plinth. */}
       {loadedScene && metrics.hasBase && metrics.measured ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-12 flex justify-center px-3 sm:bottom-14">
