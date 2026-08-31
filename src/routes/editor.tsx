@@ -827,6 +827,7 @@ function EditorPage() {
                       onRedo={history.redo}
                       canUndo={history.canUndo}
                       canRedo={history.canRedo}
+                      pendingInvalid={pendingInvalid}
                       canDownload
                     />
                   </div>
