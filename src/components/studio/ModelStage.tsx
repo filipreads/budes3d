@@ -80,6 +80,8 @@ type Props = {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  /** A numeric field holds an unconfirmed out-of-range value — highlight the scene without moving the model. */
+  pendingInvalid?: boolean;
 };
 
 type DragTarget = "model" | "base";
@@ -105,6 +107,7 @@ export default function ModelStage({
   onRedo,
   canUndo = false,
   canRedo = false,
+  pendingInvalid = false,
 }: Props) {
 
   void materialId;
@@ -480,6 +483,8 @@ export default function ModelStage({
                       color={baseGeometry.color}
                       roughness={baseId === "marble" ? 0.18 : 0.55}
                       metalness={baseId === "marble" ? 0.12 : 0.05}
+                      emissive={pendingInvalid ? "#7f1d1d" : "#000000"}
+                      emissiveIntensity={pendingInvalid ? 0.7 : 0}
                     />
                   </mesh>
                   {/* Thin top plate reads as a machined bevel and catches the key light. */}
@@ -489,9 +494,31 @@ export default function ModelStage({
                       color={baseGeometry.color}
                       roughness={baseId === "marble" ? 0.1 : 0.35}
                       metalness={0.18}
+                      emissive={pendingInvalid ? "#7f1d1d" : "#000000"}
+                      emissiveIntensity={pendingInvalid ? 0.7 : 0}
                     />
                   </mesh>
                 </group>
+              ) : null}
+              {/* Red warning ring while a typed value is out of range (model itself stays put). */}
+              {pendingInvalid && loadedScene ? (
+                <mesh
+                  position={[
+                    placement.baseOffsetX ?? 0,
+                    (showBase && baseGeometry.height > 0 ? BASE_FLOOR_Y + baseGeometry.height : BASE_FLOOR_Y) + 0.02,
+                    placement.baseOffsetZ ?? 0,
+                  ]}
+                  rotation-x={-Math.PI / 2}
+                >
+                  <ringGeometry
+                    args={[
+                      (showBase && baseGeometry.height > 0 ? baseGeometry.radius : 0.62 * placement.scale) * 1.03,
+                      (showBase && baseGeometry.height > 0 ? baseGeometry.radius : 0.62 * placement.scale) * 1.13,
+                      56,
+                    ]}
+                  />
+                  <meshBasicMaterial color="#ef4444" transparent opacity={0.85} side={THREE.DoubleSide} />
+                </mesh>
               ) : null}
             </group>
           </Center>
