@@ -539,6 +539,19 @@ function EditorPage() {
   const floating = metrics.hasBase && Math.abs(metrics.floatMm) > 1;
   /** Millimetre read-out shown next to a scene-unit slider. */
   const mmHint = (units: number) => (metrics.measured ? formatMm(toMm(units, heightMm), true) : undefined);
+  /** Converts how far a typed slider value is out of range into millimetres. */
+  const mmExcess = (sliderUnits: number) => formatMm(toMm(sliderUnits / 100, heightMm));
+
+  // Rows holding an unconfirmed out-of-range value; any of them flags the 3D scene.
+  const pendingRowsRef = useRef(new Set<string>());
+  const [pendingInvalid, setPendingInvalid] = useState(false);
+  const reportPending = useCallback((key: string, pending: boolean) => {
+    const rows = pendingRowsRef.current;
+    const before = rows.size;
+    if (pending) rows.add(key);
+    else rows.delete(key);
+    if (rows.size !== before) setPendingInvalid(rows.size > 0);
+  }, []);
 
   const placementPanel = (
     <div className="space-y-4 rounded-lg border border-border p-4">
@@ -593,8 +606,8 @@ function EditorPage() {
         </div>
       ) : null}
 
-      <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onChange={(v) => setPlacement({ yaw: v })} />
-      <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onChange={(v) => setPlacement({ tilt: v })} />
+      <SliderRow label={t("editor.placement.yaw")} unit="°" value={placement.yaw} min={-180} max={180} onPending={(p) => reportPending("yaw", p)} onChange={(v) => setPlacement({ yaw: v })} />
+      <SliderRow label={t("editor.placement.tilt")} unit="°" value={placement.tilt} min={-30} max={30} onPending={(p) => reportPending("tilt", p)} onChange={(v) => setPlacement({ tilt: v })} />
 
       {/* Explicit X / Y / Z movement sliders with pointer-only step buttons. */}
       <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
@@ -607,6 +620,8 @@ function EditorPage() {
           value={(placement.offsetX ?? 0) * 100}
           min={-60}
           max={60}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisX", p)}
           onChange={(v) => setPlacement({ offsetX: v / 100 })}
         />
         <SliderRow
@@ -615,6 +630,8 @@ function EditorPage() {
           value={placement.lift * 100}
           min={-50}
           max={50}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisY", p)}
           onChange={(v) => setPlacement({ lift: v / 100 })}
         />
         <SliderRow
@@ -623,11 +640,13 @@ function EditorPage() {
           value={(placement.offsetZ ?? 0) * 100}
           min={-60}
           max={60}
+          formatExcess={metrics.measured ? mmExcess : undefined}
+          onPending={(p) => reportPending("axisZ", p)}
           onChange={(v) => setPlacement({ offsetZ: v / 100 })}
         />
       </div>
 
-      <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onChange={(v) => setPlacement({ scale: v / 100 })} />
+      <SliderRow label={t("editor.placement.scale")} unit="%" value={placement.scale * 100} min={60} max={160} onPending={(p) => reportPending("scale", p)} onChange={(v) => setPlacement({ scale: v / 100 })} />
 
       {hasBase ? (
         <div className="space-y-4 rounded-lg border border-dashed border-border p-3">
@@ -640,6 +659,8 @@ function EditorPage() {
             value={(placement.baseOffsetX ?? 0) * 100}
             min={-80}
             max={80}
+            formatExcess={metrics.measured ? mmExcess : undefined}
+            onPending={(p) => reportPending("baseX", p)}
             onChange={(v) => setPlacement({ baseOffsetX: v / 100 })}
           />
           <SliderRow
@@ -648,6 +669,8 @@ function EditorPage() {
             value={(placement.baseOffsetZ ?? 0) * 100}
             min={-80}
             max={80}
+            formatExcess={metrics.measured ? mmExcess : undefined}
+            onPending={(p) => reportPending("baseZ", p)}
             onChange={(v) => setPlacement({ baseOffsetZ: v / 100 })}
           />
           <SliderRow
@@ -656,6 +679,7 @@ function EditorPage() {
             value={placement.baseYaw ?? 0}
             min={-180}
             max={180}
+            onPending={(p) => reportPending("baseYaw", p)}
             onChange={(v) => setPlacement({ baseYaw: v })}
           />
         </div>
@@ -814,6 +838,7 @@ function EditorPage() {
                       onRedo={history.redo}
                       canUndo={history.canUndo}
                       canRedo={history.canRedo}
+                      pendingInvalid={pendingInvalid}
                       canDownload
                     />
                   </div>
@@ -1151,6 +1176,8 @@ function SliderRow({
   max,
   unit,
   hint,
+  formatExcess,
+  onPending,
   onChange,
 }: {
   label: string;
@@ -1160,6 +1187,10 @@ function SliderRow({
   unit?: string;
   /** Optional real-world read-out (e.g. "+12 mm") shown under the label. */
   hint?: string | undefined;
+  /** Formats how far a typed value sits beyond the allowed range (e.g. in mm). */
+  formatExcess?: ((excess: number) => string) | undefined;
+  /** Reports whether the row currently holds an unconfirmed out-of-range value. */
+  onPending?: ((pending: boolean) => void) | undefined;
   onChange: (value: number) => void;
 }) {
   const { t } = useI18n();
@@ -1176,6 +1207,14 @@ function SliderRow({
 
   const parsed = parseRawNumber(raw);
   const isOutOfRange = parsed !== null && (parsed < min || parsed > max);
+  const excess = isOutOfRange && parsed !== null ? (parsed > max ? parsed - max : min - parsed) : 0;
+
+  // Surface the pending invalid state to the parent (drives the 3D highlight);
+  // the model itself only moves once the value is committed.
+  useEffect(() => {
+    onPending?.(isOutOfRange);
+    return () => onPending?.(false);
+  }, [isOutOfRange, onPending]);
 
   function commit(text: string) {
     setEditing(false);
@@ -1254,7 +1293,11 @@ function SliderRow({
       </div>
       {isOutOfRange ? (
         <p id={warningId} className="text-[11px] text-destructive" role="alert">
-          {t("editor.input.outOfRange", { min: String(min), max: String(max) })}
+          {t("editor.input.outOfRangeBy", {
+            excess: formatExcess ? formatExcess(excess) : `${excess}${unit ?? ""}`,
+            min: String(min),
+            max: String(max),
+          })}
         </p>
       ) : null}
       <Slider value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
