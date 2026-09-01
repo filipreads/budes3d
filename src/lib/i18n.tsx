@@ -531,11 +531,6 @@ const en = {
   "mfa.trustedCount": "This account skips the code on {count} device(s).",
   "mfa.forgetDevices": "Forget all devices",
   "mfa.forgotten": "Remembered devices cleared",
-} as const;
-
-
-
-
   "auth.welcome": "Welcome to the studio",
   "auth.lead": "Sign in to save projects, approve previews and place orders.",
   "auth.apple": "Continue with Apple",
@@ -568,6 +563,7 @@ const en = {
   "account.staySignedInHint": "Turn off to sign out automatically when you close the browser.",
   "account.memberSince": "Member since {date}",
   "account.overviewLead": "Everything about your portraits in one place.",
+} as const;
 export type TranslationKey = keyof typeof en;
 
 const cs: Record<TranslationKey, string> = {
