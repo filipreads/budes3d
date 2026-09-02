@@ -1211,10 +1211,15 @@ function SliderRow({
 
   // Surface the pending invalid state to the parent (drives the 3D highlight);
   // the model itself only moves once the value is committed.
+  // The callback is kept in a ref so inline arrow props from the parent cannot
+  // re-run this effect (which would loop through the parent's state update).
+  const onPendingRef = useRef(onPending);
+  onPendingRef.current = onPending;
   useEffect(() => {
-    onPending?.(isOutOfRange);
-    return () => onPending?.(false);
-  }, [isOutOfRange, onPending]);
+    onPendingRef.current?.(isOutOfRange);
+    return () => onPendingRef.current?.(false);
+  }, [isOutOfRange]);
+
 
   function commit(text: string) {
     setEditing(false);
