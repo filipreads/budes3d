@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Clock, Download, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/account/StatusChip";
@@ -60,10 +60,10 @@ function AccountOverview() {
     staleTime: 60 * 1000,
   });
 
-  const stats: { key: TranslationKey; value: number }[] = [
-    { key: "account.stats.orders", value: data?.totals.orders ?? 0 },
-    { key: "account.stats.awaiting", value: data?.totals.awaitingPayment ?? 0 },
-    { key: "account.stats.downloads", value: data?.totals.downloads ?? 0 },
+  const stats: { key: TranslationKey; value: number; icon: typeof Package }[] = [
+    { key: "account.stats.orders", value: data?.totals.orders ?? 0, icon: Package },
+    { key: "account.stats.awaiting", value: data?.totals.awaitingPayment ?? 0, icon: Clock },
+    { key: "account.stats.downloads", value: data?.totals.downloads ?? 0, icon: Download },
   ];
 
   const orders = data?.latestOrders ?? [];
@@ -96,15 +96,23 @@ function AccountOverview() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        {stats.map((stat) => (
-          <Card key={stat.key}>
-            <CardContent className="p-4">
-              <p className="font-display text-2xl">{stat.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t(stat.key)}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <p className="text-sm text-muted-foreground">{t("account.overviewLead")}</p>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.key} className="transition-shadow hover:shadow-md">
+              <CardContent className="p-4">
+                <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Icon className="size-4" aria-hidden />
+                </span>
+                <p className="mt-3 font-display text-2xl">{stat.value}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{t(stat.key)}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Section
