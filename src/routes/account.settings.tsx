@@ -17,6 +17,7 @@ import {
   type ViewerQualityPreference,
 } from "@/lib/viewer-quality";
 import { TwoFactorCard } from "@/components/account/TwoFactorCard";
+import { getStaySignedIn, setStaySignedIn } from "@/lib/session-persistence";
 
 export const Route = createFileRoute("/account/settings")({
   head: () => ({
@@ -69,6 +70,18 @@ function SettingsTab() {
   const [saving, setSaving] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [stay, setStay] = useState(true);
+
+  useEffect(() => {
+    setStay(getStaySignedIn());
+  }, []);
+
+  const identities = (user?.identities ?? []).map((identity) => identity.provider);
+  const methods: { key: "account.methodPassword" | "account.methodGoogle" | "account.methodApple"; active: boolean }[] = [
+    { key: "account.methodPassword", active: identities.includes("email") || identities.length === 0 },
+    { key: "account.methodGoogle", active: identities.includes("google") },
+    { key: "account.methodApple", active: identities.includes("apple") },
+  ];
 
   useEffect(() => {
     if (!data) return;
@@ -289,6 +302,39 @@ function SettingsTab() {
             </Button>
           </div>
         </div>
+      </Section>
+
+      <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {methods.map((method) => (
+            <li key={method.key} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+              <span>{t(method.key)}</span>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  method.active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {method.active ? t("account.methodLinked") : "—"}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <label className="flex items-start gap-3 rounded-lg bg-muted/50 p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-4 accent-primary"
+            checked={stay}
+            onChange={(event) => {
+              setStay(event.target.checked);
+              setStaySignedIn(event.target.checked);
+            }}
+          />
+          <span>
+            {t("account.staySignedIn")}
+            <span className="block text-xs text-muted-foreground">{t("account.staySignedInHint")}</span>
+          </span>
+        </label>
       </Section>
 
       <TwoFactorCard />
