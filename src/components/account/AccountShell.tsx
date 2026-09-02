@@ -63,22 +63,26 @@ export function AccountShell({ children }: { children: ReactNode }) {
 
   return (
     <Frame>
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/70 bg-gradient-to-br from-muted/60 to-background p-4 sm:p-6">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             {profile?.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="" className="size-12 rounded-full object-cover" />
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                className="size-12 rounded-full object-cover ring-2 ring-background sm:size-14"
+              />
             ) : (
-              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-muted font-display text-lg">
+              <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/12 font-display text-lg text-primary sm:size-14 sm:text-xl">
                 {(name || "?").charAt(0).toUpperCase()}
               </span>
             )}
             <div className="min-w-0">
-              <h1 className="truncate font-display text-2xl leading-tight">{name || t("nav.account")}</h1>
+              <h1 className="truncate font-display text-xl leading-tight sm:text-2xl">{name || t("nav.account")}</h1>
               <p className="truncate text-sm text-muted-foreground">{profile?.email}</p>
             </div>
           </div>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="w-full sm:w-auto">
             <Link to="/editor">
               <Sparkles className="mr-1.5 size-4" />
               {t("account.newPortrait")}
@@ -86,9 +90,9 @@ export function AccountShell({ children }: { children: ReactNode }) {
           </Button>
         </header>
 
-        <div className="mt-7 gap-8 md:flex">
+        <div className="mt-6 gap-8 md:flex">
           <nav
-            className="-mx-5 flex gap-1 overflow-x-auto px-5 pb-1 md:mx-0 md:w-52 md:shrink-0 md:flex-col md:overflow-visible md:px-0"
+            className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 md:sticky md:top-20 md:mx-0 md:h-fit md:w-56 md:shrink-0 md:flex-col md:overflow-visible md:px-0"
             aria-label={t("nav.account")}
           >
             {TABS.map((tab) => {
@@ -98,7 +102,7 @@ export function AccountShell({ children }: { children: ReactNode }) {
                   key={tab.to}
                   to={tab.to}
                   activeOptions={{ exact: tab.to === "/account" }}
-                  className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:w-full"
+                  className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:w-full"
                   activeProps={{
                     className: "bg-muted font-medium text-foreground",
                   }}
@@ -115,3 +119,4 @@ export function AccountShell({ children }: { children: ReactNode }) {
     </Frame>
   );
 }
+
