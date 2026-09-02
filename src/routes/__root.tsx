@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { I18nProvider } from "@/lib/i18n";
+import { enforceSessionPersistence } from "@/lib/session-persistence";
 
 function NotFoundComponent() {
   return (
@@ -118,6 +119,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Honour the "stay signed in" choice: without it the session is tab-scoped.
+  useEffect(() => {
+    void enforceSessionPersistence();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
