@@ -26,6 +26,19 @@ export type JobStatus = {
 };
 
 const projectInput = z.object({ projectId: z.string().uuid() });
+const startInput = projectInput.extend({ engine: z.enum(["trellis", "tripo"]).optional() });
+
+export type EngineInfo = { id: "trellis" | "tripo"; label: string; premium: boolean };
+
+/** Engines the studio may offer — premium engines appear only when configured. */
+export const getAvailableEngines = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<{ engines: EngineInfo[] }> => {
+    const { tripoAvailable } = await import("./tripo.server");
+    const engines: EngineInfo[] = [{ id: "trellis", label: "TRELLIS.2", premium: false }];
+    if (tripoAvailable()) engines.push({ id: "tripo", label: "Tripo3D", premium: true });
+    return { engines };
+  });
 
 /** Puts the project back at the start of the pipeline. */
 export const startGeneration = createServerFn({ method: "POST" })
