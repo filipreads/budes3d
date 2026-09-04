@@ -290,6 +290,7 @@ export type Database = {
           config: Json
           created_at: string
           edit_settings: Json
+          generation_engine: string
           generation_error: string | null
           generation_plan: string | null
           generation_progress: number
@@ -314,6 +315,7 @@ export type Database = {
           config?: Json
           created_at?: string
           edit_settings?: Json
+          generation_engine?: string
           generation_error?: string | null
           generation_plan?: string | null
           generation_progress?: number
@@ -338,6 +340,7 @@ export type Database = {
           config?: Json
           created_at?: string
           edit_settings?: Json
+          generation_engine?: string
           generation_error?: string | null
           generation_plan?: string | null
           generation_progress?: number
