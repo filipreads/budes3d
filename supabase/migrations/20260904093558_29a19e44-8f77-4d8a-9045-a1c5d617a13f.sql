@@ -1,0 +1,1 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS generation_engine text NOT NULL DEFAULT 'trellis';
