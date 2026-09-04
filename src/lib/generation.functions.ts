@@ -43,7 +43,7 @@ export const getAvailableEngines = createServerFn({ method: "POST" })
 /** Puts the project back at the start of the pipeline. */
 export const startGeneration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => projectInput.parse(input))
+  .inputValidator((input: unknown) => startInput.parse(input))
   .handler(async ({ data, context }): Promise<JobStatus> => {
     const { supabase, userId } = context;
 
@@ -58,6 +58,12 @@ export const startGeneration = createServerFn({ method: "POST" })
     const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
     if (!photos[0]) throw new Error("Upload a photo before generating");
 
+    let engine: "trellis" | "tripo" = data.engine ?? "trellis";
+    if (engine === "tripo") {
+      const { tripoAvailable, TripoConfigError } = await import("./tripo.server");
+      if (!tripoAvailable()) throw new TripoConfigError("Premium 3D engine is not configured");
+    }
+
     await supabase
       .from("projects")
       .update({
@@ -69,7 +75,9 @@ export const startGeneration = createServerFn({ method: "POST" })
         provider_job_id: null,
         session_hash: null,
         preview_video_url: null,
-      })
+        generation_engine: engine,
+        model_provider: engine === "tripo" ? "tripo3d" : "microsoft-trellis-2",
+      } as Database["public"]["Tables"]["projects"]["Update"])
       .eq("id", project.id)
       .eq("user_id", userId);
 
