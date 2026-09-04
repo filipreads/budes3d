@@ -131,7 +131,7 @@ export const advanceGeneration = createServerFn({ method: "POST" })
     const { data: project, error } = await supabase
       .from("projects")
       .select(
-        "id, source_photos, generation_stage, session_hash, provider_job_id, model_url, status, generation_started_at",
+        "id, source_photos, generation_stage, generation_engine, session_hash, provider_job_id, model_url, status, generation_started_at",
       )
       .eq("id", data.projectId)
       .eq("user_id", userId)
@@ -151,6 +151,9 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       };
     }
 
+    const engine = (((project as { generation_engine?: string }).generation_engine) ?? "trellis") as
+      | "trellis"
+      | "tripo";
     const trellis = await import("./trellis.server");
     type ProjectPatch = Database["public"]["Tables"]["projects"]["Update"];
     const patch = async (fields: ProjectPatch) => {
