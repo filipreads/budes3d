@@ -110,6 +110,38 @@ function EditorPage() {
   /** Last stage we toasted about, so each transition is announced exactly once. */
   const toastedStageRef = useRef<JobStage | null>(null);
 
+  /** 3D engine for the next generation run (standard TRELLIS or premium Tripo3D). */
+  const [engine, setEngine] = useState<"trellis" | "tripo">("trellis");
+  const [engines, setEngines] = useState<EngineInfo[]>([{ id: "trellis", label: "TRELLIS.2", premium: false }]);
+  /** Pre-approval print check of the generated mesh. */
+  const [meshReport, setMeshReport] = useState<MeshReport | "checking" | "failed" | null>(null);
+
+  // Which engines can be offered — premium ones appear only when configured.
+  useEffect(() => {
+    if (!user) return;
+    void getAvailableEngines({})
+      .then((result) => setEngines(result.engines))
+      .catch(() => {});
+  }, [user]);
+
+  // When the preview opens, verify the mesh is printable before approval.
+  useEffect(() => {
+    if (step !== "preview" || !modelRef || modelRef.startsWith("sample://")) return;
+    let cancelled = false;
+    setMeshReport("checking");
+    void getModelUrl({ data: { storagePath: modelRef } })
+      .then(({ url }) => analyzeModelUrl(url))
+      .then((report) => {
+        if (!cancelled) setMeshReport(report);
+      })
+      .catch(() => {
+        if (!cancelled) setMeshReport("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, modelRef]);
+
   /** Sets the job stage and shows a one-time toast for every new stage. */
   function trackStage(stage: JobStage) {
     setJobStage(stage);
