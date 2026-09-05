@@ -333,3 +333,62 @@ function status(stage: JobStage, progress: number, error: string | null): JobSta
     done: false,
   };
 }
+
+type ProjectPatchForStore = Database["public"]["Tables"]["projects"]["Update"];
+type StoreSupabase = {
+  storage: {
+    from: (bucket: string) => {
+      upload: (
+        path: string,
+        body: Uint8Array,
+        options: { contentType: string; upsert: boolean },
+      ) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+};
+
+/**
+ * Shared final step for every engine: download the produced GLB, persist it in
+ * our private bucket and mark the project ready. The provider's copy is
+ * temporary; ours backs paid downloads and the studio preview.
+ */
+async function storeModelFromUrl(
+  supabase: StoreSupabase,
+  userId: string,
+  projectId: string,
+  generationStartedAt: string | null,
+  modelUrl: string,
+  provider: string,
+  patch: (fields: ProjectPatchForStore) => Promise<void>,
+): Promise<JobStatus> {
+  const glbResponse = await fetch(modelUrl);
+  if (!glbResponse.ok) throw new Error("Could not download the generated model");
+  const glbBytes = new Uint8Array(await glbResponse.arrayBuffer());
+  if (glbBytes.byteLength < 1024) throw new Error("The 3D engine returned an empty model");
+
+  const storagePath = `${userId}/${projectId}.glb`;
+  const upload = await supabase.storage.from("portrait-models").upload(storagePath, glbBytes, {
+    contentType: "model/gltf-binary",
+    upsert: true,
+  });
+  if (upload.error) throw new Error(upload.error.message);
+
+  const startedAt = generationStartedAt ? Date.parse(generationStartedAt) : NaN;
+  const seconds = Number.isFinite(startedAt)
+    ? Math.max(1, Math.min(1800, Math.round((Date.now() - startedAt) / 1000)))
+    : null;
+  const { currentPlan } = await import("./quota.server");
+
+  await patch({
+    status: "ready",
+    model_url: storagePath,
+    model_provider: provider,
+    generation_stage: "ready",
+    generation_progress: 100,
+    generation_error: null,
+    generation_seconds: seconds,
+    generation_plan: await currentPlan(),
+  });
+
+  return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
+}
