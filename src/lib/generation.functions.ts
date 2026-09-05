@@ -291,6 +291,8 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       });
 
       return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
+      }
+      throw new Error("Unknown 3D engine");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Generation failed";
       const quota = cause instanceof trellis.TrellisQuotaError;
