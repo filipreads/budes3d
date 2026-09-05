@@ -161,6 +161,49 @@ export const advanceGeneration = createServerFn({ method: "POST" })
     };
 
     try {
+      // ---- Tripo3D (premium) pipeline: create task -> poll -> download GLB --
+      if (engine === "tripo") {
+        const tripo = await import("./tripo.server");
+
+        if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
+          await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
+          const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
+          const sourcePath = photos[0];
+          if (!sourcePath) throw new Error("Upload a photo before generating");
+          const { data: signed, error: signError } = await supabase.storage
+            .from("portrait-uploads")
+            .createSignedUrl(sourcePath, 60 * 10);
+          if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
+
+          const taskId = await tripo.createTask(signed.signedUrl);
+          const { currentPlan } = await import("./quota.server");
+          await patch({
+            provider_job_id: taskId,
+            generation_stage: "sculpting",
+            generation_progress: 30,
+            generation_plan: await currentPlan(),
+          });
+          return status("sculpting", 30, null);
+        }
+
+        if (!project.provider_job_id) throw new Error("Generation state was lost — start the job again");
+        const task = await tripo.waitForTask(project.provider_job_id, 50_000, async (fraction) => {
+          await patch({ generation_progress: 30 + Math.round(fraction * 55) });
+        });
+        if (task.status === "failed" || task.status === "cancelled" || task.status === "unknown") {
+          throw new Error("The premium 3D engine failed to generate the model");
+        }
+        if (task.status !== "success" || !task.modelUrl) {
+          // Still running — keep the stage so the next poll continues waiting.
+          return { ...status(stage === "sculpting" ? "sculpting" : "extracting", Math.max(30, Math.round(task.progress)), null), retryable: false };
+        }
+
+        await patch({ generation_stage: "storing", generation_progress: 90 });
+        return await storeModelFromUrl(supabase, userId, project.id, project.generation_started_at, task.modelUrl, "tripo3d", patch);
+      }
+
+      // ---- TRELLIS.2 (standard) pipeline ------------------------------------
+      if (engine === "trellis") {
       // ---- Step 1: upload the portrait to the Space and preprocess it -------
       if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
         await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
