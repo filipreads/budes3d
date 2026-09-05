@@ -53,17 +53,25 @@ export function OrderCard({
     staleTime: 5 * 60 * 1000,
   });
 
-  async function runDownload(entry: OrderDownload) {
-    setPreparing(entry.id);
+  async function runDownload(entry: OrderDownload, formatOverride?: string) {
+    const format = formatOverride ?? entry.format;
+    setPreparing(`${entry.id}:${format}`);
     try {
       const file = await getOrderDownloadUrl({ data: { downloadId: entry.id } });
-      await downloadModelFile(file.url, file.format, file.filename, file.heightMm);
+      const filename = file.filename.replace(/\.[a-z0-9]+$/i, `.${format}`);
+      await downloadModelFile(file.url, format, filename, file.heightMm);
     } catch {
       toast.error(t("account.downloadFailed"));
     } finally {
       setPreparing(null);
     }
   }
+
+  /** Derived formats converted in the browser from the stored GLB. */
+  const glbEntry = (downloadsQuery.data ?? []).find((entry) => entry.format === "glb");
+  const extraFormats = ["obj", "3mf"].filter(
+    (format) => !(downloadsQuery.data ?? []).some((entry) => entry.format === format),
+  );
 
   async function makeInvoice() {
     const { downloadInvoicePdf } = await import("@/lib/invoice");
