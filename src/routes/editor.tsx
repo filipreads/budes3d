@@ -990,6 +990,17 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void clearBackground()}>
                     {t("editor.clearBackground")}
                   </Button>
+                  {engines.length > 1 ? (
+                    <ChoiceRow
+                      label={t("editor.engine")}
+                      options={engines.map((item) => ({
+                        id: item.id,
+                        label: item.premium ? t("editor.engine.premium", { name: item.label }) : t("editor.engine.standard", { name: item.label }),
+                      }))}
+                      value={engine}
+                      onChange={(id) => setEngine(id as "trellis" | "tripo")}
+                    />
+                  ) : null}
                   <Button className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     {busy ?? t("editor.generate")}
