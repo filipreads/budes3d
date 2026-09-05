@@ -1032,6 +1032,41 @@ function EditorPage() {
                     <p className="text-sm font-semibold">{t("editor.downloads")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{t("editor.downloadsBody")}</p>
                   </div>
+                  {meshReport === "checking" ? (
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      {t("editor.mesh.checking")}
+                    </p>
+                  ) : meshReport === "failed" ? null : meshReport ? (
+                    <div
+                      className={cn(
+                        "rounded-lg border p-4",
+                        meshReport.watertight ? "border-border" : "border-amber-500/60 bg-amber-500/5",
+                      )}
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        {meshReport.watertight ? (
+                          <Check className="size-4 text-emerald-600" aria-hidden />
+                        ) : (
+                          <TriangleAlert className="size-4 text-amber-600" aria-hidden />
+                        )}
+                        {t("editor.mesh.title")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("editor.mesh.triangles", { count: meshReport.triangles.toLocaleString() })}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-1 text-xs",
+                          meshReport.watertight ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400",
+                        )}
+                      >
+                        {meshReport.watertight
+                          ? t("editor.mesh.watertight")
+                          : t("editor.mesh.holes", { count: meshReport.openEdges.toLocaleString() })}
+                      </p>
+                    </div>
+                  ) : null}
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
