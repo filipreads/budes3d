@@ -119,7 +119,7 @@ function EditorPage() {
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
     if (!user) return;
-    void getAvailableEngines({})
+    void getAvailableEngines()
       .then((result) => setEngines(result.engines))
       .catch(() => {});
   }, [user]);
