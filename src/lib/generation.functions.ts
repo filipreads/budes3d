@@ -161,6 +161,49 @@ export const advanceGeneration = createServerFn({ method: "POST" })
     };
 
     try {
+      // ---- Tripo3D (premium) pipeline: create task -> poll -> download GLB --
+      if (engine === "tripo") {
+        const tripo = await import("./tripo.server");
+
+        if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
+          await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
+          const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
+          const sourcePath = photos[0];
+          if (!sourcePath) throw new Error("Upload a photo before generating");
+          const { data: signed, error: signError } = await supabase.storage
+            .from("portrait-uploads")
+            .createSignedUrl(sourcePath, 60 * 10);
+          if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
+
+          const taskId = await tripo.createTask(signed.signedUrl);
+          const { currentPlan } = await import("./quota.server");
+          await patch({
+            provider_job_id: taskId,
+            generation_stage: "sculpting",
+            generation_progress: 30,
+            generation_plan: await currentPlan(),
+          });
+          return status("sculpting", 30, null);
+        }
+
+        if (!project.provider_job_id) throw new Error("Generation state was lost — start the job again");
+        const task = await tripo.waitForTask(project.provider_job_id, 50_000, async (fraction) => {
+          await patch({ generation_progress: 30 + Math.round(fraction * 55) });
+        });
+        if (task.status === "failed" || task.status === "cancelled" || task.status === "unknown") {
+          throw new Error("The premium 3D engine failed to generate the model");
+        }
+        if (task.status !== "success" || !task.modelUrl) {
+          // Still running — keep the stage so the next poll continues waiting.
+          return { ...status(stage === "sculpting" ? "sculpting" : "extracting", Math.max(30, Math.round(task.progress)), null), retryable: false };
+        }
+
+        await patch({ generation_stage: "storing", generation_progress: 90 });
+        return await storeModelFromUrl(supabase, userId, project.id, project.generation_started_at, task.modelUrl, "tripo3d", patch);
+      }
+
+      // ---- TRELLIS.2 (standard) pipeline ------------------------------------
+      if (engine === "trellis") {
       // ---- Step 1: upload the portrait to the Space and preprocess it -------
       if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
         await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
@@ -248,6 +291,8 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       });
 
       return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
+      }
+      throw new Error("Unknown 3D engine");
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Generation failed";
       const quota = cause instanceof trellis.TrellisQuotaError;
@@ -287,4 +332,63 @@ function status(stage: JobStage, progress: number, error: string | null): JobSta
     modelRef: null,
     done: false,
   };
+}
+
+type ProjectPatchForStore = Database["public"]["Tables"]["projects"]["Update"];
+type StoreSupabase = {
+  storage: {
+    from: (bucket: string) => {
+      upload: (
+        path: string,
+        body: Uint8Array,
+        options: { contentType: string; upsert: boolean },
+      ) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+};
+
+/**
+ * Shared final step for every engine: download the produced GLB, persist it in
+ * our private bucket and mark the project ready. The provider's copy is
+ * temporary; ours backs paid downloads and the studio preview.
+ */
+async function storeModelFromUrl(
+  supabase: StoreSupabase,
+  userId: string,
+  projectId: string,
+  generationStartedAt: string | null,
+  modelUrl: string,
+  provider: string,
+  patch: (fields: ProjectPatchForStore) => Promise<void>,
+): Promise<JobStatus> {
+  const glbResponse = await fetch(modelUrl);
+  if (!glbResponse.ok) throw new Error("Could not download the generated model");
+  const glbBytes = new Uint8Array(await glbResponse.arrayBuffer());
+  if (glbBytes.byteLength < 1024) throw new Error("The 3D engine returned an empty model");
+
+  const storagePath = `${userId}/${projectId}.glb`;
+  const upload = await supabase.storage.from("portrait-models").upload(storagePath, glbBytes, {
+    contentType: "model/gltf-binary",
+    upsert: true,
+  });
+  if (upload.error) throw new Error(upload.error.message);
+
+  const startedAt = generationStartedAt ? Date.parse(generationStartedAt) : NaN;
+  const seconds = Number.isFinite(startedAt)
+    ? Math.max(1, Math.min(1800, Math.round((Date.now() - startedAt) / 1000)))
+    : null;
+  const { currentPlan } = await import("./quota.server");
+
+  await patch({
+    status: "ready",
+    model_url: storagePath,
+    model_provider: provider,
+    generation_stage: "ready",
+    generation_progress: 100,
+    generation_error: null,
+    generation_seconds: seconds,
+    generation_plan: await currentPlan(),
+  });
+
+  return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
 }

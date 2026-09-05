@@ -66,7 +66,7 @@ export async function downloadModelFile(
     return;
   }
 
-  saveBlob(new Blob([build3mf(gltf.scene)], { type: "model/3mf" }), filename);
+  saveBlob(new Blob([await build3mf(gltf.scene) as unknown as BlobPart], { type: "model/3mf" }), filename);
 }
 
 /**

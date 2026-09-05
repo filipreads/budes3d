@@ -33,7 +33,7 @@ export async function analyzeModelUrl(url: string): Promise<MeshReport> {
     const mesh = child as InstanceType<typeof THREE.Mesh>;
     if (!mesh.isMesh) return;
     const geometry = mesh.geometry as InstanceType<typeof THREE.BufferGeometry>;
-    const position = geometry.getAttribute("position");
+    const position = geometry.getAttribute("position") as unknown as InstanceType<typeof THREE.BufferAttribute> | undefined;
     if (!position) return;
     const index = geometry.getIndex();
 

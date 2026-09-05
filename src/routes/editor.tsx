@@ -38,8 +38,9 @@ import {
   type Placement,
   type StudioConfig,
 } from "@/lib/pricing";
-import { removeBackground } from "@/lib/studio.functions";
-import { advanceGeneration, getGenerationStatus, startGeneration } from "@/lib/generation.functions";
+import { getModelUrl, removeBackground } from "@/lib/studio.functions";
+import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
+import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
 import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
@@ -107,6 +108,38 @@ function EditorPage() {
   const [jobStage, setJobStage] = useState<JobStage | null>(null);
   /** Last stage we toasted about, so each transition is announced exactly once. */
   const toastedStageRef = useRef<JobStage | null>(null);
+
+  /** 3D engine for the next generation run (standard TRELLIS or premium Tripo3D). */
+  const [engine, setEngine] = useState<"trellis" | "tripo">("trellis");
+  const [engines, setEngines] = useState<EngineInfo[]>([{ id: "trellis", label: "TRELLIS.2", premium: false }]);
+  /** Pre-approval print check of the generated mesh. */
+  const [meshReport, setMeshReport] = useState<MeshReport | "checking" | "failed" | null>(null);
+
+  // Which engines can be offered — premium ones appear only when configured.
+  useEffect(() => {
+    if (!user) return;
+    void getAvailableEngines()
+      .then((result) => setEngines(result.engines))
+      .catch(() => {});
+  }, [user]);
+
+  // When the preview opens, verify the mesh is printable before approval.
+  useEffect(() => {
+    if (step !== "preview" || !modelRef || modelRef.startsWith("sample://")) return;
+    let cancelled = false;
+    setMeshReport("checking");
+    void getModelUrl({ data: { storagePath: modelRef } })
+      .then(({ url }) => analyzeModelUrl(url))
+      .then((report) => {
+        if (!cancelled) setMeshReport(report);
+      })
+      .catch(() => {
+        if (!cancelled) setMeshReport("failed");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, modelRef]);
 
   /** Sets the job stage and shows a one-time toast for every new stage. */
   function trackStage(stage: JobStage) {
@@ -420,7 +453,7 @@ function EditorPage() {
       // TRELLIS runs for minutes. The job is persisted server-side and driven
       // one step at a time, so no single request has to stay open that long.
       sessionStorage.setItem("relievo:project", project.id);
-      await startGeneration({ data: { projectId: project.id } });
+      await startGeneration({ data: { projectId: project.id, engine } });
       await driveJob(project.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
@@ -956,6 +989,17 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void clearBackground()}>
                     {t("editor.clearBackground")}
                   </Button>
+                  {engines.length > 1 ? (
+                    <ChoiceRow
+                      label={t("editor.engine")}
+                      options={engines.map((item) => ({
+                        id: item.id,
+                        label: item.premium ? t("editor.engine.premium", { name: item.label }) : t("editor.engine.standard", { name: item.label }),
+                      }))}
+                      value={engine}
+                      onChange={(id) => setEngine(id as "trellis" | "tripo")}
+                    />
+                  ) : null}
                   <Button className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     {busy ?? t("editor.generate")}
@@ -988,6 +1032,41 @@ function EditorPage() {
                     <p className="text-sm font-semibold">{t("editor.downloads")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{t("editor.downloadsBody")}</p>
                   </div>
+                  {meshReport === "checking" ? (
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      {t("editor.mesh.checking")}
+                    </p>
+                  ) : meshReport === "failed" ? null : meshReport ? (
+                    <div
+                      className={cn(
+                        "rounded-lg border p-4",
+                        meshReport.watertight ? "border-border" : "border-amber-500/60 bg-amber-500/5",
+                      )}
+                    >
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        {meshReport.watertight ? (
+                          <Check className="size-4 text-emerald-600" aria-hidden />
+                        ) : (
+                          <TriangleAlert className="size-4 text-amber-600" aria-hidden />
+                        )}
+                        {t("editor.mesh.title")}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t("editor.mesh.triangles", { count: meshReport.triangles.toLocaleString() })}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-1 text-xs",
+                          meshReport.watertight ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400",
+                        )}
+                      >
+                        {meshReport.watertight
+                          ? t("editor.mesh.watertight")
+                          : t("editor.mesh.holes", { count: meshReport.openEdges.toLocaleString() })}
+                      </p>
+                    </div>
+                  ) : null}
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
