@@ -454,7 +454,7 @@ function EditorPage() {
       // TRELLIS runs for minutes. The job is persisted server-side and driven
       // one step at a time, so no single request has to stay open that long.
       sessionStorage.setItem("relievo:project", project.id);
-      await startGeneration({ data: { projectId: project.id } });
+      await startGeneration({ data: { projectId: project.id, engine } });
       await driveJob(project.id);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("editor.toast.genFail");
