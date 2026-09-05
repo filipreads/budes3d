@@ -236,15 +236,31 @@ export function OrderCard({
                       key={entry.id}
                       size="sm"
                       variant="secondary"
-                      disabled={preparing === entry.id}
+                      disabled={preparing === `${entry.id}:${entry.format}`}
                       onClick={() => void runDownload(entry)}
                     >
                       <Download className="mr-1.5 size-3.5" />
-                      {preparing === entry.id
+                      {preparing === `${entry.id}:${entry.format}`
                         ? t("account.preparing")
                         : `${t("account.download")} ${entry.format.toUpperCase()}`}
                     </Button>
                   ))}
+                  {glbEntry
+                    ? extraFormats.map((format) => (
+                        <Button
+                          key={format}
+                          size="sm"
+                          variant="secondary"
+                          disabled={preparing === `${glbEntry.id}:${format}`}
+                          onClick={() => void runDownload(glbEntry, format)}
+                        >
+                          <Download className="mr-1.5 size-3.5" />
+                          {preparing === `${glbEntry.id}:${format}`
+                            ? t("account.preparing")
+                            : `${t("account.download")} ${format.toUpperCase()}`}
+                        </Button>
+                      ))
+                    : null}
                   {downloadsQuery.isLoading ? (
                     <span className="text-sm text-muted-foreground">{t("account.preparing")}</span>
                   ) : null}
