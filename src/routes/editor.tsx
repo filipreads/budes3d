@@ -38,9 +38,8 @@ import {
   type Placement,
   type StudioConfig,
 } from "@/lib/pricing";
-import { removeBackground } from "@/lib/studio.functions";
+import { getModelUrl, removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
-import { getModelUrl } from "@/lib/studio.functions";
 import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
