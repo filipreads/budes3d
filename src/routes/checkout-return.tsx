@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOrderPaymentState } from "@/lib/payments.functions";
+import { formatPrice, sanitizeCurrency } from "@/lib/pricing";
 
 
 export const Route = createFileRoute("/checkout-return")({
