@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/account/StatusChip";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-import { formatPrice } from "@/lib/pricing";
+import { formatPrice, sanitizeCurrency } from "@/lib/pricing";
 import { getAccountSummary } from "@/lib/account.functions";
 
 export const Route = createFileRoute("/account/")({
@@ -134,7 +134,7 @@ function AccountOverview() {
               </div>
             </div>
             <span className="flex items-center gap-1 font-medium">
-              {formatPrice(order.total_cents)}
+              {formatPrice(order.total_cents, sanitizeCurrency(order.currency))}
               <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
             </span>
           </Link>

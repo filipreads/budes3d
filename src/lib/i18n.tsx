@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { formatPrice, sanitizeCurrency, type Currency } from "./pricing";
 
 export type Locale = "en" | "cs";
 
 const STORAGE_KEY = "relievo:locale";
+const CURRENCY_KEY = "relievo:currency";
 
 const en = {
   "nav.home": "Home",
@@ -1150,6 +1152,10 @@ const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { en, cs };
 type I18nValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  /** Formats a minor-unit amount in the currently selected currency. */
+  money: (cents: number) => string;
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
 };
 
@@ -1157,14 +1163,26 @@ const I18nContext = createContext<I18nValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("cs");
+  const [currency, setCurrencyState] = useState<Currency>("czk");
+  const [currencyPinned, setCurrencyPinned] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored === "cs" || stored === "en") {
       setLocaleState(stored);
-      return;
+    }
+    const storedCurrency = window.localStorage.getItem(CURRENCY_KEY);
+    if (storedCurrency === "czk" || storedCurrency === "eur") {
+      setCurrencyState(storedCurrency);
+      setCurrencyPinned(true);
     }
   }, []);
+
+  // Until the visitor picks a currency, it follows the language: Czech → CZK.
+  useEffect(() => {
+    if (currencyPinned) return;
+    setCurrencyState(locale === "cs" ? "czk" : "eur");
+  }, [locale, currencyPinned]);
 
 
 
@@ -1189,7 +1207,22 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale],
   );
 
-  const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale, t]);
+  const setCurrency = useCallback((next: Currency) => {
+    const safe = sanitizeCurrency(next);
+    setCurrencyState(safe);
+    setCurrencyPinned(true);
+    window.localStorage.setItem(CURRENCY_KEY, safe);
+  }, []);
+
+  const money = useCallback(
+    (cents: number) => formatPrice(cents, currency, locale === "cs" ? "cs-CZ" : undefined),
+    [currency, locale],
+  );
+
+  const value = useMemo(
+    () => ({ locale, setLocale, t, currency, setCurrency, money }),
+    [locale, setLocale, t, currency, setCurrency, money],
+  );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

@@ -1,5 +1,16 @@
 export type DeliveryType = "digital" | "print";
 
+/** The studio bills in Czech koruna and euro; amounts are stored in minor units. */
+export type Currency = "czk" | "eur";
+
+export const CURRENCIES: { id: Currency; code: string; label: string; locale: string }[] = [
+  { id: "czk", code: "CZK", label: "Kč", locale: "cs-CZ" },
+  { id: "eur", code: "EUR", label: "€", locale: "de-DE" },
+];
+
+/** Price per currency, in minor units (haléř / cent). */
+export type Money = Record<Currency, number>;
+
 export const MATERIALS = [
   { id: "resin", label: "Studio resin", multiplier: 1, hint: "Fine detail, matte ivory" },
   { id: "marble", label: "Cast marble", multiplier: 1.25, hint: "Cool stone, soft veining" },
@@ -14,22 +25,28 @@ export const FINISHES = [
 ] as const;
 
 export const BASES = [
-  { id: "none", label: "No base", cents: 0 },
-  { id: "walnut", label: "Walnut plinth", cents: 2500 },
-  { id: "marble", label: "Marble plinth", cents: 3500 },
+  { id: "none", label: "No base", price: { czk: 0, eur: 0 } },
+  { id: "walnut", label: "Walnut plinth", price: { czk: 59000, eur: 2500 } },
+  { id: "marble", label: "Marble plinth", price: { czk: 79000, eur: 3500 } },
 ] as const;
 
 export const SIZES = [
-  { id: "s", label: "Desk", heightMm: 100, cents: 8900 },
-  { id: "m", label: "Shelf", heightMm: 150, cents: 13900 },
-  { id: "l", label: "Statement", heightMm: 220, cents: 21900 },
-  { id: "xl", label: "Gallery", heightMm: 300, cents: 34900 },
+  { id: "s", label: "Desk", heightMm: 100, price: { czk: 199000, eur: 8900 } },
+  { id: "m", label: "Shelf", heightMm: 150, price: { czk: 299000, eur: 13900 } },
+  { id: "l", label: "Statement", heightMm: 220, price: { czk: 499000, eur: 21900 } },
+  { id: "xl", label: "Gallery", heightMm: 300, price: { czk: 799000, eur: 34900 } },
 ] as const;
 
-export const DIGITAL_CENTS = 3900;
-export const ENGRAVING_CENTS = 1500;
+export const DIGITAL_PRICE: Money = { czk: 89000, eur: 3900 };
+export const ENGRAVING_PRICE: Money = { czk: 35000, eur: 1500 };
+export const SHIPPING_PRICE: Money = { czk: 29000, eur: 1200 };
+/** Default charge for one completed premium (Tripo3D) generation. */
+export const PREMIUM_GENERATION_PRICE: Money = { czk: 24900, eur: 990 };
 export const RUSH_RATE = 0.3;
-export const SHIPPING_CENTS = 1200;
+
+export function amount(price: Money, currency: Currency): number {
+  return price[currency] ?? price.eur;
+}
 
 export type Placement = {
   /** Rotation around the vertical axis, degrees. */
@@ -110,29 +127,33 @@ function pick<T extends { id: string }>(list: readonly T[], id: string, fallback
   return list.find((entry) => entry.id === id) ?? fallback;
 }
 
-export function quote(config: StudioConfig): Quote {
+export function quote(config: StudioConfig, currency: Currency = "czk", extras: LineItem[] = []): Quote {
   const quantity = Math.min(Math.max(Math.round(config.quantity || 1), 1), 25);
   const lineItems: LineItem[] = [];
 
   if (config.delivery === "digital") {
-    lineItems.push({ label: "Digital 3D file (GLB + STL)", cents: DIGITAL_CENTS });
+    lineItems.push({ label: "Digital 3D file (GLB + STL)", cents: amount(DIGITAL_PRICE, currency) });
   } else {
     const size = pick(SIZES, config.sizeId, SIZES[1]);
     const material = pick(MATERIALS, config.materialId, MATERIALS[0]);
     const finish = pick(FINISHES, config.finishId, FINISHES[0]);
     const base = pick(BASES, config.baseId, BASES[0]);
 
-    const sculptureCents = Math.round(size.cents * material.multiplier * finish.multiplier);
+    const sculptureCents = Math.round(amount(size.price, currency) * material.multiplier * finish.multiplier);
     lineItems.push({
       label: `${size.label} print · ${size.heightMm}mm · ${material.label} ${finish.label.toLowerCase()}`,
       cents: sculptureCents,
     });
-    if (base.cents > 0) lineItems.push({ label: base.label, cents: base.cents });
+    const baseCents = amount(base.price, currency);
+    if (baseCents > 0) lineItems.push({ label: base.label, cents: baseCents });
     lineItems.push({ label: "Digital 3D file included", cents: 0 });
   }
 
   if (config.engraving.trim().length > 0) {
-    lineItems.push({ label: `Engraving: "${config.engraving.trim().slice(0, 40)}"`, cents: ENGRAVING_CENTS });
+    lineItems.push({
+      label: `Engraving: "${config.engraving.trim().slice(0, 40)}"`,
+      cents: amount(ENGRAVING_PRICE, currency),
+    });
   }
 
   let unitCents = lineItems.reduce((sum, item) => sum + item.cents, 0);
@@ -143,20 +164,36 @@ export function quote(config: StudioConfig): Quote {
   }
 
   const subtotalCents = unitCents * quantity;
-  const shippingCents = config.delivery === "print" ? SHIPPING_CENTS : 0;
+  const shippingCents = config.delivery === "print" ? amount(SHIPPING_PRICE, currency) : 0;
+
+  // Extras (e.g. premium engine usage) are charged once per order, never per unit.
+  const extrasCents = extras.reduce((sum, item) => sum + item.cents, 0);
 
   return {
-    lineItems: quantity > 1 ? [...lineItems, { label: `Quantity × ${quantity}`, cents: 0 }] : lineItems,
-    subtotalCents,
+    lineItems: [
+      ...lineItems,
+      ...(quantity > 1 ? [{ label: `Quantity × ${quantity}`, cents: 0 }] : []),
+      ...extras,
+    ],
+    subtotalCents: subtotalCents + extrasCents,
     shippingCents,
-    totalCents: subtotalCents + shippingCents,
+    totalCents: subtotalCents + extrasCents + shippingCents,
   };
 }
 
-export function formatPrice(cents: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(
-    cents / 100,
-  );
+/** Formats a minor-unit amount in the studio currency. */
+export function formatPrice(cents: number, currency: Currency = "czk", locale?: string) {
+  const meta = CURRENCIES.find((entry) => entry.id === currency) ?? CURRENCIES[0]!;
+  return new Intl.NumberFormat(locale ?? meta.locale, {
+    style: "currency",
+    currency: meta.code,
+    maximumFractionDigits: currency === "czk" ? 0 : 2,
+    minimumFractionDigits: currency === "czk" ? 0 : 2,
+  }).format(cents / 100);
+}
+
+export function sanitizeCurrency(value: unknown): Currency {
+  return value === "eur" ? "eur" : "czk";
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {

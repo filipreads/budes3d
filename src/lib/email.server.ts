@@ -5,7 +5,7 @@
  * when RESEND_API_KEY / RESEND_FROM are configured. Without a verified sender
  * domain the row simply stays `queued`, so nothing in the order flow breaks.
  */
-import { formatPrice, type LineItem } from "./pricing";
+import { formatPrice, sanitizeCurrency, type LineItem } from "./pricing";
 
 export type EmailLocale = "en" | "cs";
 export type EmailTemplate = "receipt" | "status";
@@ -18,6 +18,7 @@ type OrderEmailInput = {
   orderNumber: string;
   deliveryType: string;
   totalCents: number;
+  currency?: string;
   lineItems?: LineItem[];
   paymentStatus?: string;
   fulfilmentStatus?: string;
@@ -66,6 +67,7 @@ function escapeHtml(value: string) {
 
 export function renderOrderEmail(input: OrderEmailInput): { subject: string; html: string } {
   const copy = COPY[input.locale];
+  const currency = sanitizeCurrency(input.currency);
   const subject =
     input.template === "receipt" ? copy.receiptSubject(input.orderNumber) : copy.statusSubject(input.orderNumber);
 
@@ -73,7 +75,7 @@ export function renderOrderEmail(input: OrderEmailInput): { subject: string; htm
     .map(
       (item) =>
         `<tr><td style="padding:6px 0;color:#6b6257">${escapeHtml(item.label)}</td><td align="right" style="padding:6px 0">${
-          item.cents ? formatPrice(item.cents) : "—"
+          item.cents ? formatPrice(item.cents, currency) : "—"
         }</td></tr>`,
     )
     .join("");
@@ -92,7 +94,7 @@ export function renderOrderEmail(input: OrderEmailInput): { subject: string; htm
       <p style="margin:0 0 12px"><strong>${copy.order}:</strong> ${escapeHtml(input.orderNumber)}<br/>
       <strong>${copy.delivery}:</strong> ${input.deliveryType === "print" ? copy.print : copy.digital}</p>
       <table width="100%" style="font-size:14px;border-collapse:collapse">${rows}</table>
-      <p style="margin:16px 0 0;font-size:16px"><strong>${copy.total}: ${formatPrice(input.totalCents)}</strong></p>
+      <p style="margin:16px 0 0;font-size:16px"><strong>${copy.total}: ${formatPrice(input.totalCents, currency)}</strong></p>
       ${statusBlock}
     </div>
     <p style="margin:24px 0 0;font-size:12px;color:#8a8078">${copy.footer}</p>

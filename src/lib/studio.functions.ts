@@ -156,6 +156,7 @@ export const createOrder = createServerFn({ method: "POST" })
       orderNumber: order.order_number,
       deliveryType: order.delivery_type,
       totalCents: order.total_cents,
+      currency: order.currency,
       lineItems: priced.lineItems,
     });
 

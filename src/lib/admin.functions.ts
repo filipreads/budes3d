@@ -6,6 +6,7 @@ export type AdminOrder = {
   order_number: string;
   delivery_type: string;
   total_cents: number;
+  currency: string;
   payment_status: string;
   fulfilment_status: string;
   contact_email: string | null;
@@ -47,7 +48,7 @@ export const listAdminOrders = createServerFn({ method: "GET" })
     const { data: orders, error } = await context.supabase
       .from("orders")
       .select(
-        "id, order_number, delivery_type, total_cents, payment_status, fulfilment_status, contact_email, created_at, project_id, line_items, user_id",
+        "id, order_number, delivery_type, total_cents, currency, payment_status, fulfilment_status, contact_email, created_at, project_id, line_items, user_id",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -126,7 +127,7 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       .from("orders")
       .update(patch)
       .eq("id", data.orderId)
-      .select("id, order_number, delivery_type, total_cents, payment_status, fulfilment_status, contact_email")
+      .select("id, order_number, delivery_type, total_cents, currency, payment_status, fulfilment_status, contact_email")
       .single();
     if (error || !order) throw new Error(error?.message ?? "Could not update the order");
 
@@ -140,6 +141,7 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
         orderNumber: order.order_number,
         deliveryType: order.delivery_type,
         totalCents: order.total_cents,
+        currency: order.currency,
         paymentStatus: order.payment_status,
         fulfilmentStatus: order.fulfilment_status,
       });
