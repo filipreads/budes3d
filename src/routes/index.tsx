@@ -37,7 +37,7 @@ const STEPS = [
 ] as const;
 
 function LandingPage() {
-  const { t } = useI18n();
+  const { t, money, currency } = useI18n();
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
