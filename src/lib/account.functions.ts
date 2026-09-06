@@ -6,6 +6,7 @@ export type AccountOrder = {
   order_number: string;
   delivery_type: string;
   total_cents: number;
+  currency: string;
   subtotal_cents: number;
   shipping_cents: number;
   payment_status: string;
@@ -28,7 +29,7 @@ export type AccountProject = {
 };
 
 const ORDER_COLUMNS =
-  "id, order_number, delivery_type, total_cents, subtotal_cents, shipping_cents, payment_status, fulfilment_status, created_at, paid_at, contact_email, line_items, shipping_address, share_token, share_enabled";
+  "id, order_number, delivery_type, total_cents, currency, subtotal_cents, shipping_cents, payment_status, fulfilment_status, created_at, paid_at, contact_email, line_items, shipping_address, share_token, share_enabled";
 
 export type OrdersQuery = {
   search?: string;
