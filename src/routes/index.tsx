@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import heroBust from "@/assets/hero-bust.jpg";
 import { ArrowRight, Camera, Layers, Sparkles, Truck } from "lucide-react";
-import { formatPrice, DIGITAL_CENTS, SIZES } from "@/lib/pricing";
+import { DIGITAL_PRICE, SIZES, amount } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
@@ -64,7 +64,7 @@ function LandingPage() {
                 </Button>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                {t("home.priceLine", { digital: formatPrice(DIGITAL_CENTS), print: formatPrice(SIZES[0].cents) })}
+                {t("home.priceLine", { digital: money(amount(DIGITAL_PRICE, currency)), print: money(amount(SIZES[0].price, currency)) })}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">{t("home.priceNote")}</p>
             </div>
