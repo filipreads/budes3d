@@ -300,6 +300,7 @@ export type Database = {
           id: string
           model_provider: string | null
           model_url: string | null
+          premium_generations: number
           preview_image_url: string | null
           preview_video_url: string | null
           provider_job_id: string | null
@@ -325,6 +326,7 @@ export type Database = {
           id?: string
           model_provider?: string | null
           model_url?: string | null
+          premium_generations?: number
           preview_image_url?: string | null
           preview_video_url?: string | null
           provider_job_id?: string | null
@@ -350,6 +352,7 @@ export type Database = {
           id?: string
           model_provider?: string | null
           model_url?: string | null
+          premium_generations?: number
           preview_image_url?: string | null
           preview_video_url?: string | null
           provider_job_id?: string | null
