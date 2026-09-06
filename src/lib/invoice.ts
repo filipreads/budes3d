@@ -1,4 +1,4 @@
-import { formatPrice, type LineItem } from "./pricing";
+import { formatPrice, sanitizeCurrency, type LineItem } from "./pricing";
 
 export type InvoiceOrder = {
   order_number: string;
@@ -99,7 +99,7 @@ export async function downloadInvoicePdf(order: InvoiceOrder, labels: Labels) {
 
   for (const item of readLineItems(order.line_items)) {
     doc.text(item.label, left, y, { maxWidth: 340 });
-    doc.text(formatPrice(item.cents), right, y, { align: "right" });
+    doc.text(formatPrice(item.cents, currency), right, y, { align: "right" });
     y += 18;
   }
 
@@ -107,15 +107,15 @@ export async function downloadInvoicePdf(order: InvoiceOrder, labels: Labels) {
   doc.line(left, y, right, y);
   y += 20;
   doc.text(labels.subtotal, 380, y);
-  doc.text(formatPrice(order.subtotal_cents), right, y, { align: "right" });
+  doc.text(formatPrice(order.subtotal_cents, currency), right, y, { align: "right" });
   y += 16;
   doc.text(labels.shipping, 380, y);
-  doc.text(formatPrice(order.shipping_cents), right, y, { align: "right" });
+  doc.text(formatPrice(order.shipping_cents, currency), right, y, { align: "right" });
   y += 20;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text(labels.total, 380, y);
-  doc.text(formatPrice(order.total_cents), right, y, { align: "right" });
+  doc.text(formatPrice(order.total_cents, currency), right, y, { align: "right" });
 
   y += 24;
   doc.setFont("helvetica", "normal");

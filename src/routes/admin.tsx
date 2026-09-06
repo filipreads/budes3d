@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import ModelStage from "@/components/studio/LazyModelStage";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-import { formatPrice } from "@/lib/pricing";
+import { formatPrice, sanitizeCurrency } from "@/lib/pricing";
 import { listAdminOrders, updateOrderStatus, type AdminEmail, type AdminOrder } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({
@@ -118,7 +118,7 @@ function AdminPage() {
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <p className="font-semibold">{formatPrice(order.total_cents)}</p>
+                    <p className="font-semibold">{formatPrice(order.total_cents, sanitizeCurrency(order.currency))}</p>
                     <StatusRow
                       label={t("admin.payment")}
                       options={PAYMENT_STATES}

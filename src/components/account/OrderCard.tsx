@@ -4,7 +4,7 @@ import { ChevronDown, Download, FileText, Link2, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatPrice, type LineItem } from "@/lib/pricing";
+import { formatPrice, sanitizeCurrency, type LineItem } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { setOrderShare } from "@/lib/share.functions";
 import { getOrderDownloadUrl, listOrderDownloads, type OrderDownload } from "@/lib/downloads.functions";
@@ -136,7 +136,7 @@ export function OrderCard({
               <StatusChip status={order.fulfilment_status} />
             </div>
           </div>
-          <p className="font-display text-lg">{formatPrice(order.total_cents)}</p>
+          <p className="font-display text-lg">{formatPrice(order.total_cents, sanitizeCurrency(order.currency))}</p>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -202,12 +202,12 @@ export function OrderCard({
                   {readLineItems(order.line_items).map((item, index) => (
                     <li key={`${item.label}-${index}`} className="flex justify-between gap-4">
                       <span className="text-muted-foreground">{item.label}</span>
-                      <span>{formatPrice(item.cents)}</span>
+                      <span>{formatPrice(item.cents, sanitizeCurrency(order.currency))}</span>
                     </li>
                   ))}
                   <li className="flex justify-between gap-4 border-t border-border pt-1 font-medium">
                     <span>{t("invoice.total")}</span>
-                    <span>{formatPrice(order.total_cents)}</span>
+                    <span>{formatPrice(order.total_cents, sanitizeCurrency(order.currency))}</span>
                   </li>
                 </ul>
               </div>
