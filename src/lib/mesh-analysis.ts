@@ -14,22 +14,24 @@ export type MeshReport = {
   size: { x: number; y: number; z: number };
 };
 
-export async function analyzeModelUrl(url: string): Promise<MeshReport> {
-  const [{ GLTFLoader }, THREE] = await Promise.all([
-    import("three/examples/jsm/loaders/GLTFLoader.js"),
-    import("three"),
-  ]);
+export async function loadScene(url: string): Promise<import("three").Object3D> {
+  const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
   const response = await fetch(url);
   if (!response.ok) throw new Error("Could not fetch the model file");
   const buffer = await response.arrayBuffer();
   const gltf = await new GLTFLoader().parseAsync(buffer, "");
+  return gltf.scene;
+}
 
+/** Same statistics as `analyzeModelUrl`, for a scene already in memory. */
+export async function reportScene(scene: import("three").Object3D): Promise<MeshReport> {
+  const THREE = await import("three");
   let triangles = 0;
   const edgeUse = new Map<string, number>();
-  const box = new THREE.Box3().setFromObject(gltf.scene);
+  scene.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(scene);
 
-  gltf.scene.updateMatrixWorld(true);
-  gltf.scene.traverse((child) => {
+  scene.traverse((child) => {
     const mesh = child as InstanceType<typeof THREE.Mesh>;
     if (!mesh.isMesh) return;
     const geometry = mesh.geometry as InstanceType<typeof THREE.BufferGeometry>;
@@ -71,4 +73,8 @@ export async function analyzeModelUrl(url: string): Promise<MeshReport> {
     watertight: openEdges === 0 && triangles > 0,
     size: { x: size.x, y: size.y, z: size.z },
   };
+}
+
+export async function analyzeModelUrl(url: string): Promise<MeshReport> {
+  return reportScene(await loadScene(url));
 }
