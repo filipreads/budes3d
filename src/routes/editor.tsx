@@ -32,7 +32,6 @@ import {
   MATERIALS,
   SIZES,
   DEFAULT_PLACEMENT,
-  formatPrice,
   quote,
   sanitizeConfig,
   type Placement,
