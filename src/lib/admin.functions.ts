@@ -80,6 +80,7 @@ export const listAdminOrders = createServerFn({ method: "GET" })
         order_number: order.order_number,
         delivery_type: order.delivery_type,
         total_cents: order.total_cents,
+        currency: order.currency,
         payment_status: order.payment_status,
         fulfilment_status: order.fulfilment_status,
         contact_email: order.contact_email,

@@ -40,6 +40,26 @@ function LanguageSwitcher() {
   );
 }
 
+function CurrencySwitcher() {
+  const { currency, setCurrency } = useI18n();
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-border p-0.5" aria-label="Currency">
+      {(["czk", "eur"] as const).map((code) => (
+        <button
+          key={code}
+          onClick={() => setCurrency(code)}
+          aria-pressed={currency === code}
+          className={`rounded-full px-2 py-0.5 text-xs uppercase transition-colors ${
+            currency === code ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {code === "czk" ? "Kč" : "€"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SiteHeader() {
   const { user, loading, signOut } = useAuth();
   const { profile } = useProfile();
@@ -84,6 +104,7 @@ export function SiteHeader() {
           ))}
 
           <LanguageSwitcher />
+          <CurrencySwitcher />
 
           {!loading && user ? (
             <DropdownMenu>
@@ -139,6 +160,7 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2 md:hidden">
           <LanguageSwitcher />
+          <CurrencySwitcher />
           <button
             className="rounded-sm border border-border p-2"
             aria-label={t("nav.menu")}

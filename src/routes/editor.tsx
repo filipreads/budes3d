@@ -32,7 +32,6 @@ import {
   MATERIALS,
   SIZES,
   DEFAULT_PLACEMENT,
-  formatPrice,
   quote,
   sanitizeConfig,
   type Placement,
@@ -89,7 +88,7 @@ function EditorPage() {
   const navigate = useNavigate();
   const { project: projectParam } = Route.useSearch();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { t, money, currency } = useI18n();
   const [step, setStep] = useState<Step>("upload");
   const [photo, setPhoto] = useState<string | null>(null);
   const [edits, setEdits] = useState<EditSettings>(DEFAULT_EDITS);
@@ -234,9 +233,9 @@ function EditorPage() {
     setConfig((current) => ({ ...current, placement: { ...(current.placement ?? DEFAULT_PLACEMENT), ...next } }));
   const heightMm = SIZES.find((size) => size.id === config.sizeId)?.heightMm ?? null;
 
-  const priced = useMemo(() => quote(config), [config]);
+  const priced = useMemo(() => quote(config, currency), [config, currency]);
   /** Price difference a configurator option would make, shown next to each choice. */
-  const deltaFor = (patch: Partial<StudioConfig>) => quote({ ...config, ...patch }).totalCents - priced.totalCents;
+  const deltaFor = (patch: Partial<StudioConfig>) => quote({ ...config, ...patch }, currency).totalCents - priced.totalCents;
 
 
   // Reopening a saved project from "My studio projects".
@@ -1190,29 +1189,29 @@ function EditorPage() {
                   {priced.lineItems.map((item) => (
                     <div key={item.label} className="flex justify-between gap-3">
                       <span className="text-muted-foreground">{item.label}</span>
-                      <span>{item.cents ? formatPrice(item.cents) : "—"}</span>
+                      <span>{item.cents ? money(item.cents) : "—"}</span>
                     </div>
                   ))}
                 </div>
                 <div className="mt-2 space-y-0.5 border-t border-border pt-2">
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">{t("editor.subtotal")}</span>
-                    <span>{formatPrice(priced.subtotalCents)}</span>
+                    <span>{money(priced.subtotalCents)}</span>
                   </div>
                   <div className="flex justify-between gap-3">
                     <span className="text-muted-foreground">{t("editor.shipping")}</span>
                     <span>
-                      {priced.shippingCents ? formatPrice(priced.shippingCents) : t("editor.shippingFree")}
+                      {priced.shippingCents ? money(priced.shippingCents) : t("editor.shippingFree")}
                     </span>
                   </div>
                 </div>
                 <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
                   <span>{t("editor.total")}</span>
-                  <span>{formatPrice(priced.totalCents)}</span>
+                  <span>{money(priced.totalCents)}</span>
                 </div>
                 {config.quantity > 1 ? (
                   <p className="mt-1 text-right text-xs text-muted-foreground">
-                    {formatPrice(Math.round(priced.subtotalCents / config.quantity))} {t("editor.perUnit")}
+                    {money(Math.round(priced.subtotalCents / config.quantity))} {t("editor.perUnit")}
                   </p>
                 ) : null}
 
@@ -1226,7 +1225,7 @@ function EditorPage() {
         <div className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{t("editor.total")}</p>
-            <p className="truncate font-display text-lg">{formatPrice(priced.totalCents)}</p>
+            <p className="truncate font-display text-lg">{money(priced.totalCents)}</p>
           </div>
           <Button className="shrink-0" onClick={goToCheckout}>
             {t("editor.checkout")}
@@ -1402,6 +1401,7 @@ function ChoiceRow({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { money } = useI18n();
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
@@ -1420,7 +1420,7 @@ function ChoiceRow({
               {value !== option.id && delta !== 0 ? (
                 <span className="text-[11px] opacity-70">
                   {delta > 0 ? "+" : "−"}
-                  {formatPrice(Math.abs(delta))}
+                  {money(Math.abs(delta))}
                 </span>
               ) : null}
             </Button>

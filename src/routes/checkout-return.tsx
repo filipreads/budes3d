@@ -27,7 +27,7 @@ export const Route = createFileRoute("/checkout-return")({
 
 function CheckoutReturnPage() {
   const { order } = Route.useSearch();
-  const [state, setState] = useState<{ order_number: string; payment_status: string; total_cents: number } | null>(null);
+  const [state, setState] = useState<{ order_number: string; payment_status: string; total_cents: number; currency: string } | null>(null);
   const [tries, setTries] = useState(0);
 
   useEffect(() => {
