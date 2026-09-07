@@ -104,6 +104,7 @@ export function SiteHeader() {
           ))}
 
           <LanguageSwitcher />
+          <CurrencySwitcher />
 
           {!loading && user ? (
             <DropdownMenu>
@@ -159,6 +160,7 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-2 md:hidden">
           <LanguageSwitcher />
+          <CurrencySwitcher />
           <button
             className="rounded-sm border border-border p-2"
             aria-label={t("nav.menu")}
