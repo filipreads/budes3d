@@ -70,6 +70,7 @@ type OrderInput = {
   config: StudioConfig;
   contactEmail: string;
   locale?: "en" | "cs";
+  currency?: string;
   shippingAddress: {
     name: string;
     line1: string;
@@ -101,7 +102,9 @@ export const createOrder = createServerFn({ method: "POST" })
 
     // Prices are always recomputed server-side from the sanitized config.
     const config = sanitizeConfig(data.config);
-    const priced = quote(config);
+    const { sanitizeCurrency } = await import("./pricing");
+    const currency = sanitizeCurrency(data.currency);
+    const priced = quote(config, currency);
     if (config.delivery === "print" && !data.shippingAddress?.line1) {
       throw new Error("A shipping address is required for printed pieces");
     }
@@ -112,6 +115,7 @@ export const createOrder = createServerFn({ method: "POST" })
         user_id: userId,
         project_id: project.id,
         delivery_type: config.delivery,
+        currency,
         config_snapshot: config as unknown as Json,
         line_items: priced.lineItems as unknown as Json,
         subtotal_cents: priced.subtotalCents,
