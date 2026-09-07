@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_CONFIG, formatPrice, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
+import { DEFAULT_CONFIG, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
 import { createOrder } from "@/lib/studio.functions";
 import { updateAccountProfile, EMPTY_SHIPPING_ADDRESS, type ShippingAddress } from "@/lib/account.functions";
 import { useProfile } from "@/hooks/useProfile";
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/checkout")({
 function CheckoutPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  const { t, locale } = useI18n();
+  const { t, locale, money, currency } = useI18n();
   const [config, setConfig] = useState<StudioConfig>(DEFAULT_CONFIG);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -58,7 +58,7 @@ function CheckoutPage() {
     if (useSaved && profile?.shippingAddress) setAddress(profile.shippingAddress);
   }, [profile, useSaved]);
 
-  const priced = useMemo(() => quote(config), [config]);
+  const priced = useMemo(() => quote(config, currency), [config, currency]);
 
   async function pay() {
     if (!projectId) { toast.error(t("checkout.startFirst")); return; }
@@ -172,7 +172,7 @@ function CheckoutPage() {
                 )}
 
                 <Button className="w-full" disabled={busy} onClick={() => void pay()}>
-                  {t("checkout.pay", { price: formatPrice(priced.totalCents) })}
+                  {t("checkout.pay", { price: money(priced.totalCents) })}
                 </Button>
                 <p className="text-xs text-muted-foreground">{t("checkout.paymentNote")}</p>
               </>
@@ -187,17 +187,17 @@ function CheckoutPage() {
               {priced.lineItems.map((item) => (
                 <div key={item.label} className="flex justify-between gap-3">
                   <span className="text-muted-foreground">{item.label}</span>
-                  <span>{item.cents ? formatPrice(item.cents) : "—"}</span>
+                  <span>{item.cents ? money(item.cents) : "—"}</span>
                 </div>
               ))}
               <div className="flex justify-between gap-3 pt-1">
                 <span className="text-muted-foreground">{t("pricing.shipping")}</span>
-                <span>{priced.shippingCents ? formatPrice(priced.shippingCents) : "Free"}</span>
+                <span>{priced.shippingCents ? money(priced.shippingCents) : t("editor.shippingFree")}</span>
               </div>
             </div>
             <div className="mt-3 flex justify-between border-t border-border pt-3 font-semibold">
               <span>{t("editor.total")}</span>
-              <span>{formatPrice(priced.totalCents)}</span>
+              <span>{money(priced.totalCents)}</span>
             </div>
           </CardContent>
         </Card>
