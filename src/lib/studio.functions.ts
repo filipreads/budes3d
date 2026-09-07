@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { quote, sanitizeConfig, type StudioConfig } from "./pricing";
+import { quote, sanitizeConfig, sanitizeCurrency, type StudioConfig } from "./pricing";
 import type { Json } from "@/integrations/supabase/types";
 
 /** Signed URL for a stored model file, used by the 3D viewer. */
@@ -102,7 +102,6 @@ export const createOrder = createServerFn({ method: "POST" })
 
     // Prices are always recomputed server-side from the sanitized config.
     const config = sanitizeConfig(data.config);
-    const { sanitizeCurrency } = await import("./pricing");
     const currency = sanitizeCurrency(data.currency);
     const priced = quote(config, currency);
     if (config.delivery === "print" && !data.shippingAddress?.line1) {

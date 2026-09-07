@@ -70,6 +70,7 @@ function CheckoutPage() {
           config,
           contactEmail: email,
           locale,
+          currency,
           shippingAddress: config.delivery === "print" ? address : null,
         },
       });
