@@ -1105,9 +1105,65 @@ function EditorPage() {
                       </p>
                     </div>
                   ) : null}
+                  {modelFileUrl ? (
+                    <div className="space-y-3 rounded-lg border border-border p-4">
+                      <p className="text-sm font-semibold">{t("editor.repair.title")}</p>
+                      <p className="text-xs text-muted-foreground">{t("editor.repair.body")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" disabled={repairing} onClick={() => void runRepair("light")}>
+                          {repairing ? t("editor.repair.working") : t("editor.repair.light")}
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={repairing} onClick={() => void runRepair("full")}>
+                          {t("editor.repair.full")}
+                        </Button>
+                      </div>
+                      {repair ? (
+                        <div className="space-y-1 rounded-md bg-muted/60 p-3 text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.triangles")}</span>
+                            <span>
+                              {repair.before.triangles.toLocaleString()} → {repair.after.triangles.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.openEdges")}</span>
+                            <span>
+                              {repair.before.openEdges.toLocaleString()} → {repair.after.openEdges.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.watertightRow")}</span>
+                            <span>
+                              {t(repair.before.watertight ? "editor.repair.yes" : "editor.repair.no")} →{" "}
+                              <strong>{t(repair.after.watertight ? "editor.repair.yes" : "editor.repair.no")}</strong>
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.filled")}</span>
+                            <span>{repair.filledHoles.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.removed")}</span>
+                            <span>{repair.removedTriangles.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {modelFileUrl ? (
+                    <SlicePreview
+                      modelUrl={modelFileUrl}
+                      heightMm={heightMm}
+                      settings={sliceSettings}
+                      onSettingsChange={setSliceSettings}
+                    />
+                  ) : null}
+
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
+
                   {placementPanel}
 
                   <Button className="w-full" onClick={() => setStep("configure")}>
