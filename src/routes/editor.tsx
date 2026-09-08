@@ -40,6 +40,10 @@ import {
 import { getModelUrl, removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
 import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
+import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
+import { SlicePreview } from "@/components/studio/SlicePreview";
+import { saveRepairedModel } from "@/lib/studio.functions";
+import { DEFAULT_SLICE, type SliceSettings } from "@/lib/slicing";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
 import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
@@ -113,6 +117,12 @@ function EditorPage() {
   const [engines, setEngines] = useState<EngineInfo[]>([{ id: "trellis", label: "TRELLIS.2", premium: false }]);
   /** Pre-approval print check of the generated mesh. */
   const [meshReport, setMeshReport] = useState<MeshReport | "checking" | "failed" | null>(null);
+  /** Signed URL of the stored model, shared by the print check, repair and slicing. */
+  const [modelFileUrl, setModelFileUrl] = useState<string | null>(null);
+  /** Result of an optional repair run, kept so before/after stays visible. */
+  const [repair, setRepair] = useState<RepairResult | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [sliceSettings, setSliceSettings] = useState<SliceSettings>(DEFAULT_SLICE);
 
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
@@ -128,8 +138,10 @@ function EditorPage() {
     let cancelled = false;
     setMeshReport("checking");
     void getModelUrl({ data: { storagePath: modelRef } })
-      .then(({ url }) => analyzeModelUrl(url))
-      .then((report) => {
+      .then(async ({ url }) => {
+        if (cancelled) return;
+        setModelFileUrl(url);
+        const report = await analyzeModelUrl(url);
         if (!cancelled) setMeshReport(report);
       })
       .catch(() => {
@@ -139,6 +151,33 @@ function EditorPage() {
       cancelled = true;
     };
   }, [step, modelRef]);
+
+  /** Runs the optional repair, stores the fixed GLB and switches the project to it. */
+  const runRepair = useCallback(
+    async (level: "light" | "full") => {
+      if (!modelFileUrl || !projectId || !user) return;
+      setRepairing(true);
+      try {
+        const result = await repairModelUrl(modelFileUrl, level);
+        const path = `${user.id}/${projectId}-repaired.glb`;
+        await uploadWithProgress({ bucket: "portrait-models", path, body: result.blob, contentType: "model/gltf-binary" });
+        await saveRepairedModel({ data: { projectId, storagePath: path } });
+        setRepair(result);
+        setMeshReport(result.after);
+        const { url } = await getModelUrl({ data: { storagePath: path } });
+        setModelFileUrl(url);
+        setModelRef(path);
+        toast.success(t("editor.repair.doneTitle"), { description: t("editor.repair.doneBody") });
+      } catch {
+        toast.error(t("editor.repair.failed"));
+      } finally {
+        setRepairing(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modelFileUrl, projectId, user],
+  );
+
 
   /** Sets the job stage and shows a one-time toast for every new stage. */
   function trackStage(stage: JobStage) {
@@ -732,6 +771,13 @@ function EditorPage() {
         <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
           {t("editor.placement.center")}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ tilt: 0 })}>
+          {t("editor.placement.upright")}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0 })}>
+          {t("editor.placement.faceFront")}
+        </Button>
+
         <Button
           size="sm"
           variant="outline"
@@ -1066,9 +1112,65 @@ function EditorPage() {
                       </p>
                     </div>
                   ) : null}
+                  {modelFileUrl ? (
+                    <div className="space-y-3 rounded-lg border border-border p-4">
+                      <p className="text-sm font-semibold">{t("editor.repair.title")}</p>
+                      <p className="text-xs text-muted-foreground">{t("editor.repair.body")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" disabled={repairing} onClick={() => void runRepair("light")}>
+                          {repairing ? t("editor.repair.working") : t("editor.repair.light")}
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={repairing} onClick={() => void runRepair("full")}>
+                          {t("editor.repair.full")}
+                        </Button>
+                      </div>
+                      {repair ? (
+                        <div className="space-y-1 rounded-md bg-muted/60 p-3 text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.triangles")}</span>
+                            <span>
+                              {repair.before.triangles.toLocaleString()} → {repair.after.triangles.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.openEdges")}</span>
+                            <span>
+                              {repair.before.openEdges.toLocaleString()} → {repair.after.openEdges.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.watertightRow")}</span>
+                            <span>
+                              {t(repair.before.watertight ? "editor.repair.yes" : "editor.repair.no")} →{" "}
+                              <strong>{t(repair.after.watertight ? "editor.repair.yes" : "editor.repair.no")}</strong>
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.filled")}</span>
+                            <span>{repair.filledHoles.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.removed")}</span>
+                            <span>{repair.removedTriangles.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {modelFileUrl ? (
+                    <SlicePreview
+                      modelUrl={modelFileUrl}
+                      heightMm={heightMm}
+                      settings={sliceSettings}
+                      onSettingsChange={setSliceSettings}
+                    />
+                  ) : null}
+
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
                   </Button>
+
                   {placementPanel}
 
                   <Button className="w-full" onClick={() => setStep("configure")}>
