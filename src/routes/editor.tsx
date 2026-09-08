@@ -771,6 +771,13 @@ function EditorPage() {
         <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0, tilt: 0, lift: 0 })}>
           {t("editor.placement.center")}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ tilt: 0 })}>
+          {t("editor.placement.upright")}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setPlacement({ yaw: 0 })}>
+          {t("editor.placement.faceFront")}
+        </Button>
+
         <Button
           size="sm"
           variant="outline"
