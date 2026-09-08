@@ -20,6 +20,31 @@ export const getModelUrl = createServerFn({ method: "POST" })
   });
 
 /**
+ * Points a project at a repaired copy of its model. The file itself is
+ * uploaded by the browser into the caller's own storage folder; here we only
+ * verify ownership of both the project and the path before switching to it.
+ */
+export const saveRepairedModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { projectId: string; storagePath: string }) => {
+    if (!input?.projectId || !input?.storagePath) throw new Error("projectId and storagePath required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (!data.storagePath.startsWith(`${userId}/`)) throw new Error("Not allowed");
+    const { error } = await supabase
+      .from("projects")
+      .update({ model_url: data.storagePath })
+      .eq("id", data.projectId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, storagePath: data.storagePath };
+  });
+
+
+
+/**
  * Deletes a project and its stored files. Projects that already back an order
  * are kept, so invoicing and paid downloads never lose their source.
  */
