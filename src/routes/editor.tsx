@@ -117,6 +117,12 @@ function EditorPage() {
   const [engines, setEngines] = useState<EngineInfo[]>([{ id: "trellis", label: "TRELLIS.2", premium: false }]);
   /** Pre-approval print check of the generated mesh. */
   const [meshReport, setMeshReport] = useState<MeshReport | "checking" | "failed" | null>(null);
+  /** Signed URL of the stored model, shared by the print check, repair and slicing. */
+  const [modelFileUrl, setModelFileUrl] = useState<string | null>(null);
+  /** Result of an optional repair run, kept so before/after stays visible. */
+  const [repair, setRepair] = useState<RepairResult | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [sliceSettings, setSliceSettings] = useState<SliceSettings>(DEFAULT_SLICE);
 
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
@@ -132,8 +138,10 @@ function EditorPage() {
     let cancelled = false;
     setMeshReport("checking");
     void getModelUrl({ data: { storagePath: modelRef } })
-      .then(({ url }) => analyzeModelUrl(url))
-      .then((report) => {
+      .then(async ({ url }) => {
+        if (cancelled) return;
+        setModelFileUrl(url);
+        const report = await analyzeModelUrl(url);
         if (!cancelled) setMeshReport(report);
       })
       .catch(() => {
@@ -143,6 +151,33 @@ function EditorPage() {
       cancelled = true;
     };
   }, [step, modelRef]);
+
+  /** Runs the optional repair, stores the fixed GLB and switches the project to it. */
+  const runRepair = useCallback(
+    async (level: "light" | "full") => {
+      if (!modelFileUrl || !projectId || !user) return;
+      setRepairing(true);
+      try {
+        const result = await repairModelUrl(modelFileUrl, level);
+        const path = `${user.id}/${projectId}-repaired.glb`;
+        await uploadWithProgress({ bucket: "portrait-models", path, body: result.blob, contentType: "model/gltf-binary" });
+        await saveRepairedModel({ data: { projectId, storagePath: path } });
+        setRepair(result);
+        setMeshReport(result.after);
+        const { url } = await getModelUrl({ data: { storagePath: path } });
+        setModelFileUrl(url);
+        setModelRef(path);
+        toast.success(t("editor.repair.doneTitle"), { description: t("editor.repair.doneBody") });
+      } catch {
+        toast.error(t("editor.repair.failed"));
+      } finally {
+        setRepairing(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [modelFileUrl, projectId, user],
+  );
+
 
   /** Sets the job stage and shows a one-time toast for every new stage. */
   function trackStage(stage: JobStage) {
