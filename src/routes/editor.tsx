@@ -40,6 +40,10 @@ import {
 import { getModelUrl, removeBackground } from "@/lib/studio.functions";
 import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
 import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
+import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
+import { SlicePreview } from "@/components/studio/SlicePreview";
+import { saveRepairedModel } from "@/lib/studio.functions";
+import { DEFAULT_SLICE, type SliceSettings } from "@/lib/slicing";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
 import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
