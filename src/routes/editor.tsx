@@ -155,6 +155,7 @@ function EditorPage() {
   /** Runs the optional repair, stores the fixed GLB and switches the project to it. */
   const runRepair = useCallback(
     async (level: "light" | "full") => {
+      const projectId = sessionStorage.getItem("relievo:project");
       if (!modelFileUrl || !projectId || !user) return;
       setRepairing(true);
       try {
@@ -175,7 +176,8 @@ function EditorPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [modelFileUrl, projectId, user],
+    [modelFileUrl, user],
+
   );
 
 
