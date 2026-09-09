@@ -1163,7 +1163,7 @@ function EditorPage() {
                   {modelFileUrl ? (
                     <SlicePreview
                       modelUrl={modelFileUrl}
-                      heightMm={heightMm}
+                      heightMm={heightMm ?? 180}
                       settings={sliceSettings}
                       onSettingsChange={setSliceSettings}
                     />
