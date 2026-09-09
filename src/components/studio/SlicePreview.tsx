@@ -2,6 +2,10 @@
  * Pre-print slicing preview: draws the sliced layers of the approved model on a
  * canvas, with layer height, infill and support settings and the resulting
  * estimates. Slicing runs in the browser on the same GLB that gets exported.
+ *
+ * The model is parsed once; afterwards moving a slider only recomputes cheap
+ * statistics and the outline of the single layer on screen, so the editor stays
+ * responsive even while dragging.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, Layers } from "lucide-react";
@@ -9,7 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_SLICE, sliceModelUrl, type SliceResult, type SliceSettings } from "@/lib/slicing";
+import {
+  DEFAULT_SLICE,
+  computeStats,
+  createSlicer,
+  prepareModel,
+  type LayerSlicer,
+  type PreparedModel,
+  type SliceSettings,
+  type SliceStats,
+} from "@/lib/slicing";
 
 type Props = {
   /** Signed URL of the stored GLB. */
@@ -17,17 +30,21 @@ type Props = {
   heightMm: number;
   settings?: SliceSettings;
   onSettingsChange?: (settings: SliceSettings) => void;
+  /** Reports the current estimates so the page can compare runs. */
+  onStats?: (stats: SliceStats) => void;
 };
 
-export function SlicePreview({ modelUrl, heightMm, settings: external, onSettingsChange }: Props) {
+export function SlicePreview({ modelUrl, heightMm, settings: external, onSettingsChange, onStats }: Props) {
   const { t } = useI18n();
   const [settings, setSettings] = useState<SliceSettings>(external ?? DEFAULT_SLICE);
-  const [result, setResult] = useState<SliceResult | null>(null);
+  const [model, setModel] = useState<PreparedModel | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const statsRef = useRef(onStats);
+  statsRef.current = onStats;
 
   const update = useCallback(
     (patch: Partial<SliceSettings>) => {
@@ -40,84 +57,115 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
     [onSettingsChange],
   );
 
+  // A new model file (for example after a repair) invalidates the parse.
+  useEffect(() => {
+    setModel(null);
+    setPlaying(false);
+  }, [modelUrl, heightMm]);
+
   const run = useCallback(async () => {
     setBusy(true);
     setFailed(false);
     try {
-      const sliced = await sliceModelUrl(modelUrl, heightMm, settings);
-      setResult(sliced);
-      setCurrent(Math.floor(sliced.layers.length / 2));
+      const prepared = await prepareModel(modelUrl, heightMm);
+      setModel(prepared);
     } catch {
       setFailed(true);
     } finally {
       setBusy(false);
     }
-  }, [modelUrl, heightMm, settings]);
+  }, [modelUrl, heightMm]);
 
-  // Re-slice when a parameter changes, but only once a first run exists.
+  // Statistics are a single cheap pass — recompute them on every change.
+  const stats = useMemo(() => (model ? computeStats(model, settings) : null), [model, settings]);
   useEffect(() => {
-    if (!result) return;
-    const timer = setTimeout(() => void run(), 400);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.layerHeightMm, settings.infill, settings.supports, settings.overhangDeg]);
+    if (stats) statsRef.current?.(stats);
+  }, [stats]);
+
+  // The bucket index only depends on the layer height, so it is rebuilt rarely.
+  const [slicer, setSlicer] = useState<LayerSlicer | null>(null);
+  useEffect(() => {
+    if (!model) {
+      setSlicer(null);
+      return;
+    }
+    let cancelled = false;
+    // Defer so a fast slider drag does not rebuild the index on every frame.
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      setSlicer(createSlicer(model, settings));
+    }, 120);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [model, settings.layerHeightMm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the scrub position valid when the layer count changes.
+  useEffect(() => {
+    if (!slicer) return;
+    setCurrent((index) => (index === 0 ? Math.floor(slicer.layerCount / 2) : Math.min(index, slicer.layerCount - 1)));
+  }, [slicer]);
 
   useEffect(() => {
-    if (!playing || !result) return;
+    if (!playing || !slicer) return;
     const timer = setInterval(() => {
-      setCurrent((index) => (index + 1) % result.layers.length);
+      setCurrent((index) => (index + 1) % slicer.layerCount);
     }, 60);
     return () => clearInterval(timer);
-  }, [playing, result]);
+  }, [playing, slicer]);
 
-  const layer = result?.layers[Math.min(current, result.layers.length - 1)] ?? null;
-
-  // Draw the active layer plus a few faded layers below for depth.
+  // Draw the active layer plus a few faded layers below for depth, on a frame.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !result || !layer) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+    if (!canvas || !slicer) return;
+    let frame = 0;
+    frame = requestAnimationFrame(() => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, height);
 
-    const { minX, maxX, minY, maxY } = result.bounds;
-    const spanX = Math.max(1, maxX - minX);
-    const spanY = Math.max(1, maxY - minY);
-    const scale = Math.min(width / spanX, height / spanY) * 0.85;
-    const offsetX = width / 2 - ((minX + maxX) / 2) * scale;
-    const offsetY = height / 2 + ((minY + maxY) / 2) * scale;
-    const px = (x: number) => offsetX + x * scale;
-    const py = (y: number) => offsetY - y * scale;
+      const { minX, maxX, minY, maxY } = slicer.bounds;
+      const spanX = Math.max(1, maxX - minX);
+      const spanY = Math.max(1, maxY - minY);
+      const scale = Math.min(width / spanX, height / spanY) * 0.85;
+      const offsetX = width / 2 - ((minX + maxX) / 2) * scale;
+      const offsetY = height / 2 + ((minY + maxY) / 2) * scale;
+      const px = (x: number) => offsetX + x * scale;
+      const py = (y: number) => offsetY - y * scale;
 
-    const draw = (segments: Float32Array, alpha: number, lineWidth: number) => {
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth = lineWidth;
-      ctx.beginPath();
-      for (let i = 0; i < segments.length; i += 4) {
-        ctx.moveTo(px(segments[i]!), py(segments[i + 1]!));
-        ctx.lineTo(px(segments[i + 2]!), py(segments[i + 3]!));
+      const draw = (segments: Float32Array, alpha: number, lineWidth: number) => {
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        for (let i = 0; i < segments.length; i += 4) {
+          ctx.moveTo(px(segments[i]!), py(segments[i + 1]!));
+          ctx.lineTo(px(segments[i + 2]!), py(segments[i + 3]!));
+        }
+        ctx.stroke();
+      };
+
+      const styles = getComputedStyle(canvas);
+      ctx.strokeStyle = styles.getPropertyValue("color") || "currentColor";
+      const index = Math.min(current, slicer.layerCount - 1);
+      const gap = Math.max(1, Math.round(slicer.layerCount / 200));
+      for (let back = 3; back >= 1; back--) {
+        const below = index - back * gap;
+        if (below >= 0) draw(slicer.layer(below).segments, 0.06 * (4 - back), 1);
       }
-      ctx.stroke();
-    };
+      draw(slicer.layer(index).segments, 1, 1.6);
+      ctx.globalAlpha = 1;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [slicer, current]);
 
-    const styles = getComputedStyle(canvas);
-    ctx.strokeStyle = styles.getPropertyValue("color") || "currentColor";
-    const index = result.layers.indexOf(layer);
-    for (let back = 6; back >= 1; back--) {
-      const previous = result.layers[index - back];
-      if (previous) draw(previous.segments, 0.08 * (7 - back) * 0.3, 1);
-    }
-    draw(layer.segments, 1, 1.6);
-    ctx.globalAlpha = 1;
-  }, [layer, result]);
-
-  const stats = result?.stats;
+  const layer = slicer ? slicer.layer(Math.min(current, slicer.layerCount - 1)) : null;
   const number = useMemo(() => new Intl.NumberFormat(), []);
 
   return (
@@ -127,14 +175,14 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
           <Layers className="size-4" aria-hidden />
           {t("editor.slice.title")}
         </p>
-        {result ? (
+        {slicer ? (
           <Button size="sm" variant="ghost" onClick={() => setPlaying((p) => !p)}>
             {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
           </Button>
         ) : null}
       </div>
 
-      {!result ? (
+      {!model ? (
         <>
           <p className="text-xs text-muted-foreground">{t("editor.slice.intro")}</p>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
@@ -145,20 +193,20 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
 
       {failed ? <p className="text-xs text-destructive">{t("editor.slice.failed")}</p> : null}
 
-      {result && layer ? (
+      {slicer && layer ? (
         <>
           <canvas ref={canvasRef} className="h-56 w-full rounded-md bg-muted text-primary" />
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>
-                {t("editor.slice.layer")} {number.format(layer.index + 1)} / {number.format(result.stats.layerCount)}
+                {t("editor.slice.layer")} {number.format(layer.index + 1)} / {number.format(slicer.layerCount)}
               </span>
               <span>{layer.zMm.toFixed(2)} mm</span>
             </div>
             <Slider
-              value={[Math.min(current, result.layers.length - 1)]}
+              value={[Math.min(current, slicer.layerCount - 1)]}
               min={0}
-              max={Math.max(0, result.layers.length - 1)}
+              max={Math.max(0, slicer.layerCount - 1)}
               step={1}
               onValueChange={([value]) => setCurrent(value ?? 0)}
             />
