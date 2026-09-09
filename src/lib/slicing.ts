@@ -85,7 +85,7 @@ export async function sliceModelUrl(
     const count = index ? index.count : position.count;
     for (let i = 0; i < count; i++) {
       const vi = index ? index.getX(i) : i;
-      v.fromBufferAttribute(position, vi).applyMatrix4(mesh.matrixWorld);
+      v.fromBufferAttribute(position as InstanceType<typeof THREE.BufferAttribute>, vi).applyMatrix4(mesh.matrixWorld);
       // x/y stay the plate plane; the model's y becomes the print height z.
       tris.push((v.x - box.min.x) * scale, (v.z - box.min.z) * scale, (v.y - box.min.y) * scale);
     }

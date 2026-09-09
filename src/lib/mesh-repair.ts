@@ -43,7 +43,7 @@ export async function repairModelUrl(url: string, level: "light" | "full" = "lig
   });
 
   for (const mesh of meshes) {
-    let geometry = mesh.geometry as InstanceType<typeof THREE.BufferGeometry>;
+    let geometry = mesh.geometry as unknown as import("three").BufferGeometry;
     // Weld: the tolerance is relative to the model, which is unit-less here.
     geometry = utils.mergeVertices(geometry, level === "full" ? 1e-3 : 1e-5);
 
