@@ -43,7 +43,12 @@ import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
 import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
 import { SlicePreview } from "@/components/studio/SlicePreview";
 import { saveRepairedModel } from "@/lib/studio.functions";
-import { DEFAULT_SLICE, type SliceSettings } from "@/lib/slicing";
+import { DEFAULT_SLICE, type SliceSettings, type SliceStats } from "@/lib/slicing";
+
+/** "1 h 20 min" from a minute count, used by the slicing comparison. */
+function formatMinutes(minutes: number): string {
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
 import { clearDraft, loadDraft, saveDraft } from "@/lib/studio-draft";
 import { useEditorHistory } from "@/lib/use-editor-history";
 import { placementMetrics, formatMm, toMm, snapToGrid, SNAP_STEP_MM } from "@/lib/placement-metrics";
@@ -123,6 +128,16 @@ function EditorPage() {
   const [repair, setRepair] = useState<RepairResult | null>(null);
   const [repairing, setRepairing] = useState(false);
   const [sliceSettings, setSliceSettings] = useState<SliceSettings>(DEFAULT_SLICE);
+  /** Stored path of the untouched generated mesh, so the choice can be undone. */
+  const [originalRef, setOriginalRef] = useState<string | null>(null);
+  /** Stored path of the repaired copy, once one exists. */
+  const [repairedRef, setRepairedRef] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+  /** Latest slicing estimates, and the snapshot taken before the repair ran. */
+  const [sliceStats, setSliceStats] = useState<SliceStats | null>(null);
+  const [sliceBefore, setSliceBefore] = useState<{ stats: SliceStats; watertight: boolean } | null>(null);
+  const sliceStatsRef = useRef<SliceStats | null>(null);
+  sliceStatsRef.current = sliceStats;
 
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
@@ -137,6 +152,7 @@ function EditorPage() {
     if (step !== "preview" || !modelRef || modelRef.startsWith("sample://")) return;
     let cancelled = false;
     setMeshReport("checking");
+    if (!modelRef.endsWith("-repaired.glb")) setOriginalRef((prev) => prev ?? modelRef);
     void getModelUrl({ data: { storagePath: modelRef } })
       .then(async ({ url }) => {
         if (cancelled) return;
@@ -159,14 +175,18 @@ function EditorPage() {
       if (!modelFileUrl || !projectId || !user) return;
       setRepairing(true);
       try {
+        // Snapshot the current estimates so the before/after comparison is real.
+        const beforeStats = sliceStatsRef.current;
         const result = await repairModelUrl(modelFileUrl, level);
         const path = `${user.id}/${projectId}-repaired.glb`;
         await uploadWithProgress({ bucket: "portrait-models", path, body: result.blob, contentType: "model/gltf-binary" });
         await saveRepairedModel({ data: { projectId, storagePath: path } });
+        if (beforeStats) setSliceBefore({ stats: beforeStats, watertight: result.before.watertight });
         setRepair(result);
         setMeshReport(result.after);
         const { url } = await getModelUrl({ data: { storagePath: path } });
         setModelFileUrl(url);
+        setRepairedRef(path);
         setModelRef(path);
         toast.success(t("editor.repair.doneTitle"), { description: t("editor.repair.doneBody") });
       } catch {
@@ -177,8 +197,37 @@ function EditorPage() {
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [modelFileUrl, user],
-
   );
+
+  /**
+   * Switches the project between the original and the repaired mesh. Exports and
+   * paid downloads always read the project's stored file, so this choice is what
+   * the customer receives.
+   */
+  const useMesh = useCallback(
+    async (choice: "original" | "repaired") => {
+      const projectId = sessionStorage.getItem("relievo:project");
+      const path = choice === "original" ? originalRef : repairedRef;
+      if (!projectId || !path || path === modelRef) return;
+      setSwitching(true);
+      try {
+        await saveRepairedModel({ data: { projectId, storagePath: path } });
+        const { url } = await getModelUrl({ data: { storagePath: path } });
+        setModelFileUrl(url);
+        setModelRef(path);
+        if (repair) setMeshReport(choice === "original" ? repair.before : repair.after);
+        toast.success(t(choice === "original" ? "editor.repair.usingOriginal" : "editor.repair.usingRepaired"));
+      } catch {
+        toast.error(t("editor.repair.switchFailed"));
+      } finally {
+        setSwitching(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [originalRef, repairedRef, modelRef, repair],
+  );
+
+
 
 
   /** Sets the job stage and shows a one-time toast for every new stage. */
@@ -1157,6 +1206,64 @@ function EditorPage() {
                           </div>
                         </div>
                       ) : null}
+
+                      {repairedRef && originalRef ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium">{t("editor.repair.useTitle")}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant={modelRef === originalRef ? "default" : "outline"}
+                              disabled={switching}
+                              onClick={() => void useMesh("original")}
+                            >
+                              {t("editor.repair.useOriginal")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={modelRef === repairedRef ? "default" : "outline"}
+                              disabled={switching}
+                              onClick={() => void useMesh("repaired")}
+                            >
+                              {t("editor.repair.useRepaired")}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {t(modelRef === originalRef ? "editor.repair.exportOriginal" : "editor.repair.exportRepaired")}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {sliceBefore && sliceStats && repair ? (
+                        <div className="space-y-1 rounded-md border border-border p-3 text-xs">
+                          <p className="font-medium">{t("editor.slice.compareTitle")}</p>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.layers")}</span>
+                            <span>
+                              {sliceBefore.stats.layerCount.toLocaleString()} → {sliceStats.layerCount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.watertightRow")}</span>
+                            <span>
+                              {t(sliceBefore.watertight ? "editor.repair.yes" : "editor.repair.no")} →{" "}
+                              <strong>{t(repair.after.watertight ? "editor.repair.yes" : "editor.repair.no")}</strong>
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.time")}</span>
+                            <span>
+                              {formatMinutes(sliceBefore.stats.printMinutes)} → {formatMinutes(sliceStats.printMinutes)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.material")}</span>
+                            <span>
+                              {sliceBefore.stats.materialGrams.toFixed(1)} g → {sliceStats.materialGrams.toFixed(1)} g
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -1166,8 +1273,10 @@ function EditorPage() {
                       heightMm={heightMm ?? 180}
                       settings={sliceSettings}
                       onSettingsChange={setSliceSettings}
+                      onStats={setSliceStats}
                     />
                   ) : null}
+
 
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
