@@ -1327,8 +1327,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
+const FALLBACK_I18N: I18nValue = {
+  locale: "cs",
+  setLocale: () => {},
+  currency: "czk",
+  setCurrency: () => {},
+  money: (cents: number) => formatPrice(cents, "czk", "cs-CZ"),
+  t: (key, vars) => {
+    const template = DICTIONARIES.cs[key] ?? en[key] ?? key;
+    if (!vars) return template;
+    return Object.entries(vars).reduce(
+      (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+      template,
+    );
+  },
+};
+
 export function useI18n(): I18nValue {
   const context = useContext(I18nContext);
-  if (!context) throw new Error("useI18n must be used inside I18nProvider");
-  return context;
+  return context ?? FALLBACK_I18N;
 }
