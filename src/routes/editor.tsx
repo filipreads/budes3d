@@ -123,6 +123,16 @@ function EditorPage() {
   const [repair, setRepair] = useState<RepairResult | null>(null);
   const [repairing, setRepairing] = useState(false);
   const [sliceSettings, setSliceSettings] = useState<SliceSettings>(DEFAULT_SLICE);
+  /** Stored path of the untouched generated mesh, so the choice can be undone. */
+  const [originalRef, setOriginalRef] = useState<string | null>(null);
+  /** Stored path of the repaired copy, once one exists. */
+  const [repairedRef, setRepairedRef] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+  /** Latest slicing estimates, and the snapshot taken before the repair ran. */
+  const [sliceStats, setSliceStats] = useState<SliceStats | null>(null);
+  const [sliceBefore, setSliceBefore] = useState<{ stats: SliceStats; watertight: boolean } | null>(null);
+  const sliceStatsRef = useRef<SliceStats | null>(null);
+  sliceStatsRef.current = sliceStats;
 
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
@@ -137,6 +147,7 @@ function EditorPage() {
     if (step !== "preview" || !modelRef || modelRef.startsWith("sample://")) return;
     let cancelled = false;
     setMeshReport("checking");
+    if (!modelRef.endsWith("-repaired.glb")) setOriginalRef((prev) => prev ?? modelRef);
     void getModelUrl({ data: { storagePath: modelRef } })
       .then(async ({ url }) => {
         if (cancelled) return;
@@ -159,14 +170,18 @@ function EditorPage() {
       if (!modelFileUrl || !projectId || !user) return;
       setRepairing(true);
       try {
+        // Snapshot the current estimates so the before/after comparison is real.
+        const beforeStats = sliceStatsRef.current;
         const result = await repairModelUrl(modelFileUrl, level);
         const path = `${user.id}/${projectId}-repaired.glb`;
         await uploadWithProgress({ bucket: "portrait-models", path, body: result.blob, contentType: "model/gltf-binary" });
         await saveRepairedModel({ data: { projectId, storagePath: path } });
+        if (beforeStats) setSliceBefore({ stats: beforeStats, watertight: result.before.watertight });
         setRepair(result);
         setMeshReport(result.after);
         const { url } = await getModelUrl({ data: { storagePath: path } });
         setModelFileUrl(url);
+        setRepairedRef(path);
         setModelRef(path);
         toast.success(t("editor.repair.doneTitle"), { description: t("editor.repair.doneBody") });
       } catch {
@@ -177,8 +192,37 @@ function EditorPage() {
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [modelFileUrl, user],
-
   );
+
+  /**
+   * Switches the project between the original and the repaired mesh. Exports and
+   * paid downloads always read the project's stored file, so this choice is what
+   * the customer receives.
+   */
+  const useMesh = useCallback(
+    async (choice: "original" | "repaired") => {
+      const projectId = sessionStorage.getItem("relievo:project");
+      const path = choice === "original" ? originalRef : repairedRef;
+      if (!projectId || !path || path === modelRef) return;
+      setSwitching(true);
+      try {
+        await saveRepairedModel({ data: { projectId, storagePath: path } });
+        const { url } = await getModelUrl({ data: { storagePath: path } });
+        setModelFileUrl(url);
+        setModelRef(path);
+        if (repair) setMeshReport(choice === "original" ? repair.before : repair.after);
+        toast.success(t(choice === "original" ? "editor.repair.usingOriginal" : "editor.repair.usingRepaired"));
+      } catch {
+        toast.error(t("editor.repair.switchFailed"));
+      } finally {
+        setSwitching(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [originalRef, repairedRef, modelRef, repair],
+  );
+
+
 
 
   /** Sets the job stage and shows a one-time toast for every new stage. */
