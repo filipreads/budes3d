@@ -1253,7 +1253,14 @@ type I18nValue = {
   t: (key: TranslationKey, vars?: Record<string, string | number>) => string;
 };
 
-const I18nContext = createContext<I18nValue | null>(null);
+// Kept on globalThis so hot-reloads reuse the same context instance
+// instead of creating a second one that would look "missing" to consumers.
+const globalScope = globalThis as typeof globalThis & {
+  __i18nContext?: React.Context<I18nValue | null>;
+};
+const I18nContext =
+  globalScope.__i18nContext ?? createContext<I18nValue | null>(null);
+globalScope.__i18nContext = I18nContext;
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("cs");
