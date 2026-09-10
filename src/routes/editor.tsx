@@ -1201,6 +1201,64 @@ function EditorPage() {
                           </div>
                         </div>
                       ) : null}
+
+                      {repairedRef && originalRef ? (
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium">{t("editor.repair.useTitle")}</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              variant={modelRef === originalRef ? "default" : "outline"}
+                              disabled={switching}
+                              onClick={() => void useMesh("original")}
+                            >
+                              {t("editor.repair.useOriginal")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={modelRef === repairedRef ? "default" : "outline"}
+                              disabled={switching}
+                              onClick={() => void useMesh("repaired")}
+                            >
+                              {t("editor.repair.useRepaired")}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {t(modelRef === originalRef ? "editor.repair.exportOriginal" : "editor.repair.exportRepaired")}
+                          </p>
+                        </div>
+                      ) : null}
+
+                      {sliceBefore && sliceStats && repair ? (
+                        <div className="space-y-1 rounded-md border border-border p-3 text-xs">
+                          <p className="font-medium">{t("editor.slice.compareTitle")}</p>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.layers")}</span>
+                            <span>
+                              {sliceBefore.stats.layerCount.toLocaleString()} → {sliceStats.layerCount.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.repair.watertightRow")}</span>
+                            <span>
+                              {t(sliceBefore.watertight ? "editor.repair.yes" : "editor.repair.no")} →{" "}
+                              <strong>{t(repair.after.watertight ? "editor.repair.yes" : "editor.repair.no")}</strong>
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.time")}</span>
+                            <span>
+                              {formatMinutes(sliceBefore.stats.printMinutes)} → {formatMinutes(sliceStats.printMinutes)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{t("editor.slice.material")}</span>
+                            <span>
+                              {sliceBefore.stats.materialGrams.toFixed(1)} g → {sliceStats.materialGrams.toFixed(1)} g
+                            </span>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 
@@ -1210,8 +1268,10 @@ function EditorPage() {
                       heightMm={heightMm ?? 180}
                       settings={sliceSettings}
                       onSettingsChange={setSliceSettings}
+                      onStats={setSliceStats}
                     />
                   ) : null}
+
 
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {t("editor.regenerate")}
