@@ -180,8 +180,8 @@ function fillHoles(geometry: import("three").BufferGeometry, THREE: typeof impor
         extended[i * itemSize + c] = attribute.getComponent(i, c);
       }
     }
-    centreLoops.forEach((loop, index) => {
-      const target = (attribute.count + index) * itemSize;
+    centreLoops.forEach((loop, slot) => {
+      const target = (attribute.count + slot) * itemSize;
       for (let c = 0; c < itemSize; c++) {
         let sum = 0;
         for (const vertex of loop) sum += attribute.getComponent(vertex, c);
