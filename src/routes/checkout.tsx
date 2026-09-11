@@ -58,7 +58,18 @@ function CheckoutPage() {
     if (useSaved && profile?.shippingAddress) setAddress(profile.shippingAddress);
   }, [profile, useSaved]);
 
-  const priced = useMemo(() => quote(config, currency), [config, currency]);
+  // Premium engine runs are billed once per project, on top of the configured piece.
+  const [extras, setExtras] = useState<LineItem[]>([]);
+  useEffect(() => {
+    if (!projectId) { setExtras([]); return; }
+    let cancelled = false;
+    void getPremiumCharge({ data: { projectId, currency } })
+      .then((result) => { if (!cancelled) setExtras(result.lineItems as LineItem[]); })
+      .catch(() => { if (!cancelled) setExtras([]); });
+    return () => { cancelled = true; };
+  }, [projectId, currency]);
+
+  const priced = useMemo(() => quote(config, currency, extras), [config, currency, extras]);
 
   async function pay() {
     if (!projectId) { toast.error(t("checkout.startFirst")); return; }
