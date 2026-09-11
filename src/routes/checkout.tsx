@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
-import { DEFAULT_CONFIG, quote, sanitizeConfig, type StudioConfig } from "@/lib/pricing";
-import { createOrder } from "@/lib/studio.functions";
+import { DEFAULT_CONFIG, quote, sanitizeConfig, type LineItem, type StudioConfig } from "@/lib/pricing";
+import { createOrder, getPremiumCharge } from "@/lib/studio.functions";
 import { updateAccountProfile, EMPTY_SHIPPING_ADDRESS, type ShippingAddress } from "@/lib/account.functions";
 import { useProfile } from "@/hooks/useProfile";
 import { OrderCheckout } from "@/components/payments/OrderCheckout";
@@ -58,7 +58,18 @@ function CheckoutPage() {
     if (useSaved && profile?.shippingAddress) setAddress(profile.shippingAddress);
   }, [profile, useSaved]);
 
-  const priced = useMemo(() => quote(config, currency), [config, currency]);
+  // Premium engine runs are billed once per project, on top of the configured piece.
+  const [extras, setExtras] = useState<LineItem[]>([]);
+  useEffect(() => {
+    if (!projectId) { setExtras([]); return; }
+    let cancelled = false;
+    void getPremiumCharge({ data: { projectId, currency } })
+      .then((result) => { if (!cancelled) setExtras(result.lineItems as LineItem[]); })
+      .catch(() => { if (!cancelled) setExtras([]); });
+    return () => { cancelled = true; };
+  }, [projectId, currency]);
+
+  const priced = useMemo(() => quote(config, currency, extras), [config, currency, extras]);
 
   async function pay() {
     if (!projectId) { toast.error(t("checkout.startFirst")); return; }

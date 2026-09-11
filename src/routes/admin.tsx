@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import ModelStage from "@/components/studio/LazyModelStage";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
-import { formatPrice, sanitizeCurrency } from "@/lib/pricing";
+import { formatPrice, sanitizeDisplayCurrency } from "@/lib/pricing";
 import { listAdminOrders, updateOrderStatus, type AdminEmail, type AdminOrder } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({
@@ -75,9 +75,21 @@ function AdminPage() {
     );
   }
 
-  const paidRevenue = orders
+  // Orders can be stored in different currencies (incl. legacy USD), so revenue
+  // is totalled per currency instead of summing incomparable amounts.
+  const revenueByCurrency = orders
     .filter((order) => order.payment_status === "paid")
-    .reduce((sum, order) => sum + order.total_cents, 0);
+    .reduce<Record<string, number>>((totals, order) => {
+      const key = sanitizeDisplayCurrency(order.currency);
+      totals[key] = (totals[key] ?? 0) + order.total_cents;
+      return totals;
+    }, {});
+  const revenueLabel =
+    Object.keys(revenueByCurrency).length === 0
+      ? formatPrice(0)
+      : Object.entries(revenueByCurrency)
+          .map(([code, cents]) => formatPrice(cents, sanitizeDisplayCurrency(code)))
+          .join(" · ");
   const openOrders = orders.filter(
     (order) => order.fulfilment_status !== "delivered" && order.fulfilment_status !== "cancelled",
   ).length;
@@ -92,7 +104,7 @@ function AdminPage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <Stat label={t("admin.allOrders")} value={String(orders.length)} />
           <Stat label={t("admin.openOrders")} value={String(openOrders)} />
-          <Stat label={t("admin.revenue")} value={formatPrice(paidRevenue)} />
+          <Stat label={t("admin.revenue")} value={revenueLabel} />
         </div>
 
         {state === "loading" ? (
@@ -118,7 +130,7 @@ function AdminPage() {
                   </div>
 
                   <div className="space-y-2 text-sm">
-                    <p className="font-semibold">{formatPrice(order.total_cents, sanitizeCurrency(order.currency))}</p>
+                    <p className="font-semibold">{formatPrice(order.total_cents, sanitizeDisplayCurrency(order.currency))}</p>
                     <StatusRow
                       label={t("admin.payment")}
                       options={PAYMENT_STATES}

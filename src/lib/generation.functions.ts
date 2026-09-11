@@ -199,7 +199,16 @@ export const advanceGeneration = createServerFn({ method: "POST" })
         }
 
         await patch({ generation_stage: "storing", generation_progress: 90 });
-        return await storeModelFromUrl(supabase, userId, project.id, project.generation_started_at, task.modelUrl, "tripo3d", patch);
+        const stored = await storeModelFromUrl(supabase, userId, project.id, project.generation_started_at, task.modelUrl, "tripo3d", patch);
+        // Completed premium runs are billed on the order that follows.
+        const { data: counter } = await supabase
+          .from("projects")
+          .select("premium_generations")
+          .eq("id", project.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+        await patch({ premium_generations: (counter?.premium_generations ?? 0) + 1 });
+        return stored;
       }
 
       // ---- TRELLIS.2 (standard) pipeline ------------------------------------

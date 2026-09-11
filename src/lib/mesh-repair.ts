@@ -137,7 +137,8 @@ function fillHoles(geometry: import("three").BufferGeometry, THREE: typeof impor
 
   const visited = new Set<number>();
   const newTriangles: number[] = [];
-  const extraVertices: number[] = [];
+  /** For each added centre vertex, the loop it was averaged from. */
+  const centreLoops: number[][] = [];
   let nextVertex = position.count;
   let filled = 0;
 
@@ -157,11 +158,8 @@ function fillHoles(geometry: import("three").BufferGeometry, THREE: typeof impor
     if (loop.length < 3 || loop.length > MAX_HOLE_EDGES) continue;
 
     // Fan around the loop centroid — stable for the small holes we allow.
-    const centroid = new THREE.Vector3();
-    for (const v of loop) centroid.add(new THREE.Vector3(position.getX(v), position.getY(v), position.getZ(v)));
-    centroid.multiplyScalar(1 / loop.length);
     const centre = nextVertex++;
-    extraVertices.push(centroid.x, centroid.y, centroid.z);
+    centreLoops.push(loop);
     for (let i = 0; i < loop.length; i++) {
       newTriangles.push(centre, loop[i]!, loop[(i + 1) % loop.length]!);
     }
@@ -170,22 +168,32 @@ function fillHoles(geometry: import("three").BufferGeometry, THREE: typeof impor
 
   if (filled === 0) return 0;
 
-  const merged = new Float32Array(position.count * 3 + extraVertices.length);
-  for (let i = 0; i < position.count; i++) {
-    merged[i * 3] = position.getX(i);
-    merged[i * 3 + 1] = position.getY(i);
-    merged[i * 3 + 2] = position.getZ(i);
+  // Every existing attribute (position, normal, uv, colour, skinning…) is
+  // extended: the new centre vertices take the average of their loop, so
+  // textures and shading survive the repair instead of being thrown away.
+  for (const name of Object.keys(geometry.attributes)) {
+    const attribute = geometry.getAttribute(name);
+    const itemSize = attribute.itemSize;
+    const extended = new Float32Array((attribute.count + centreLoops.length) * itemSize);
+    for (let i = 0; i < attribute.count; i++) {
+      for (let c = 0; c < itemSize; c++) {
+        extended[i * itemSize + c] = attribute.getComponent(i, c);
+      }
+    }
+    centreLoops.forEach((loop, slot) => {
+      const target = (attribute.count + slot) * itemSize;
+      for (let c = 0; c < itemSize; c++) {
+        let sum = 0;
+        for (const vertex of loop) sum += attribute.getComponent(vertex, c);
+        extended[target + c] = sum / loop.length;
+      }
+    });
+    geometry.setAttribute(name, new THREE.BufferAttribute(extended, itemSize, attribute.normalized));
   }
-  merged.set(extraVertices, position.count * 3);
 
   const indices: number[] = [];
   for (let i = 0; i < index.count; i++) indices.push(index.getX(i));
   indices.push(...newTriangles);
-
-  // Filled geometry carries positions only; UVs/normals no longer line up.
-  const attributes = Object.keys(geometry.attributes);
-  for (const name of attributes) if (name !== "position") geometry.deleteAttribute(name);
-  geometry.setAttribute("position", new THREE.BufferAttribute(merged, 3));
   geometry.setIndex(indices);
   return filled;
 }

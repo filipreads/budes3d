@@ -1,4 +1,4 @@
-import { formatPrice, sanitizeCurrency, type LineItem } from "./pricing";
+import { formatPrice, sanitizeDisplayCurrency, type LineItem } from "./pricing";
 
 export type InvoiceOrder = {
   order_number: string;
@@ -48,7 +48,7 @@ function readAddress(value: unknown): string[] {
 /** Renders and downloads a PDF invoice for a single order, entirely in the browser. */
 export async function downloadInvoicePdf(order: InvoiceOrder, labels: Labels) {
   const { jsPDF } = await import("jspdf");
-  const currency = sanitizeCurrency(order.currency);
+  const currency = sanitizeDisplayCurrency(order.currency);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const left = 56;
   const right = 539;
