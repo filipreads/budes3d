@@ -118,7 +118,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const { data: project, error } = await supabase
       .from("projects")
-      .select("id, model_url, status")
+      .select("id, model_url, status, premium_generations")
       .eq("id", data.projectId)
       .eq("user_id", userId)
       .single();
@@ -128,7 +128,9 @@ export const createOrder = createServerFn({ method: "POST" })
     // Prices are always recomputed server-side from the sanitized config.
     const config = sanitizeConfig(data.config);
     const currency = sanitizeCurrency(data.currency);
-    const priced = quote(config, currency);
+    const { premiumExtras } = await import("./premium.server");
+    const extras = await premiumExtras(project.premium_generations ?? 0, currency);
+    const priced = quote(config, currency, extras);
     if (config.delivery === "print" && !data.shippingAddress?.line1) {
       throw new Error("A shipping address is required for printed pieces");
     }
