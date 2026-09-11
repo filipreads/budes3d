@@ -104,7 +104,7 @@ function AdminPage() {
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <Stat label={t("admin.allOrders")} value={String(orders.length)} />
           <Stat label={t("admin.openOrders")} value={String(openOrders)} />
-          <Stat label={t("admin.revenue")} value={formatPrice(paidRevenue)} />
+          <Stat label={t("admin.revenue")} value={revenueLabel} />
         </div>
 
         {state === "loading" ? (
