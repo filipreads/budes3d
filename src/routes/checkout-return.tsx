@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOrderPaymentState } from "@/lib/payments.functions";
-import { formatPrice, sanitizeCurrency } from "@/lib/pricing";
+import { formatPrice, sanitizeDisplayCurrency } from "@/lib/pricing";
 
 
 export const Route = createFileRoute("/checkout-return")({
@@ -69,7 +69,7 @@ function CheckoutReturnPage() {
             </h1>
             {state ? (
               <p className="text-sm text-muted-foreground">
-                {state.order_number} · {formatPrice(state.total_cents, sanitizeCurrency(state.currency))}
+                {state.order_number} · {formatPrice(state.total_cents, sanitizeDisplayCurrency(state.currency))}
               </p>
             ) : null}
             <p className="text-sm text-muted-foreground">

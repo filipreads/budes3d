@@ -5,7 +5,7 @@
  * when RESEND_API_KEY / RESEND_FROM are configured. Without a verified sender
  * domain the row simply stays `queued`, so nothing in the order flow breaks.
  */
-import { formatPrice, sanitizeCurrency, type LineItem } from "./pricing";
+import { formatPrice, sanitizeDisplayCurrency, type LineItem } from "./pricing";
 
 export type EmailLocale = "en" | "cs";
 export type EmailTemplate = "receipt" | "status";
@@ -67,7 +67,7 @@ function escapeHtml(value: string) {
 
 export function renderOrderEmail(input: OrderEmailInput): { subject: string; html: string } {
   const copy = COPY[input.locale];
-  const currency = sanitizeCurrency(input.currency);
+  const currency = sanitizeDisplayCurrency(input.currency);
   const subject =
     input.template === "receipt" ? copy.receiptSubject(input.orderNumber) : copy.statusSubject(input.orderNumber);
 
