@@ -19,6 +19,26 @@ export const getModelUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/** Premium engine fee already earned by a project, for display at checkout. */
+export const getPremiumCharge = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { projectId: string; currency?: string }) => {
+    if (!input?.projectId) throw new Error("projectId required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: project } = await supabase
+      .from("projects")
+      .select("premium_generations")
+      .eq("id", data.projectId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const { premiumExtras } = await import("./premium.server");
+    const lineItems = await premiumExtras(project?.premium_generations ?? 0, sanitizeCurrency(data.currency));
+    return { lineItems };
+  });
+
 /**
  * Points a project at a repaired copy of its model. The file itself is
  * uploaded by the browser into the caller's own storage folder; here we only
