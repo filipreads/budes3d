@@ -181,19 +181,39 @@ export function quote(config: StudioConfig, currency: Currency = "czk", extras: 
   };
 }
 
-/** Formats a minor-unit amount in the studio currency. */
-export function formatPrice(cents: number, currency: Currency = "czk", locale?: string) {
-  const meta = CURRENCIES.find((entry) => entry.id === currency) ?? CURRENCIES[0]!;
+/**
+ * Currencies we can *display*. New orders are only ever priced in CZK or EUR,
+ * but older orders were stored in USD and must keep showing dollars.
+ */
+export type DisplayCurrency = Currency | "usd";
+
+const DISPLAY_META: Record<DisplayCurrency, { code: string; locale: string; digits: number }> = {
+  czk: { code: "CZK", locale: "cs-CZ", digits: 0 },
+  eur: { code: "EUR", locale: "de-DE", digits: 2 },
+  usd: { code: "USD", locale: "en-US", digits: 2 },
+};
+
+/** Formats a minor-unit amount in the currency the order was actually charged in. */
+export function formatPrice(cents: number, currency: DisplayCurrency = "czk", locale?: string) {
+  const meta = DISPLAY_META[currency] ?? DISPLAY_META.czk;
   return new Intl.NumberFormat(locale ?? meta.locale, {
     style: "currency",
     currency: meta.code,
-    maximumFractionDigits: currency === "czk" ? 0 : 2,
-    minimumFractionDigits: currency === "czk" ? 0 : 2,
+    maximumFractionDigits: meta.digits,
+    minimumFractionDigits: meta.digits,
   }).format(cents / 100);
 }
 
+/** For pricing new orders — only currencies we currently sell in. */
 export function sanitizeCurrency(value: unknown): Currency {
   return value === "eur" ? "eur" : "czk";
+}
+
+/** For displaying stored orders, preserving legacy currencies such as USD. */
+export function sanitizeDisplayCurrency(value: unknown): DisplayCurrency {
+  if (value === "eur") return "eur";
+  if (value === "usd") return "usd";
+  return "czk";
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {
