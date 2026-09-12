@@ -20,6 +20,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditorRouteImport } from './routes/editor'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as TrellisTestRouteImport } from './routes/trellis-test'
@@ -84,6 +85,11 @@ const HelpRoute = HelpRouteImport.update({
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
   '/help': typeof HelpRoute
+  '/pricing': typeof PricingRoute
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
   '/help': typeof HelpRoute
+  '/pricing': typeof PricingRoute
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/editor': typeof EditorRoute
   '/help': typeof HelpRoute
+  '/pricing': typeof PricingRoute
   '/projects': typeof ProjectsRoute
   '/share': typeof ShareRoute
   '/trellis-test': typeof TrellisTestRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/editor'
     | '/help'
+    | '/pricing'
     | '/projects'
     | '/share'
     | '/trellis-test'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/editor'
     | '/help'
+    | '/pricing'
     | '/projects'
     | '/share'
     | '/trellis-test'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/editor'
     | '/help'
+    | '/pricing'
     | '/projects'
     | '/share'
     | '/trellis-test'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EditorRoute: typeof EditorRoute
   HelpRoute: typeof HelpRoute
+  PricingRoute: typeof PricingRoute
   ProjectsRoute: typeof ProjectsRoute
   ShareRoute: typeof ShareRoute
   TrellisTestRoute: typeof TrellisTestRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -439,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EditorRoute: EditorRoute,
   HelpRoute: HelpRoute,
+  PricingRoute: PricingRoute,
   ProjectsRoute: ProjectsRoute,
   ShareRoute: ShareRoute,
   TrellisTestRoute: TrellisTestRoute,
