@@ -62,7 +62,18 @@ function LandingPage() {
                     {t("home.openStudio")} <ArrowRight className="ml-1.5 size-4" />
                   </Link>
                 </Button>
+                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                  <Link to="/pricing">{t("home.seePricing")}</Link>
+                </Button>
               </div>
+              <ul className="mt-6 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-5">
+                {(["home.trust1", "home.trust2", "home.trust3"] as const).map((key) => (
+                  <li key={key} className="flex items-center gap-1.5">
+                    <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+                    {t(key)}
+                  </li>
+                ))}
+              </ul>
               <p className="mt-4 text-xs text-muted-foreground">
                 {t("home.priceLine", { digital: money(amount(DIGITAL_PRICE, currency)), print: money(amount(SIZES[0].price, currency)) })}
               </p>
