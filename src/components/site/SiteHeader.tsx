@@ -93,7 +93,7 @@ export function SiteHeader() {
           <span className="font-display text-lg tracking-tight">Relievo Studio</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="hidden items-center gap-5 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.to}
@@ -161,7 +161,7 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           <LanguageSwitcher />
           <CurrencySwitcher />
           <button
@@ -175,7 +175,7 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-border/70 px-5 py-4 md:hidden">
+        <div className="border-t border-border/70 px-5 py-4 lg:hidden">
           <div className="flex flex-col gap-3">
             {NAV.map((item) => (
               <Link key={item.to} to={item.to} onClick={() => setOpen(false)} className="text-sm">
