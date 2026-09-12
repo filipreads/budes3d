@@ -691,7 +691,17 @@ const cs: Record<TranslationKey, string> = {
   "home.ctaBody": "Pro vyzkoušení editoru není potřeba účet — přihlásíte se až při objednávce.",
   "home.ctaButton": "Vytvořit portrét",
 
-  "pricing.heroTitle": "Ceník",
+  "pricing.title": "Ceník",
+  "pricing.digital1": "Vodotěsné soubory GLB a STL",
+  "pricing.digital2": "Síť připravená k tisku, detail 4K",
+  "pricing.digital3": "Osobní i komerční užití",
+  "pricing.from": "od {price}",
+  "pricing.configure": "Nastavit tištěný kus",
+  "pricing.materials": "Materiály",
+  "pricing.extras": "Doplňky",
+  "pricing.engraving": "Gravírování",
+  "pricing.rush": "Expresní výroba",
+  "pricing.shipping": "Doprava",
   "pricing.intro":
     "Každá objednávka zahrnuje 3D rekonstrukci, neomezené generování před schválením a digitální soubory. Tištěné kusy navíc zahrnují materiál, dokončení a dopravu.",
   "pricing.digital": "Digitálně",
