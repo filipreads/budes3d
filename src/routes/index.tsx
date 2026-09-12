@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import heroBust from "@/assets/hero-bust.jpg";
-import { ArrowRight, Camera, Layers, Sparkles, Truck } from "lucide-react";
+import { ArrowRight, Camera, Check, Layers, Sparkles, Truck } from "lucide-react";
 import { DIGITAL_PRICE, SIZES, amount } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
@@ -62,7 +62,18 @@ function LandingPage() {
                     {t("home.openStudio")} <ArrowRight className="ml-1.5 size-4" />
                   </Link>
                 </Button>
+                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                  <Link to="/pricing">{t("home.seePricing")}</Link>
+                </Button>
               </div>
+              <ul className="mt-6 flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-5">
+                {(["home.trust1", "home.trust2", "home.trust3"] as const).map((key) => (
+                  <li key={key} className="flex items-center gap-1.5">
+                    <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+                    {t(key)}
+                  </li>
+                ))}
+              </ul>
               <p className="mt-4 text-xs text-muted-foreground">
                 {t("home.priceLine", { digital: money(amount(DIGITAL_PRICE, currency)), print: money(amount(SIZES[0].price, currency)) })}
               </p>
@@ -104,6 +115,38 @@ function LandingPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        </section>
+
+        <section className="mx-auto w-full max-w-6xl px-5 py-14 sm:py-16">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div className="min-w-0">
+              <h2 className="text-balance-tight font-display text-2xl sm:text-3xl">{t("home.pricingTitle")}</h2>
+              <p className="mt-2 max-w-lg text-sm text-muted-foreground">{t("home.pricingLead")}</p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0">
+              <Link to="/pricing">{t("home.seePricing")}</Link>
+            </Button>
+          </div>
+          <div className="mt-7 grid gap-4 md:grid-cols-2">
+            <Card className="elevate panel-edge bg-card/70">
+              <CardContent className="p-6">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t("pricing.digitalTag")}</p>
+                <h3 className="mt-2 font-display text-xl">{t("pricing.digitalTitle")}</h3>
+                <p className="mt-3 font-display text-2xl">{money(amount(DIGITAL_PRICE, currency))}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{t("pricing.digital1")}</p>
+              </CardContent>
+            </Card>
+            <Card className="elevate bg-card/70">
+              <CardContent className="p-6">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">{t("pricing.printTag")}</p>
+                <h3 className="mt-2 font-display text-xl">{t("pricing.printTitle")}</h3>
+                <p className="mt-3 font-display text-2xl">
+                  {t("pricing.from", { price: money(amount(SIZES[0].price, currency)) })}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">{t("pricing.print2")}</p>
+              </CardContent>
+            </Card>
           </div>
         </section>
 

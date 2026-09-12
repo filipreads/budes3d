@@ -15,9 +15,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n, type Locale, type TranslationKey } from "@/lib/i18n";
 
-const NAV: { to: "/" | "/editor"; labelKey: TranslationKey }[] = [
+const NAV: { to: "/" | "/editor" | "/pricing" | "/help" | "/contact"; labelKey: TranslationKey }[] = [
   { to: "/", labelKey: "nav.home" },
   { to: "/editor", labelKey: "nav.studio" },
+  { to: "/pricing", labelKey: "nav.pricing" },
+  { to: "/help", labelKey: "nav.help" },
+  { to: "/contact", labelKey: "nav.contact" },
 ];
 
 function LanguageSwitcher() {
@@ -90,7 +93,7 @@ export function SiteHeader() {
           <span className="font-display text-lg tracking-tight">Relievo Studio</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 md:flex">
+        <nav className="hidden items-center gap-5 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.to}
@@ -158,7 +161,7 @@ export function SiteHeader() {
           </Link>
         </nav>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
           <LanguageSwitcher />
           <CurrencySwitcher />
           <button
@@ -172,7 +175,7 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-border/70 px-5 py-4 md:hidden">
+        <div className="border-t border-border/70 px-5 py-4 lg:hidden">
           <div className="flex flex-col gap-3">
             {NAV.map((item) => (
               <Link key={item.to} to={item.to} onClick={() => setOpen(false)} className="text-sm">
