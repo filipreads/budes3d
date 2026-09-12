@@ -49,7 +49,7 @@ function PricingPage() {
       <main className="flex-1">
         <section className="surface-glow border-b border-border">
           <div className="mx-auto w-full max-w-6xl px-5 py-14 text-center sm:py-20">
-            <h1 className="text-balance-tight font-display text-3xl sm:text-5xl">{t("pricing.title")}</h1>
+            <h1 className="text-balance-tight font-display text-3xl sm:text-5xl">{t("pricing.heroTitle")}</h1>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">{t("pricing.lead")}</p>
           </div>
         </section>
