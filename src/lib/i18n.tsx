@@ -304,6 +304,8 @@ const en = {
   "account.shareOff": "Stop sharing",
   "account.shareStopped": "Sharing turned off",
   "account.viewShare": "Open shared view",
+  "viewer.material": "Material preview",
+  "viewer.materialOff": "Photo colours",
   "viewer.solid": "Solid",
   "viewer.wireframe": "Wireframe",
   "viewer.warm": "Warm light",
