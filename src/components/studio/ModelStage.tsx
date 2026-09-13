@@ -110,10 +110,9 @@ export default function ModelStage({
   pendingInvalid = false,
 }: Props) {
 
-  void materialId;
-  void finishId;
   const { t } = useI18n();
   const [wireframe, setWireframe] = useState(false);
+  const [materialPreview, setMaterialPreview] = useState(true);
   const [warmLight, setWarmLight] = useState(true);
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
