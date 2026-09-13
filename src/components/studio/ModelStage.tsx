@@ -59,6 +59,16 @@ import {
 /** Scene floor the plinth rests on; the sculpture is placed relative to it. */
 const BASE_FLOOR_Y = -1.33;
 
+/** How each ordered material reads under the studio lights. */
+const MATERIAL_LOOKS: Record<string, { color: string; roughness: number; metalness: number }> = {
+  resin: { color: "#e9e3d7", roughness: 0.82, metalness: 0.02 },
+  marble: { color: "#dcd7cb", roughness: 0.48, metalness: 0.05 },
+  bronze: { color: "#b4762f", roughness: 0.34, metalness: 0.9 },
+};
+
+/** Finish multiplies the roughness of the chosen material. */
+const FINISH_GLOSS: Record<string, number> = { matte: 1, satin: 0.6, gloss: 0.3 };
+
 type Props = {
   modelRef: string;
   materialId: string;
@@ -131,6 +141,10 @@ export default function ModelStage({
   /** Nudge step used by the on-screen pad: fine by default, coarse when switched on. */
   const [coarseStep, setCoarseStep] = useState(false);
 
+  /** Photo-derived look of each material, kept so the preview can be undone. */
+  const originalsRef = useRef(
+    new WeakMap<THREE.Material, { color: THREE.Color; roughness: number; metalness: number; map: THREE.Texture | null }>(),
+  );
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
