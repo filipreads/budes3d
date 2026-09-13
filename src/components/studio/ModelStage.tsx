@@ -31,6 +31,7 @@ import {
   ChevronDown,
   MoveVertical,
   MoveDiagonal,
+  Palette,
 } from "lucide-react";
 
 import { toast } from "sonner";
