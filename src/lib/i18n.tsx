@@ -942,6 +942,8 @@ const cs: Record<TranslationKey, string> = {
   "account.shareOff": "Ukončit sdílení",
   "account.shareStopped": "Sdílení vypnuto",
   "account.viewShare": "Otevřít sdílený náhled",
+  "viewer.material": "Náhled materiálu",
+  "viewer.materialOff": "Barvy z fotky",
   "viewer.solid": "Plný",
   "viewer.wireframe": "Drátěný",
   "viewer.warm": "Teplé světlo",
