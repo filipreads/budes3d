@@ -31,6 +31,7 @@ import {
   ChevronDown,
   MoveVertical,
   MoveDiagonal,
+  Palette,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -58,6 +59,16 @@ import {
 
 /** Scene floor the plinth rests on; the sculpture is placed relative to it. */
 const BASE_FLOOR_Y = -1.33;
+
+/** How each ordered material reads under the studio lights. */
+const MATERIAL_LOOKS: Record<string, { color: string; roughness: number; metalness: number }> = {
+  resin: { color: "#e9e3d7", roughness: 0.82, metalness: 0.02 },
+  marble: { color: "#dcd7cb", roughness: 0.48, metalness: 0.05 },
+  bronze: { color: "#b4762f", roughness: 0.34, metalness: 0.9 },
+};
+
+/** Finish multiplies the roughness of the chosen material. */
+const FINISH_GLOSS: Record<string, number> = { matte: 1, satin: 0.6, gloss: 0.3 };
 
 type Props = {
   modelRef: string;
@@ -110,10 +121,9 @@ export default function ModelStage({
   pendingInvalid = false,
 }: Props) {
 
-  void materialId;
-  void finishId;
   const { t } = useI18n();
   const [wireframe, setWireframe] = useState(false);
+  const [materialPreview, setMaterialPreview] = useState(true);
   const [warmLight, setWarmLight] = useState(true);
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -132,6 +142,10 @@ export default function ModelStage({
   /** Nudge step used by the on-screen pad: fine by default, coarse when switched on. */
   const [coarseStep, setCoarseStep] = useState(false);
 
+  /** Photo-derived look of each material, kept so the preview can be undone. */
+  const originalsRef = useRef(
+    new WeakMap<THREE.Material, { color: THREE.Color; roughness: number; metalness: number; map: THREE.Texture | null }>(),
+  );
   const shellRef = useRef<HTMLDivElement>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -370,6 +384,47 @@ export default function ModelStage({
       }
     });
   }, [loadedScene, wireframe]);
+
+  /**
+   * Shows the ordered material and finish on the sculpture itself. The original
+   * photo-derived textures are kept aside so the customer can switch back.
+   */
+  useEffect(() => {
+    if (!loadedScene) return;
+    const originals = originalsRef.current;
+    const look = MATERIAL_LOOKS[materialId];
+    const gloss = FINISH_GLOSS[finishId] ?? 1;
+    loadedScene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const list = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[];
+      for (const entry of list) {
+        if (!entry || !("roughness" in entry)) continue;
+        if (!originals.has(entry)) {
+          originals.set(entry, {
+            color: entry.color?.clone() ?? new THREE.Color("#ffffff"),
+            roughness: entry.roughness,
+            metalness: entry.metalness,
+            map: entry.map ?? null,
+          });
+        }
+        const original = originals.get(entry)!;
+        if (!materialPreview || !look) {
+          entry.map = original.map;
+          entry.color.copy(original.color);
+          entry.roughness = original.roughness;
+          entry.metalness = original.metalness;
+        } else {
+          entry.map = null;
+          entry.color.set(look.color);
+          entry.roughness = Math.min(1, Math.max(0.04, look.roughness * gloss));
+          entry.metalness = look.metalness;
+        }
+        entry.needsUpdate = true;
+      }
+    });
+  }, [loadedScene, materialId, finishId, materialPreview]);
+
 
   useEffect(() => {
     const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
@@ -842,8 +897,20 @@ export default function ModelStage({
             <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWarmLight((value) => !value)}>
               <Lightbulb className="mr-1.5 size-3.5" />
               {warmLight ? t("viewer.warm") : t("viewer.cool")}
-            </Button>
+             </Button>
+            {MATERIAL_LOOKS[materialId] ? (
+              <Button
+                size="sm"
+                variant={materialPreview ? "default" : "secondary"}
+                className="h-8 px-2.5 text-xs sm:text-sm"
+                onClick={() => setMaterialPreview((value) => !value)}
+              >
+                <Palette className="mr-1.5 size-3.5" />
+                {materialPreview ? t("viewer.material") : t("viewer.materialOff")}
+              </Button>
+            ) : null}
           </div>
+
 
           {canDownload ? (
             <div className="pointer-events-auto flex gap-2">
