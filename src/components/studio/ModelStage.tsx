@@ -896,8 +896,20 @@ export default function ModelStage({
             <Button size="sm" variant="secondary" className="h-8 px-2.5 text-xs sm:text-sm" onClick={() => setWarmLight((value) => !value)}>
               <Lightbulb className="mr-1.5 size-3.5" />
               {warmLight ? t("viewer.warm") : t("viewer.cool")}
-            </Button>
+             </Button>
+            {MATERIAL_LOOKS[materialId] ? (
+              <Button
+                size="sm"
+                variant={materialPreview ? "default" : "secondary"}
+                className="h-8 px-2.5 text-xs sm:text-sm"
+                onClick={() => setMaterialPreview((value) => !value)}
+              >
+                <Palette className="mr-1.5 size-3.5" />
+                {materialPreview ? t("viewer.material") : t("viewer.materialOff")}
+              </Button>
+            ) : null}
           </div>
+
 
           {canDownload ? (
             <div className="pointer-events-auto flex gap-2">
