@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatPrice, sanitizeDisplayCurrency, type LineItem } from "@/lib/pricing";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { setOrderShare } from "@/lib/share.functions";
+import { ShareButtons } from "@/components/site/ShareButtons";
 import { getOrderDownloadUrl, listOrderDownloads, type OrderDownload } from "@/lib/downloads.functions";
 import { downloadModelFile } from "@/lib/mesh-export";
 import type { AccountOrder } from "@/lib/account.functions";
@@ -166,6 +167,13 @@ export function OrderCard({
             </Button>
           ) : null}
         </div>
+
+        {order.share_enabled && order.share_token && typeof window !== "undefined" ? (
+          <ShareButtons
+            className="mt-3"
+            url={`${window.location.origin}/share?token=${order.share_token}`}
+          />
+        ) : null}
 
 
         {paying ? (
