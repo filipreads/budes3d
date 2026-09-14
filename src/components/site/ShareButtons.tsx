@@ -7,7 +7,15 @@ import { useI18n } from "@/lib/i18n";
  * One share row reused by the account order card and the public preview page,
  * so every share entry point offers the same options and wording.
  */
-export function ShareButtons({ url, title, className }: { url: string; title?: string; className?: string }) {
+export function ShareButtons({
+  url,
+  title,
+  className,
+}: {
+  url: string;
+  title?: string | undefined;
+  className?: string | undefined;
+}) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const text = title || t("shareButtons.text");
