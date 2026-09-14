@@ -4,6 +4,7 @@ import { ChevronRight, Clock, Download, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/account/StatusChip";
+import { AchievementsCard } from "@/components/account/AchievementsCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import { formatPrice, sanitizeDisplayCurrency } from "@/lib/pricing";
@@ -97,6 +98,18 @@ function AccountOverview() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t("account.overviewLead")}</p>
+
+      <AchievementsCard
+        stats={{
+          projects: data?.totals.projects ?? 0,
+          models: data?.totals.models ?? 0,
+          orders: data?.totals.orders ?? 0,
+          paidOrders: data?.totals.paidOrders ?? 0,
+          downloads: data?.totals.downloads ?? 0,
+          shared: data?.totals.shared ?? 0,
+        }}
+      />
+
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {stats.map((stat) => {
