@@ -1,16 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StatusChip } from "@/components/account/StatusChip";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
-import { deleteProject } from "@/lib/studio.functions";
+import { deleteProject, renameProject } from "@/lib/studio.functions";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Check, Pencil, Search, Trash2, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +53,9 @@ function ProjectsPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [removing, setRemoving] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
 
   const { data } = useQuery({
     queryKey: ["projects-page", user?.id],
@@ -75,6 +80,17 @@ function ProjectsPage() {
   const projects = data?.projects ?? [];
   const orderedProjects = data?.orderedProjects ?? {};
 
+  const visible = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return projects;
+    return projects.filter((project) => project.title.toLowerCase().includes(term));
+  }, [projects, search]);
+
+  async function refresh() {
+    await queryClient.invalidateQueries({ queryKey: ["projects-page", user?.id] });
+    await queryClient.invalidateQueries({ queryKey: ["account-summary", user?.id] });
+  }
+
   async function onDelete(projectId: string) {
     setRemoving(projectId);
     try {
@@ -83,8 +99,7 @@ function ProjectsPage() {
         toast.error(t("projects.deleteBlocked").replace("{order}", result.blockedByOrder ?? ""));
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: ["projects-page", user?.id] });
-      await queryClient.invalidateQueries({ queryKey: ["account-summary", user?.id] });
+      await refresh();
       toast.success(t("projects.deleted"));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("projects.delete"));
@@ -93,6 +108,18 @@ function ProjectsPage() {
     }
   }
 
+  async function onRename(projectId: string) {
+    const title = draftTitle.trim();
+    if (!title) return;
+    setEditingId(null);
+    try {
+      await renameProject({ data: { projectId, title } });
+      await refresh();
+      toast.success(t("projects.renamed"));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("projects.rename"));
+    }
+  }
 
   if (!loading && !user) {
     return (
@@ -111,9 +138,22 @@ function ProjectsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-5 py-12">
-        <h1 className="font-display text-3xl">{t("projects.title")}</h1>
-        <p className="mt-2 text-muted-foreground">{t("projects.subtitle")}</p>
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-5 sm:py-12">
+        <h1 className="font-display text-2xl sm:text-3xl">{t("projects.title")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground sm:text-base">{t("projects.subtitle")}</p>
+
+        {projects.length > 3 ? (
+          <div className="relative mt-5">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("projects.search")}
+              aria-label={t("projects.search")}
+              className="pl-9"
+            />
+          </div>
+        ) : null}
 
         {projects.length === 0 ? (
           <Card className="mt-6">
@@ -124,53 +164,106 @@ function ProjectsPage() {
               </Button>
             </CardContent>
           </Card>
+        ) : visible.length === 0 ? (
+          <Card className="mt-6">
+            <CardContent className="p-8 text-center text-muted-foreground">{t("projects.noResults")}</CardContent>
+          </Card>
         ) : (
           <div className="mt-6 space-y-3">
-            {projects.map((project) => (
-              <Card key={project.id}>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-                  <div>
-                    <p className="font-display text-lg">{project.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {t("projects.created")} {new Date(project.created_at).toLocaleDateString()} ·{" "}
-                      {project.model_url ? project.status : t("projects.noModel")}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="secondary">
-                      <Link to="/editor" search={{ project: project.id }}>
-                        {t("projects.open")}
-                      </Link>
-                    </Button>
-                    {orderedProjects[project.id] ? (
-                      <p className="max-w-xs text-xs text-muted-foreground">
-                        {t("projects.deleteBlocked").replace("{order}", orderedProjects[project.id]!)}
-                      </p>
-                    ) : (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label={t("projects.delete")} disabled={removing === project.id}>
-                            <Trash2 className="size-4" />
+            {visible.map((project) => {
+              const orderNumber = orderedProjects[project.id];
+              const isEditing = editingId === project.id;
+              return (
+                <Card key={project.id}>
+                  <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+                    <div className="min-w-0 flex-1">
+                      {isEditing ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            autoFocus
+                            value={draftTitle}
+                            maxLength={80}
+                            aria-label={t("projects.renameTitle")}
+                            onChange={(event) => setDraftTitle(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") void onRename(project.id);
+                              if (event.key === "Escape") setEditingId(null);
+                            }}
+                          />
+                          <Button size="icon" aria-label={t("projects.save")} onClick={() => void onRename(project.id)}>
+                            <Check className="size-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t("projects.delete")}</AlertDialogTitle>
-                            <AlertDialogDescription>{t("projects.deleteConfirm")}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => void onDelete(project.id)}>
-                              {t("projects.delete")}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                          <Button size="icon" variant="ghost" aria-label={t("common.cancel")} onClick={() => setEditingId(null)}>
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <p className="truncate font-display text-lg">{project.title}</p>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7 shrink-0"
+                            aria-label={t("projects.rename")}
+                            onClick={() => {
+                              setDraftTitle(project.title);
+                              setEditingId(project.id);
+                            }}
+                          >
+                            <Pencil className="size-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <StatusChip status={project.model_url ? project.status : "draft"} />
+                        {orderNumber ? (
+                          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                            {t("projects.ordered")} · {orderNumber}
+                          </span>
+                        ) : null}
+                        <span className="text-xs text-muted-foreground">
+                          {t("projects.created")} {new Date(project.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button asChild variant="secondary" size="sm" className="flex-1 sm:flex-none">
+                        <Link to="/editor" search={{ project: project.id }}>
+                          {t("projects.open")}
+                        </Link>
+                      </Button>
+                      {orderNumber ? null : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t("projects.delete")}
+                              disabled={removing === project.id}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("projects.delete")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("projects.deleteConfirm")}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => void onDelete(project.id)}>
+                                {t("projects.delete")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </main>
