@@ -63,6 +63,26 @@ export const saveRepairedModel = createServerFn({ method: "POST" })
   });
 
 
+/** Owner-only rename of a studio project. */
+export const renameProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { projectId: string; title: string }) => {
+    if (!input?.projectId) throw new Error("projectId required");
+    const title = (input.title ?? "").trim().slice(0, 80);
+    if (!title) throw new Error("title required");
+    return { projectId: input.projectId, title };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("projects")
+      .update({ title: data.title })
+      .eq("id", data.projectId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, title: data.title };
+  });
+
 
 /**
  * Deletes a project and its stored files. Projects that already back an order

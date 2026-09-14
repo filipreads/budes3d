@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { getSharedPreview, type SharedPreview } from "@/lib/share.functions";
+import { ShareButtons } from "@/components/site/ShareButtons";
 
 const ModelStage = lazy(() => import("@/components/studio/ModelStage"));
 
@@ -90,7 +91,12 @@ function SharePage() {
                 />
               </Suspense>
             </div>
-            <div className="mt-6 text-center">
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <ShareButtons
+                url={typeof window === "undefined" ? "" : window.location.href}
+                title={preview?.projectTitle ?? undefined}
+                className="justify-center"
+              />
               <Button asChild>
                 <Link to="/editor">{t("share.cta")}</Link>
               </Button>
