@@ -80,6 +80,9 @@ export type AccountSummary = {
     inProduction: number;
     downloads: number;
     projects: number;
+    paidOrders: number;
+    models: number;
+    shared: number;
   };
   latestOrders: AccountOrder[];
   latestProjects: AccountProject[];
@@ -132,6 +135,9 @@ export const getAccountSummary = createServerFn({ method: "GET" })
         inProduction: orders.filter((order) => order.fulfilment_status === "in_production").length,
         downloads: downloads.length,
         projects: (projectsResult.data ?? []).length,
+        paidOrders: paidIds.size,
+        models: (projectsResult.data ?? []).filter((project) => Boolean(project.model_url)).length,
+        shared: orders.filter((order) => order.share_enabled).length,
       },
       latestOrders: orders.slice(0, 3),
       latestProjects: ((projectsResult.data ?? []) as AccountProject[]).slice(0, 3),
