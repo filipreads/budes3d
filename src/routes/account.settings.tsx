@@ -217,7 +217,9 @@ function SettingsTab() {
           <Section title={t("account.shipping")} description={t("account.shippingHint")}>
             {!editingAddress ? (
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <p className="min-w-0 text-sm text-muted-foreground">{addressSummary || t("account.addressEmpty")}</p>
+                <p className="min-w-0 break-words text-sm text-muted-foreground">
+                  {addressSummary || t("account.addressEmpty")}
+                </p>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setEditingAddress(true)}>
                   {addressSummary ? t("account.editAddress") : t("account.addAddress")}
                 </Button>
@@ -246,8 +248,9 @@ function SettingsTab() {
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button
+                    className="w-full sm:w-auto"
                     disabled={saving}
                     onClick={async () => {
                       await saveProfile({ shippingAddress: address });
@@ -258,6 +261,7 @@ function SettingsTab() {
                   </Button>
                   <Button
                     variant="ghost"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       setAddress(data?.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
                       setEditingAddress(false);
@@ -281,7 +285,7 @@ function SettingsTab() {
                   onChange={(event) => setNewEmail(event.target.value)}
                   autoComplete="email"
                 />
-                <Button variant="secondary" size="sm" onClick={() => void changeEmail()}>
+                <Button variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => void changeEmail()}>
                   {t("account.changeEmail")}
                 </Button>
               </div>
@@ -295,7 +299,7 @@ function SettingsTab() {
                   onChange={(event) => setNewPassword(event.target.value)}
                   autoComplete="new-password"
                 />
-                <Button variant="secondary" size="sm" onClick={() => void changePassword()}>
+                <Button variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => void changePassword()}>
                   {t("account.changePassword")}
                 </Button>
               </div>
