@@ -43,15 +43,13 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardContent className="space-y-4 p-5">
-        <div>
-          <h2 className="font-display text-lg">{title}</h2>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
-        </div>
-        {children}
-      </CardContent>
-    </Card>
+    <section className="space-y-4 border-b border-border/70 pb-6 last:border-0 last:pb-0">
+      <div>
+        <h2 className="font-display text-base sm:text-lg">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -157,223 +155,234 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
-      <Section title={t("account.profile")}>
-        <div className="flex items-center gap-4">
-          {data?.avatarUrl ? (
-            <img src={data.avatarUrl} alt="" className="size-16 rounded-full object-cover" />
-          ) : (
-            <span className="grid size-16 place-items-center rounded-full bg-muted font-display text-xl">
-              {(displayName || data?.email || "?").charAt(0).toUpperCase()}
-            </span>
-          )}
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onAvatar(file);
-              }}
-            />
-            <Button variant="secondary" size="sm" disabled={saving} onClick={() => fileRef.current?.click()}>
-              {t("account.uploadAvatar")}
+      <Card>
+        <CardContent className="space-y-6 p-4 sm:p-6">
+          <p className="text-sm text-muted-foreground">{t("account.settingsLead")}</p>
+
+          <Section title={t("account.profile")}>
+            <div className="flex items-center gap-4">
+              {data?.avatarUrl ? (
+                <img src={data.avatarUrl} alt="" className="size-14 shrink-0 rounded-full object-cover" />
+              ) : (
+                <span className="grid size-14 shrink-0 place-items-center rounded-full bg-muted font-display text-lg">
+                  {(displayName || data?.email || "?").charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="min-w-0">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void onAvatar(file);
+                  }}
+                />
+                <Button variant="secondary" size="sm" disabled={saving} onClick={() => fileRef.current?.click()}>
+                  {t("account.uploadAvatar")}
+                </Button>
+                <p className="mt-1 text-xs text-muted-foreground">{t("account.avatarHint")}</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="display-name">{t("account.displayName")}</Label>
+                <Input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="locale">{t("account.language")}</Label>
+                <select
+                  id="locale"
+                  value={locale}
+                  onChange={(event) => {
+                    const next = event.target.value as Locale;
+                    setLocale(next);
+                    void saveProfile({ preferredLocale: next });
+                  }}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="cs">Čeština</option>
+                </select>
+              </div>
+            </div>
+
+            <Button className="w-full sm:w-auto" disabled={saving} onClick={() => void saveProfile({ displayName })}>
+              {t("account.save")}
             </Button>
-            <p className="mt-1 text-xs text-muted-foreground">{t("account.avatarHint")}</p>
-          </div>
-        </div>
+          </Section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="display-name">{t("account.displayName")}</Label>
-            <Input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="locale">{t("account.language")}</Label>
-            <select
-              id="locale"
-              value={locale}
-              onChange={(event) => {
-                const next = event.target.value as Locale;
-                setLocale(next);
-                void saveProfile({ preferredLocale: next });
-              }}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              <option value="en">English</option>
-              <option value="cs">Čeština</option>
-            </select>
-          </div>
-        </div>
-
-        <Button disabled={saving} onClick={() => void saveProfile({ displayName })}>
-          {t("account.save")}
-        </Button>
-      </Section>
-
-      <Section title={t("account.shipping")} description={t("account.shippingHint")}>
-        {!editingAddress ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">{addressSummary || t("account.addressEmpty")}</p>
-            <Button size="sm" variant="secondary" onClick={() => setEditingAddress(true)}>
-              {addressSummary ? t("account.editAddress") : t("account.addAddress")}
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(
-                [
-                  ["name", "checkout.fullName"],
-                  ["line1", "checkout.address"],
-                  ["line2", "checkout.address2"],
-                  ["city", "checkout.city"],
-                  ["postalCode", "checkout.postalCode"],
-                  ["country", "checkout.country"],
-                  ["phone", "account.phone"],
-                ] as const
-              ).map(([key, label]) => (
-                <div key={key} className="space-y-1.5">
-                  <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
-                  <Input
-                    id={`ship-${key}`}
-                    value={address[key]}
-                    onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
-                  />
+          <Section title={t("account.shipping")} description={t("account.shippingHint")}>
+            {!editingAddress ? (
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+                <p className="min-w-0 text-sm text-muted-foreground">{addressSummary || t("account.addressEmpty")}</p>
+                <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setEditingAddress(true)}>
+                  {addressSummary ? t("account.editAddress") : t("account.addAddress")}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(
+                    [
+                      ["name", "checkout.fullName"],
+                      ["line1", "checkout.address"],
+                      ["line2", "checkout.address2"],
+                      ["city", "checkout.city"],
+                      ["postalCode", "checkout.postalCode"],
+                      ["country", "checkout.country"],
+                      ["phone", "account.phone"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
+                      <Input
+                        id={`ship-${key}`}
+                        value={address[key]}
+                        onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    disabled={saving}
+                    onClick={async () => {
+                      await saveProfile({ shippingAddress: address });
+                      setEditingAddress(false);
+                    }}
+                  >
+                    {t("account.saveAddress")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setAddress(data?.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
+                      setEditingAddress(false);
+                    }}
+                  >
+                    {t("account.cancel")}
+                  </Button>
+                </div>
+              </>
+            )}
+          </Section>
+
+          <Section title={t("account.security")} description={data?.email}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="new-email">{t("account.newEmail")}</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newEmail}
+                  onChange={(event) => setNewEmail(event.target.value)}
+                  autoComplete="email"
+                />
+                <Button variant="secondary" size="sm" onClick={() => void changeEmail()}>
+                  {t("account.changeEmail")}
+                </Button>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="new-password">{t("account.newPassword")}</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                />
+                <Button variant="secondary" size="sm" onClick={() => void changePassword()}>
+                  {t("account.changePassword")}
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={saving}
-                onClick={async () => {
-                  await saveProfile({ shippingAddress: address });
-                  setEditingAddress(false);
-                }}
-              >
-                {t("account.saveAddress")}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setAddress(data?.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
-                  setEditingAddress(false);
-                }}
-              >
-                {t("account.cancel")}
-              </Button>
-            </div>
-          </>
-        )}
-      </Section>
-
-      <Section title={t("account.security")}>
-        <p className="text-sm text-muted-foreground">
-          {t("account.email")}: {data?.email}
-        </p>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor="new-email">{t("account.newEmail")}</Label>
-            <Input
-              id="new-email"
-              type="email"
-              value={newEmail}
-              onChange={(event) => setNewEmail(event.target.value)}
-              autoComplete="email"
-            />
-            <Button variant="secondary" size="sm" onClick={() => void changeEmail()}>
-              {t("account.changeEmail")}
-            </Button>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="new-password">{t("account.newPassword")}</Label>
-            <Input
-              id="new-password"
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              autoComplete="new-password"
-            />
-            <Button variant="secondary" size="sm" onClick={() => void changePassword()}>
-              {t("account.changePassword")}
-            </Button>
-          </div>
-        </div>
-      </Section>
-
-      <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
-        <ul className="divide-y divide-border rounded-lg border border-border">
-          {methods.map((method) => (
-            <li key={method.key} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-              <span>{t(method.key)}</span>
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  method.active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {method.active ? t("account.methodLinked") : "—"}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        <label className="flex items-start gap-3 rounded-lg bg-muted/50 p-3 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 size-4 accent-primary"
-            checked={stay}
-            onChange={(event) => {
-              setStay(event.target.checked);
-              setStaySignedIn(event.target.checked);
-            }}
-          />
-          <span>
-            {t("account.staySignedIn")}
-            <span className="block text-xs text-muted-foreground">{t("account.staySignedInHint")}</span>
-          </span>
-        </label>
-      </Section>
+          </Section>
+        </CardContent>
+      </Card>
 
       <TwoFactorCard />
 
-      <Section title={t("account.viewerQuality")} description={t("account.viewerQualityHint")}>
-        <div className="inline-flex rounded-lg border border-border p-1">
-          {(
-            [
-              ["auto", "account.qualityAuto"],
-              ["high", "account.qualityHigh"],
-              ["low", "account.qualityLow"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={quality === value}
-              onClick={() => {
-                setQuality(value);
-                rememberViewerQuality(value);
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                quality === value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t(label)}
-            </button>
-          ))}
-        </div>
-      </Section>
-
       <Card>
-        <CardContent className="space-y-3 p-5">
-          <p className="text-sm text-muted-foreground">{t("account.dataNote")}</p>
-          <Button variant="ghost" onClick={() => void signOut()}>
-            {t("nav.signout")}
-          </Button>
+        <CardContent className="p-0">
+          <details className="group">
+            <summary className="cursor-pointer list-none p-4 sm:p-6">
+              <span className="font-display text-base sm:text-lg">{t("account.advanced")}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{t("account.advancedHint")}</span>
+            </summary>
+            <div className="space-y-6 px-4 pb-6 sm:px-6">
+              <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
+                <ul className="divide-y divide-border rounded-lg border border-border">
+                  {methods.map((method) => (
+                    <li key={method.key} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                      <span className="min-w-0 truncate">{t(method.key)}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          method.active ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {method.active ? t("account.methodLinked") : "—"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <label className="flex items-start gap-3 rounded-lg bg-muted/50 p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-primary"
+                    checked={stay}
+                    onChange={(event) => {
+                      setStay(event.target.checked);
+                      setStaySignedIn(event.target.checked);
+                    }}
+                  />
+                  <span>
+                    {t("account.staySignedIn")}
+                    <span className="block text-xs text-muted-foreground">{t("account.staySignedInHint")}</span>
+                  </span>
+                </label>
+              </Section>
+
+              <Section title={t("account.viewerQuality")} description={t("account.viewerQualityHint")}>
+                <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-border p-1">
+                  {(
+                    [
+                      ["auto", "account.qualityAuto"],
+                      ["high", "account.qualityHigh"],
+                      ["low", "account.qualityLow"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={quality === value}
+                      onClick={() => {
+                        setQuality(value);
+                        rememberViewerQuality(value);
+                      }}
+                      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+                        quality === value
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t(label)}
+                    </button>
+                  ))}
+                </div>
+              </Section>
+
+              <Section title={t("account.email")} description={t("account.dataNote")}>
+                <Button variant="ghost" className="w-full sm:w-auto" onClick={() => void signOut()}>
+                  {t("nav.signout")}
+                </Button>
+              </Section>
+            </div>
+          </details>
         </CardContent>
       </Card>
     </div>
