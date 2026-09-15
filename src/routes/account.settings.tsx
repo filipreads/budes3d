@@ -376,11 +376,12 @@ function SettingsTab() {
                 </div>
               </Section>
 
-              <Section title={t("account.email")} description={t("account.dataNote")}>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">{t("account.dataNote")}</p>
                 <Button variant="ghost" className="w-full sm:w-auto" onClick={() => void signOut()}>
                   {t("nav.signout")}
                 </Button>
-              </Section>
+              </div>
             </div>
           </details>
         </CardContent>
