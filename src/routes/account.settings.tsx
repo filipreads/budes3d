@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -217,7 +218,9 @@ function SettingsTab() {
           <Section title={t("account.shipping")} description={t("account.shippingHint")}>
             {!editingAddress ? (
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-                <p className="min-w-0 text-sm text-muted-foreground">{addressSummary || t("account.addressEmpty")}</p>
+                <p className="min-w-0 break-words text-sm text-muted-foreground">
+                  {addressSummary || t("account.addressEmpty")}
+                </p>
                 <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setEditingAddress(true)}>
                   {addressSummary ? t("account.editAddress") : t("account.addAddress")}
                 </Button>
@@ -246,8 +249,9 @@ function SettingsTab() {
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button
+                    className="w-full sm:w-auto"
                     disabled={saving}
                     onClick={async () => {
                       await saveProfile({ shippingAddress: address });
@@ -258,6 +262,7 @@ function SettingsTab() {
                   </Button>
                   <Button
                     variant="ghost"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       setAddress(data?.shippingAddress ?? EMPTY_SHIPPING_ADDRESS);
                       setEditingAddress(false);
@@ -281,7 +286,7 @@ function SettingsTab() {
                   onChange={(event) => setNewEmail(event.target.value)}
                   autoComplete="email"
                 />
-                <Button variant="secondary" size="sm" onClick={() => void changeEmail()}>
+                <Button variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => void changeEmail()}>
                   {t("account.changeEmail")}
                 </Button>
               </div>
@@ -295,7 +300,7 @@ function SettingsTab() {
                   onChange={(event) => setNewPassword(event.target.value)}
                   autoComplete="new-password"
                 />
-                <Button variant="secondary" size="sm" onClick={() => void changePassword()}>
+                <Button variant="secondary" size="sm" className="w-full sm:w-auto" onClick={() => void changePassword()}>
                   {t("account.changePassword")}
                 </Button>
               </div>
@@ -309,9 +314,15 @@ function SettingsTab() {
       <Card>
         <CardContent className="p-0">
           <details className="group">
-            <summary className="cursor-pointer list-none p-4 sm:p-6">
-              <span className="font-display text-base sm:text-lg">{t("account.advanced")}</span>
-              <span className="mt-1 block text-sm text-muted-foreground">{t("account.advancedHint")}</span>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 sm:p-6 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="font-display text-base sm:text-lg">{t("account.advanced")}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{t("account.advancedHint")}</span>
+              </span>
+              <ChevronDown
+                className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                aria-hidden
+              />
             </summary>
             <div className="space-y-6 px-4 pb-6 sm:px-6">
               <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
@@ -348,7 +359,7 @@ function SettingsTab() {
               </Section>
 
               <Section title={t("account.viewerQuality")} description={t("account.viewerQualityHint")}>
-                <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-border p-1">
+                <div className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border p-1 sm:inline-flex sm:w-auto">
                   {(
                     [
                       ["auto", "account.qualityAuto"],
@@ -364,7 +375,7 @@ function SettingsTab() {
                         setQuality(value);
                         rememberViewerQuality(value);
                       }}
-                      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
                         quality === value
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
