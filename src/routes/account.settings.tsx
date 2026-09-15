@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -313,9 +314,15 @@ function SettingsTab() {
       <Card>
         <CardContent className="p-0">
           <details className="group">
-            <summary className="cursor-pointer list-none p-4 sm:p-6">
-              <span className="font-display text-base sm:text-lg">{t("account.advanced")}</span>
-              <span className="mt-1 block text-sm text-muted-foreground">{t("account.advancedHint")}</span>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 sm:p-6 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="font-display text-base sm:text-lg">{t("account.advanced")}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{t("account.advancedHint")}</span>
+              </span>
+              <ChevronDown
+                className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+                aria-hidden
+              />
             </summary>
             <div className="space-y-6 px-4 pb-6 sm:px-6">
               <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
@@ -352,7 +359,7 @@ function SettingsTab() {
               </Section>
 
               <Section title={t("account.viewerQuality")} description={t("account.viewerQualityHint")}>
-                <div className="inline-flex max-w-full overflow-x-auto rounded-lg border border-border p-1">
+                <div className="grid w-full grid-cols-3 gap-1 rounded-lg border border-border p-1 sm:inline-flex sm:w-auto">
                   {(
                     [
                       ["auto", "account.qualityAuto"],
@@ -368,7 +375,7 @@ function SettingsTab() {
                         setQuality(value);
                         rememberViewerQuality(value);
                       }}
-                      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
                         quality === value
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
