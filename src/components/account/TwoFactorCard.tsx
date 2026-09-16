@@ -112,15 +112,15 @@ export function TwoFactorCard() {
 
   return (
     <Card>
-      <CardContent className="space-y-4 p-5">
+      <CardContent className="space-y-4 p-4 sm:p-6">
         <div className="flex items-start gap-3">
           {verified ? (
-            <ShieldCheck className="mt-0.5 size-5 text-primary" aria-hidden />
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
           ) : (
-            <ShieldAlert className="mt-0.5 size-5 text-muted-foreground" aria-hidden />
+            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
           )}
-          <div className="space-y-1">
-            <h2 className="font-display text-lg">{t("mfa.title")}</h2>
+          <div className="min-w-0 space-y-1">
+            <h2 className="font-display text-base sm:text-lg">{t("mfa.title")}</h2>
             <p className="text-sm text-muted-foreground">{t("mfa.subtitle")}</p>
             <p className="text-sm font-medium">{verified ? t("mfa.enabled") : t("mfa.disabled")}</p>
           </div>
@@ -128,7 +128,7 @@ export function TwoFactorCard() {
 
         {verified ? (
           <div className="space-y-3">
-            <Button variant="secondary" disabled={busy} onClick={() => void disable()}>
+            <Button variant="secondary" className="w-full sm:w-auto" disabled={busy} onClick={() => void disable()}>
               {t("mfa.disable")}
             </Button>
             <div className="rounded-md border border-border p-3">
@@ -154,9 +154,9 @@ export function TwoFactorCard() {
             <img
               src={enrolling.qr}
               alt=""
-              className="size-44 rounded-md border border-border bg-white p-2"
+              className="size-36 rounded-md border border-border bg-white p-2 sm:size-44"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="break-all text-xs text-muted-foreground">
               {t("mfa.secret")}: <code className="font-mono">{enrolling.secret}</code>
             </p>
             <div className="grid gap-2 sm:max-w-xs">
@@ -170,17 +170,21 @@ export function TwoFactorCard() {
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
               />
             </div>
-            <div className="flex gap-2">
-              <Button disabled={busy || code.length < 6} onClick={() => void confirmEnroll()}>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                className="w-full sm:w-auto"
+                disabled={busy || code.length < 6}
+                onClick={() => void confirmEnroll()}
+              >
                 {t("mfa.verify")}
               </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => void cancelEnroll()}>
+              <Button variant="ghost" className="w-full sm:w-auto" disabled={busy} onClick={() => void cancelEnroll()}>
                 {t("mfa.cancel")}
               </Button>
             </div>
           </div>
         ) : (
-          <Button disabled={busy} onClick={() => void startEnroll()}>
+          <Button className="w-full sm:w-auto" disabled={busy} onClick={() => void startEnroll()}>
             {t("mfa.enable")}
           </Button>
         )}
