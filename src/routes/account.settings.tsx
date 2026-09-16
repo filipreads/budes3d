@@ -190,7 +190,7 @@ function SettingsTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="display-name">{t("account.displayName")}</Label>
-                <Input id="display-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                <Input id="display-name" className="h-11 sm:h-9" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="locale">{t("account.language")}</Label>
@@ -202,7 +202,7 @@ function SettingsTab() {
                     setLocale(next);
                     void saveProfile({ preferredLocale: next });
                   }}
-                  className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  className="h-11 rounded-md border border-input bg-background px-3 text-sm sm:h-9 sm:px-2"
                 >
                   <option value="en">English</option>
                   <option value="cs">Čeština</option>
@@ -243,6 +243,7 @@ function SettingsTab() {
                       <Label htmlFor={`ship-${key}`}>{t(label)}</Label>
                       <Input
                         id={`ship-${key}`}
+                        className="h-11 sm:h-9"
                         value={address[key]}
                         onChange={(event) => setAddress({ ...address, [key]: event.target.value })}
                       />
@@ -282,6 +283,7 @@ function SettingsTab() {
                 <Input
                   id="new-email"
                   type="email"
+                  className="h-11 sm:h-9"
                   value={newEmail}
                   onChange={(event) => setNewEmail(event.target.value)}
                   autoComplete="email"
@@ -296,6 +298,7 @@ function SettingsTab() {
                 <Input
                   id="new-password"
                   type="password"
+                  className="h-11 sm:h-9"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                   autoComplete="new-password"
@@ -328,7 +331,7 @@ function SettingsTab() {
               <Section title={t("account.signinMethods")} description={t("account.signinMethodsHint")}>
                 <ul className="divide-y divide-border rounded-lg border border-border">
                   {methods.map((method) => (
-                    <li key={method.key} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
+                    <li key={method.key} className="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm">
                       <span className="min-w-0 truncate">{t(method.key)}</span>
                       <span
                         className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -344,7 +347,7 @@ function SettingsTab() {
                 <label className="flex items-start gap-3 rounded-lg bg-muted/50 p-3 text-sm">
                   <input
                     type="checkbox"
-                    className="mt-0.5 size-4 accent-primary"
+                    className="mt-0.5 size-5 accent-primary"
                     checked={stay}
                     onChange={(event) => {
                       setStay(event.target.checked);
@@ -375,7 +378,7 @@ function SettingsTab() {
                         setQuality(value);
                         rememberViewerQuality(value);
                       }}
-                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] transition-colors sm:px-3 sm:text-sm ${
+                      className={`min-h-10 rounded-md px-2 py-1.5 text-center text-[13px] leading-tight transition-colors sm:min-h-0 sm:px-3 sm:text-sm ${
                         quality === value
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
