@@ -375,7 +375,7 @@ function SettingsTab() {
                         setQuality(value);
                         rememberViewerQuality(value);
                       }}
-                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      className={`min-w-0 truncate whitespace-nowrap rounded-md px-2 py-1.5 text-[13px] transition-colors sm:px-3 sm:text-sm ${
                         quality === value
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
