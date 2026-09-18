@@ -19,12 +19,19 @@ export const getModelUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
-/** True when an earlier order for this project already carried the premium fee. */
+/**
+ * True when an earlier *paid* order for this project already carried the
+ * premium fee. Pending or abandoned checkouts must never suppress the charge.
+ */
 async function premiumAlreadyBilled(
   supabase: { from: (table: string) => any },
   projectId: string,
 ): Promise<boolean> {
-  const { data } = await supabase.from("orders").select("line_items").eq("project_id", projectId);
+  const { data } = await supabase
+    .from("orders")
+    .select("line_items")
+    .eq("project_id", projectId)
+    .eq("payment_status", "paid");
   const orders = (data ?? []) as { line_items: unknown }[];
   return orders.some((order) =>
     (Array.isArray(order.line_items) ? order.line_items : []).some(
