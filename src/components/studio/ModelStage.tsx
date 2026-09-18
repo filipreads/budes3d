@@ -455,6 +455,9 @@ export default function ModelStage({
       toast.error(t("viewer.exportFailed"));
       return;
     }
+    // The stone/bronze look is a preview only — exports always carry the
+    // photo-derived colours and textures the customer paid for.
+    applyMaterialLook(false);
     try {
       const target = source.clone();
       if (format === "stl") {
@@ -469,6 +472,8 @@ export default function ModelStage({
       toast.success(`${format.toUpperCase()} ✓`);
     } catch {
       toast.error(t("viewer.exportFailed"));
+    } finally {
+      applyMaterialLook(materialPreview);
     }
   }
 

@@ -23,16 +23,14 @@ export async function premiumRateCents(currency: Currency): Promise<number> {
   return amount(PREMIUM_GENERATION_PRICE, currency);
 }
 
-/** One order-level line item for the premium generations a project consumed. */
+/**
+ * Premium is priced per model, not per attempt: retries of the preview are
+ * free, so a project that used the premium engine is charged exactly once.
+ */
 export async function premiumExtras(count: number, currency: Currency): Promise<LineItem[]> {
-  const runs = Math.max(0, Math.round(count || 0));
-  if (runs === 0) return [];
+  const used = Math.max(0, Math.round(count || 0)) > 0;
+  if (!used) return [];
   const rate = await premiumRateCents(currency);
   if (rate <= 0) return [];
-  return [
-    {
-      label: runs > 1 ? `Premium 3D generation × ${runs}` : "Premium 3D generation",
-      cents: rate * runs,
-    },
-  ];
+  return [{ label: "Premium 3D generation", cents: rate }];
 }
