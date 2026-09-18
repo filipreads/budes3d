@@ -389,41 +389,49 @@ export default function ModelStage({
    * Shows the ordered material and finish on the sculpture itself. The original
    * photo-derived textures are kept aside so the customer can switch back.
    */
+  const applyMaterialLook = useCallback(
+    (enabled: boolean) => {
+      if (!loadedScene) return;
+      const originals = originalsRef.current;
+      const look = MATERIAL_LOOKS[materialId];
+      const gloss = FINISH_GLOSS[finishId] ?? 1;
+      loadedScene.traverse((child) => {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const list = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[];
+        for (const entry of list) {
+          if (!entry || !("roughness" in entry)) continue;
+          if (!originals.has(entry)) {
+            originals.set(entry, {
+              color: entry.color?.clone() ?? new THREE.Color("#ffffff"),
+              roughness: entry.roughness,
+              metalness: entry.metalness,
+              map: entry.map ?? null,
+            });
+          }
+          const original = originals.get(entry)!;
+          if (!enabled || !look) {
+            entry.map = original.map;
+            entry.color.copy(original.color);
+            entry.roughness = original.roughness;
+            entry.metalness = original.metalness;
+          } else {
+            entry.map = null;
+            entry.color.set(look.color);
+            entry.roughness = Math.min(1, Math.max(0.04, look.roughness * gloss));
+            entry.metalness = look.metalness;
+          }
+          entry.needsUpdate = true;
+        }
+      });
+    },
+    [loadedScene, materialId, finishId],
+  );
+
   useEffect(() => {
-    if (!loadedScene) return;
-    const originals = originalsRef.current;
-    const look = MATERIAL_LOOKS[materialId];
-    const gloss = FINISH_GLOSS[finishId] ?? 1;
-    loadedScene.traverse((child) => {
-      const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const list = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as THREE.MeshStandardMaterial[];
-      for (const entry of list) {
-        if (!entry || !("roughness" in entry)) continue;
-        if (!originals.has(entry)) {
-          originals.set(entry, {
-            color: entry.color?.clone() ?? new THREE.Color("#ffffff"),
-            roughness: entry.roughness,
-            metalness: entry.metalness,
-            map: entry.map ?? null,
-          });
-        }
-        const original = originals.get(entry)!;
-        if (!materialPreview || !look) {
-          entry.map = original.map;
-          entry.color.copy(original.color);
-          entry.roughness = original.roughness;
-          entry.metalness = original.metalness;
-        } else {
-          entry.map = null;
-          entry.color.set(look.color);
-          entry.roughness = Math.min(1, Math.max(0.04, look.roughness * gloss));
-          entry.metalness = look.metalness;
-        }
-        entry.needsUpdate = true;
-      }
-    });
-  }, [loadedScene, materialId, finishId, materialPreview]);
+    applyMaterialLook(materialPreview);
+  }, [applyMaterialLook, materialPreview]);
+
 
 
   useEffect(() => {
@@ -447,6 +455,9 @@ export default function ModelStage({
       toast.error(t("viewer.exportFailed"));
       return;
     }
+    // The stone/bronze look is a preview only — exports always carry the
+    // photo-derived colours and textures the customer paid for.
+    applyMaterialLook(false);
     try {
       const target = source.clone();
       if (format === "stl") {
@@ -461,6 +472,8 @@ export default function ModelStage({
       toast.success(`${format.toUpperCase()} ✓`);
     } catch {
       toast.error(t("viewer.exportFailed"));
+    } finally {
+      applyMaterialLook(materialPreview);
     }
   }
 
