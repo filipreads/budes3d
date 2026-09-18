@@ -19,6 +19,22 @@ export const getModelUrl = createServerFn({ method: "POST" })
     return { url: signed.signedUrl };
   });
 
+/** True when an earlier order for this project already carried the premium fee. */
+async function premiumAlreadyBilled(
+  supabase: { from: (table: string) => any },
+  projectId: string,
+): Promise<boolean> {
+  const { data } = await supabase.from("orders").select("line_items").eq("project_id", projectId);
+  const orders = (data ?? []) as { line_items: unknown }[];
+  return orders.some((order) =>
+    (Array.isArray(order.line_items) ? order.line_items : []).some(
+      (item: unknown) =>
+        typeof (item as { label?: unknown })?.label === "string" &&
+        (item as { label: string }).label.startsWith("Premium 3D generation"),
+    ),
+  );
+}
+
 /** Premium engine fee already earned by a project, for display at checkout. */
 export const getPremiumCharge = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -34,10 +50,12 @@ export const getPremiumCharge = createServerFn({ method: "POST" })
       .eq("id", data.projectId)
       .eq("user_id", userId)
       .maybeSingle();
+    if (await premiumAlreadyBilled(supabase, data.projectId)) return { lineItems: [] };
     const { premiumExtras } = await import("./premium.server");
     const lineItems = await premiumExtras(project?.premium_generations ?? 0, sanitizeCurrency(data.currency));
     return { lineItems };
   });
+
 
 /**
  * Points a project at a repaired copy of its model. The file itself is
