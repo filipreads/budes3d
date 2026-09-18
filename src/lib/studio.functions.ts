@@ -187,7 +187,9 @@ export const createOrder = createServerFn({ method: "POST" })
     const config = sanitizeConfig(data.config);
     const currency = sanitizeCurrency(data.currency);
     const { premiumExtras } = await import("./premium.server");
-    const extras = await premiumExtras(project.premium_generations ?? 0, currency);
+    const extras = (await premiumAlreadyBilled(supabase, project.id))
+      ? []
+      : await premiumExtras(project.premium_generations ?? 0, currency);
     const priced = quote(config, currency, extras);
     if (config.delivery === "print" && !data.shippingAddress?.line1) {
       throw new Error("A shipping address is required for printed pieces");
