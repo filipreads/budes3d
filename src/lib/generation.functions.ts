@@ -197,16 +197,92 @@ export const advanceGeneration = createServerFn({ method: "POST" })
 
     const engine = (((project as { generation_engine?: string }).generation_engine) ?? "trellis") as
       | "trellis"
+      | "meshy"
       | "tripo";
     const trellis = await import("./trellis.server");
+    const { currentJob, patchJob } = await import("./jobs.server");
+    const jobRow = await currentJob(supabase, project.id, userId);
+    const jobId = jobRow?.id ?? null;
     type ProjectPatch = Database["public"]["Tables"]["projects"]["Update"];
     const patch = async (fields: ProjectPatch) => {
       await supabase.from("projects").update(fields).eq("id", project.id).eq("user_id", userId);
+      await patchJob(supabase, jobId, {
+        ...(fields.generation_stage ? { stage: fields.generation_stage } : {}),
+        ...(typeof fields.generation_progress === "number" ? { progress: fields.generation_progress } : {}),
+        ...(fields.status ? { status: fields.status } : {}),
+        ...(fields.generation_error !== undefined ? { error: fields.generation_error } : {}),
+        ...(fields.provider_job_id !== undefined ? { provider_job_id: fields.provider_job_id } : {}),
+        ...(fields.model_url ? { master_model_path: fields.model_url, finished_at: new Date().toISOString() } : {}),
+      });
     };
 
     try {
+      // ---- Meshy (premium) pipeline: create task -> poll -> download GLB ----
+      if (engine === "meshy") {
+        const meshy = await import("./meshy.server");
+        const adapter = meshy.meshyAdapter;
+        if (!adapter.available()) throw new meshy.MeshyConfigError("Premium 3D engine is not configured");
+
+        if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
+          await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
+          const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
+          const sourcePath = photos[0];
+          if (!sourcePath) throw new Error("Upload a photo before generating");
+          const { data: signed, error: signError } = await supabase.storage
+            .from("portrait-uploads")
+            .createSignedUrl(sourcePath, 60 * 30);
+          if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
+
+          const created = await adapter.createJob({ imageUrl: signed.signedUrl, seedKey: project.id });
+          const { currentPlan } = await import("./quota.server");
+          await patch({
+            provider_job_id: created.providerJobId,
+            generation_stage: "sculpting",
+            generation_progress: 25,
+            generation_plan: await currentPlan(),
+          });
+          await patchJob(supabase, jobId, { provider_metadata: created.metadata as never });
+          return status("sculpting", 25, null);
+        }
+
+        if (!project.provider_job_id) throw new Error("Generation state was lost — start the job again");
+        const remote = await adapter.getStatus(project.provider_job_id);
+        if (remote.state === "failed" || remote.state === "canceled") {
+          throw new Error(remote.error ?? "The premium 3D engine failed to generate the model");
+        }
+        if (remote.state !== "succeeded") {
+          const progress = Math.max(25, Math.min(85, 25 + Math.round(remote.progress * 0.6)));
+          await patch({ generation_progress: progress, generation_stage: "sculpting" });
+          return { ...status("sculpting", progress, null), retryable: false };
+        }
+
+        await patch({ generation_stage: "extracting", generation_progress: 88 });
+        const outputs = await adapter.fetchOutputs(project.provider_job_id);
+        await patchJob(supabase, jobId, { provider_metadata: outputs.metadata as never });
+        await patch({ generation_stage: "storing", generation_progress: 92 });
+        const stored = await storeModelFromUrl(
+          supabase,
+          userId,
+          project.id,
+          project.generation_started_at,
+          outputs.glbUrl,
+          "meshy",
+          patch,
+          (fields) => patchJob(supabase, jobId, fields as never),
+        );
+        const { data: counter } = await supabase
+          .from("projects")
+          .select("premium_generations")
+          .eq("id", project.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+        await patch({ premium_generations: (counter?.premium_generations ?? 0) + 1 });
+        return stored;
+      }
+
       // ---- Tripo3D (premium) pipeline: create task -> poll -> download GLB --
       if (engine === "tripo") {
+
         const tripo = await import("./tripo.server");
 
         if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
