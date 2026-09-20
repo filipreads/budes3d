@@ -26,17 +26,46 @@ export type JobStatus = {
 };
 
 const projectInput = z.object({ projectId: z.string().uuid() });
-const startInput = projectInput.extend({ engine: z.enum(["trellis", "tripo"]).optional() });
+const startInput = projectInput.extend({ engine: z.enum(["trellis", "meshy", "tripo"]).optional() });
 
-export type EngineInfo = { id: "trellis" | "tripo"; label: string; premium: boolean };
+export type EngineId = "trellis" | "meshy" | "tripo";
+
+export type EngineInfo = {
+  id: EngineId;
+  label: string;
+  premium: boolean;
+  provider: string;
+  plan: "basic" | "premium";
+  /** Product surcharge in minor units of the requested currency (0 for basic). */
+  surchargeCents: number;
+};
+
+const PROVIDER_OF: Record<EngineId, string> = {
+  trellis: "microsoft-trellis-2",
+  meshy: "meshy",
+  tripo: "tripo3d",
+};
 
 /** Engines the studio may offer — premium engines appear only when configured. */
 export const getAvailableEngines = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<{ engines: EngineInfo[] }> => {
+  .inputValidator((input: unknown) => z.object({ currency: z.enum(["czk", "eur"]).optional() }).parse(input ?? {}))
+  .handler(async ({ data }): Promise<{ engines: EngineInfo[] }> => {
+    const currency = data.currency ?? "czk";
+    const { premiumRateCents } = await import("./premium.server");
+    const { meshyAvailable } = await import("./meshy.server");
     const { tripoAvailable } = await import("./tripo.server");
-    const engines: EngineInfo[] = [{ id: "trellis", label: "TRELLIS.2", premium: false }];
-    if (tripoAvailable()) engines.push({ id: "tripo", label: "Tripo3D", premium: true });
+
+    const engines: EngineInfo[] = [
+      { id: "trellis", label: "TRELLIS.2", premium: false, provider: PROVIDER_OF.trellis, plan: "basic", surchargeCents: 0 },
+    ];
+    const surcharge = await premiumRateCents(currency);
+    if (meshyAvailable()) {
+      engines.push({ id: "meshy", label: "Meshy", premium: true, provider: PROVIDER_OF.meshy, plan: "premium", surchargeCents: surcharge });
+    }
+    if (tripoAvailable()) {
+      engines.push({ id: "tripo", label: "Tripo3D", premium: true, provider: PROVIDER_OF.tripo, plan: "premium", surchargeCents: surcharge });
+    }
     return { engines };
   });
 
@@ -58,10 +87,14 @@ export const startGeneration = createServerFn({ method: "POST" })
     const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
     if (!photos[0]) throw new Error("Upload a photo before generating");
 
-    let engine: "trellis" | "tripo" = data.engine ?? "trellis";
+    const engine: EngineId = data.engine ?? "trellis";
     if (engine === "tripo") {
       const { tripoAvailable, TripoConfigError } = await import("./tripo.server");
       if (!tripoAvailable()) throw new TripoConfigError("Premium 3D engine is not configured");
+    }
+    if (engine === "meshy") {
+      const { meshyAvailable, MeshyConfigError } = await import("./meshy.server");
+      if (!meshyAvailable()) throw new MeshyConfigError("Premium 3D engine is not configured");
     }
 
     await supabase
@@ -76,10 +109,20 @@ export const startGeneration = createServerFn({ method: "POST" })
         session_hash: null,
         preview_video_url: null,
         generation_engine: engine,
-        model_provider: engine === "tripo" ? "tripo3d" : "microsoft-trellis-2",
+        model_provider: PROVIDER_OF[engine],
       } as Database["public"]["Tables"]["projects"]["Update"])
       .eq("id", project.id)
       .eq("user_id", userId);
+
+    // Open the persisted job record for this run.
+    const { openJob } = await import("./jobs.server");
+    await openJob(supabase, {
+      projectId: project.id,
+      userId,
+      engine,
+      provider: PROVIDER_OF[engine],
+      plan: engine === "trellis" ? "basic" : "premium",
+    });
 
     return {
       stage: "queued",
@@ -91,6 +134,7 @@ export const startGeneration = createServerFn({ method: "POST" })
       done: false,
     };
   });
+
 
 /** Read-only poll target that drives the studio progress UI. */
 export const getGenerationStatus = createServerFn({ method: "POST" })
