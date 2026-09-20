@@ -489,6 +489,7 @@ async function storeModelFromUrl(
   modelUrl: string,
   provider: string,
   patch: (fields: ProjectPatchForStore) => Promise<void>,
+  jobPatch?: (fields: Record<string, unknown>) => Promise<void>,
 ): Promise<JobStatus> {
   const glbResponse = await fetch(modelUrl);
   if (!glbResponse.ok) throw new Error("Could not download the generated model");
@@ -501,6 +502,16 @@ async function storeModelFromUrl(
     upsert: true,
   });
   if (upload.error) throw new Error(upload.error.message);
+
+  // Print-ready pipeline: a separate copy is kept for print/fulfilment, so a
+  // later mesh repair never overwrites the delivered master.
+  const printPath = `${userId}/${projectId}-print.glb`;
+  const printUpload = await supabase.storage.from("portrait-models").upload(printPath, glbBytes, {
+    contentType: "model/gltf-binary",
+    upsert: true,
+  });
+  const { safeInspect } = await import("./printability.server");
+  const report = safeInspect(glbBytes);
 
   const startedAt = generationStartedAt ? Date.parse(generationStartedAt) : NaN;
   const seconds = Number.isFinite(startedAt)
@@ -517,7 +528,21 @@ async function storeModelFromUrl(
     generation_error: null,
     generation_seconds: seconds,
     generation_plan: await currentPlan(),
-  });
+    ...(printUpload.error ? {} : { print_ready_url: printPath }),
+    ...(report ? { printability: report as unknown as Database["public"]["Tables"]["projects"]["Update"]["printability"] } : {}),
+  } as ProjectPatchForStore);
+  if (jobPatch) {
+    await jobPatch({
+      master_model_path: storagePath,
+      ...(printUpload.error ? {} : { print_ready_path: printPath }),
+      ...(report ? { printability: report } : {}),
+      stage: "ready",
+      status: "ready",
+      progress: 100,
+      finished_at: new Date().toISOString(),
+    });
+  }
+
 
   return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
 }
