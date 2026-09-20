@@ -74,6 +74,80 @@ export type Database = {
         }
         Relationships: []
       }
+      generation_jobs: {
+        Row: {
+          created_at: string
+          engine: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          master_model_path: string | null
+          plan: string
+          print_ready_path: string | null
+          printability: Json | null
+          progress: number
+          project_id: string
+          provider: string
+          provider_job_id: string | null
+          provider_metadata: Json
+          stage: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          engine?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          master_model_path?: string | null
+          plan?: string
+          print_ready_path?: string | null
+          printability?: Json | null
+          progress?: number
+          project_id: string
+          provider?: string
+          provider_job_id?: string | null
+          provider_metadata?: Json
+          stage?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          engine?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          master_model_path?: string | null
+          plan?: string
+          print_ready_path?: string | null
+          printability?: Json | null
+          progress?: number
+          project_id?: string
+          provider?: string
+          provider_job_id?: string | null
+          provider_metadata?: Json
+          stage?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_jobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_downloads: {
         Row: {
           created_at: string
@@ -303,6 +377,8 @@ export type Database = {
           premium_generations: number
           preview_image_url: string | null
           preview_video_url: string | null
+          print_ready_url: string | null
+          printability: Json | null
           provider_job_id: string | null
           session_hash: string | null
           source_photos: Json
@@ -329,6 +405,8 @@ export type Database = {
           premium_generations?: number
           preview_image_url?: string | null
           preview_video_url?: string | null
+          print_ready_url?: string | null
+          printability?: Json | null
           provider_job_id?: string | null
           session_hash?: string | null
           source_photos?: Json
@@ -355,6 +433,8 @@ export type Database = {
           premium_generations?: number
           preview_image_url?: string | null
           preview_video_url?: string | null
+          print_ready_url?: string | null
+          printability?: Json | null
           provider_job_id?: string | null
           session_hash?: string | null
           source_photos?: Json

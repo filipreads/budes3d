@@ -26,17 +26,46 @@ export type JobStatus = {
 };
 
 const projectInput = z.object({ projectId: z.string().uuid() });
-const startInput = projectInput.extend({ engine: z.enum(["trellis", "tripo"]).optional() });
+const startInput = projectInput.extend({ engine: z.enum(["trellis", "meshy", "tripo"]).optional() });
 
-export type EngineInfo = { id: "trellis" | "tripo"; label: string; premium: boolean };
+export type EngineId = "trellis" | "meshy" | "tripo";
+
+export type EngineInfo = {
+  id: EngineId;
+  label: string;
+  premium: boolean;
+  provider: string;
+  plan: "basic" | "premium";
+  /** Product surcharge in minor units of the requested currency (0 for basic). */
+  surchargeCents: number;
+};
+
+const PROVIDER_OF: Record<EngineId, string> = {
+  trellis: "microsoft-trellis-2",
+  meshy: "meshy",
+  tripo: "tripo3d",
+};
 
 /** Engines the studio may offer — premium engines appear only when configured. */
 export const getAvailableEngines = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<{ engines: EngineInfo[] }> => {
+  .inputValidator((input: unknown) => z.object({ currency: z.enum(["czk", "eur"]).optional() }).parse(input ?? {}))
+  .handler(async ({ data }): Promise<{ engines: EngineInfo[] }> => {
+    const currency = data.currency ?? "czk";
+    const { premiumRateCents } = await import("./premium.server");
+    const { meshyAvailable } = await import("./meshy.server");
     const { tripoAvailable } = await import("./tripo.server");
-    const engines: EngineInfo[] = [{ id: "trellis", label: "TRELLIS.2", premium: false }];
-    if (tripoAvailable()) engines.push({ id: "tripo", label: "Tripo3D", premium: true });
+
+    const engines: EngineInfo[] = [
+      { id: "trellis", label: "TRELLIS.2", premium: false, provider: PROVIDER_OF.trellis, plan: "basic", surchargeCents: 0 },
+    ];
+    const surcharge = await premiumRateCents(currency);
+    if (meshyAvailable()) {
+      engines.push({ id: "meshy", label: "Meshy", premium: true, provider: PROVIDER_OF.meshy, plan: "premium", surchargeCents: surcharge });
+    }
+    if (tripoAvailable()) {
+      engines.push({ id: "tripo", label: "Tripo3D", premium: true, provider: PROVIDER_OF.tripo, plan: "premium", surchargeCents: surcharge });
+    }
     return { engines };
   });
 
@@ -58,10 +87,14 @@ export const startGeneration = createServerFn({ method: "POST" })
     const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
     if (!photos[0]) throw new Error("Upload a photo before generating");
 
-    let engine: "trellis" | "tripo" = data.engine ?? "trellis";
+    const engine: EngineId = data.engine ?? "trellis";
     if (engine === "tripo") {
       const { tripoAvailable, TripoConfigError } = await import("./tripo.server");
       if (!tripoAvailable()) throw new TripoConfigError("Premium 3D engine is not configured");
+    }
+    if (engine === "meshy") {
+      const { meshyAvailable, MeshyConfigError } = await import("./meshy.server");
+      if (!meshyAvailable()) throw new MeshyConfigError("Premium 3D engine is not configured");
     }
 
     await supabase
@@ -76,10 +109,20 @@ export const startGeneration = createServerFn({ method: "POST" })
         session_hash: null,
         preview_video_url: null,
         generation_engine: engine,
-        model_provider: engine === "tripo" ? "tripo3d" : "microsoft-trellis-2",
+        model_provider: PROVIDER_OF[engine],
       } as Database["public"]["Tables"]["projects"]["Update"])
       .eq("id", project.id)
       .eq("user_id", userId);
+
+    // Open the persisted job record for this run.
+    const { openJob } = await import("./jobs.server");
+    await openJob(supabase, {
+      projectId: project.id,
+      userId,
+      engine,
+      provider: PROVIDER_OF[engine],
+      plan: engine === "trellis" ? "basic" : "premium",
+    });
 
     return {
       stage: "queued",
@@ -91,6 +134,7 @@ export const startGeneration = createServerFn({ method: "POST" })
       done: false,
     };
   });
+
 
 /** Read-only poll target that drives the studio progress UI. */
 export const getGenerationStatus = createServerFn({ method: "POST" })
@@ -153,16 +197,92 @@ export const advanceGeneration = createServerFn({ method: "POST" })
 
     const engine = (((project as { generation_engine?: string }).generation_engine) ?? "trellis") as
       | "trellis"
+      | "meshy"
       | "tripo";
     const trellis = await import("./trellis.server");
+    const { currentJob, patchJob } = await import("./jobs.server");
+    const jobRow = await currentJob(supabase, project.id, userId);
+    const jobId = jobRow?.id ?? null;
     type ProjectPatch = Database["public"]["Tables"]["projects"]["Update"];
     const patch = async (fields: ProjectPatch) => {
       await supabase.from("projects").update(fields).eq("id", project.id).eq("user_id", userId);
+      await patchJob(supabase, jobId, {
+        ...(fields.generation_stage ? { stage: fields.generation_stage } : {}),
+        ...(typeof fields.generation_progress === "number" ? { progress: fields.generation_progress } : {}),
+        ...(fields.status ? { status: fields.status } : {}),
+        ...(fields.generation_error !== undefined ? { error: fields.generation_error } : {}),
+        ...(fields.provider_job_id !== undefined ? { provider_job_id: fields.provider_job_id } : {}),
+        ...(fields.model_url ? { master_model_path: fields.model_url, finished_at: new Date().toISOString() } : {}),
+      });
     };
 
     try {
+      // ---- Meshy (premium) pipeline: create task -> poll -> download GLB ----
+      if (engine === "meshy") {
+        const meshy = await import("./meshy.server");
+        const adapter = meshy.meshyAdapter;
+        if (!adapter.available()) throw new meshy.MeshyConfigError("Premium 3D engine is not configured");
+
+        if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
+          await patch({ generation_stage: "preprocessing", generation_progress: 12, generation_error: null, status: "generating" });
+          const photos = Array.isArray(project.source_photos) ? (project.source_photos as string[]) : [];
+          const sourcePath = photos[0];
+          if (!sourcePath) throw new Error("Upload a photo before generating");
+          const { data: signed, error: signError } = await supabase.storage
+            .from("portrait-uploads")
+            .createSignedUrl(sourcePath, 60 * 30);
+          if (signError || !signed?.signedUrl) throw new Error("Could not prepare the photo for generation");
+
+          const created = await adapter.createJob({ imageUrl: signed.signedUrl, seedKey: project.id });
+          const { currentPlan } = await import("./quota.server");
+          await patch({
+            provider_job_id: created.providerJobId,
+            generation_stage: "sculpting",
+            generation_progress: 25,
+            generation_plan: await currentPlan(),
+          });
+          await patchJob(supabase, jobId, { provider_metadata: created.metadata as never });
+          return status("sculpting", 25, null);
+        }
+
+        if (!project.provider_job_id) throw new Error("Generation state was lost — start the job again");
+        const remote = await adapter.getStatus(project.provider_job_id);
+        if (remote.state === "failed" || remote.state === "canceled") {
+          throw new Error(remote.error ?? "The premium 3D engine failed to generate the model");
+        }
+        if (remote.state !== "succeeded") {
+          const progress = Math.max(25, Math.min(85, 25 + Math.round(remote.progress * 0.6)));
+          await patch({ generation_progress: progress, generation_stage: "sculpting" });
+          return { ...status("sculpting", progress, null), retryable: false };
+        }
+
+        await patch({ generation_stage: "extracting", generation_progress: 88 });
+        const outputs = await adapter.fetchOutputs(project.provider_job_id);
+        await patchJob(supabase, jobId, { provider_metadata: outputs.metadata as never });
+        await patch({ generation_stage: "storing", generation_progress: 92 });
+        const stored = await storeModelFromUrl(
+          supabase,
+          userId,
+          project.id,
+          project.generation_started_at,
+          outputs.glbUrl,
+          "meshy",
+          patch,
+          (fields) => patchJob(supabase, jobId, fields as never),
+        );
+        const { data: counter } = await supabase
+          .from("projects")
+          .select("premium_generations")
+          .eq("id", project.id)
+          .eq("user_id", userId)
+          .maybeSingle();
+        await patch({ premium_generations: (counter?.premium_generations ?? 0) + 1 });
+        return stored;
+      }
+
       // ---- Tripo3D (premium) pipeline: create task -> poll -> download GLB --
       if (engine === "tripo") {
+
         const tripo = await import("./tripo.server");
 
         if (stage === "queued" || stage === "preprocessing" || stage === "failed") {
@@ -369,6 +489,7 @@ async function storeModelFromUrl(
   modelUrl: string,
   provider: string,
   patch: (fields: ProjectPatchForStore) => Promise<void>,
+  jobPatch?: (fields: Record<string, unknown>) => Promise<void>,
 ): Promise<JobStatus> {
   const glbResponse = await fetch(modelUrl);
   if (!glbResponse.ok) throw new Error("Could not download the generated model");
@@ -381,6 +502,16 @@ async function storeModelFromUrl(
     upsert: true,
   });
   if (upload.error) throw new Error(upload.error.message);
+
+  // Print-ready pipeline: a separate copy is kept for print/fulfilment, so a
+  // later mesh repair never overwrites the delivered master.
+  const printPath = `${userId}/${projectId}-print.glb`;
+  const printUpload = await supabase.storage.from("portrait-models").upload(printPath, glbBytes, {
+    contentType: "model/gltf-binary",
+    upsert: true,
+  });
+  const { safeInspect } = await import("./printability.server");
+  const report = safeInspect(glbBytes);
 
   const startedAt = generationStartedAt ? Date.parse(generationStartedAt) : NaN;
   const seconds = Number.isFinite(startedAt)
@@ -397,7 +528,21 @@ async function storeModelFromUrl(
     generation_error: null,
     generation_seconds: seconds,
     generation_plan: await currentPlan(),
-  });
+    ...(printUpload.error ? {} : { print_ready_url: printPath }),
+    ...(report ? { printability: report as unknown as Database["public"]["Tables"]["projects"]["Update"]["printability"] } : {}),
+  } as ProjectPatchForStore);
+  if (jobPatch) {
+    await jobPatch({
+      master_model_path: storagePath,
+      ...(printUpload.error ? {} : { print_ready_path: printPath }),
+      ...(report ? { printability: report } : {}),
+      stage: "ready",
+      status: "ready",
+      progress: 100,
+      finished_at: new Date().toISOString(),
+    });
+  }
+
 
   return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
 }
