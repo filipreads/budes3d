@@ -37,7 +37,7 @@ function parseGlb(bytes: Uint8Array): { json: Gltf; bin: Uint8Array } {
     const start = offset + 8;
     const chunk = bytes.subarray(start, start + length);
     if (type === 0x4e4f534a) json = JSON.parse(new TextDecoder().decode(chunk)) as Gltf;
-    if (type === 0x004e4942) bin = chunk;
+    if (type === 0x004e4942) bin = chunk as Uint8Array<ArrayBuffer>;
     offset = start + length + ((4 - (length % 4)) % 4);
   }
   if (!json) throw new Error("GLB has no JSON chunk");
