@@ -117,9 +117,12 @@ function EditorPage() {
   /** Last stage we toasted about, so each transition is announced exactly once. */
   const toastedStageRef = useRef<JobStage | null>(null);
 
-  /** 3D engine for the next generation run (standard TRELLIS or premium Tripo3D). */
-  const [engine, setEngine] = useState<"trellis" | "tripo">("trellis");
-  const [engines, setEngines] = useState<EngineInfo[]>([{ id: "trellis", label: "TRELLIS.2", premium: false }]);
+  /** 3D engine for the next generation run (basic TRELLIS or a premium engine). */
+  const [engine, setEngine] = useState<EngineInfo["id"]>("trellis");
+  const [engines, setEngines] = useState<EngineInfo[]>([
+    { id: "trellis", label: "TRELLIS.2", premium: false, provider: "microsoft-trellis-2", plan: "basic", surchargeCents: 0 },
+  ]);
+
   /** Pre-approval print check of the generated mesh. */
   const [meshReport, setMeshReport] = useState<MeshReport | "checking" | "failed" | null>(null);
   /** Signed URL of the stored model, shared by the print check, repair and slicing. */
@@ -142,10 +145,11 @@ function EditorPage() {
   // Which engines can be offered — premium ones appear only when configured.
   useEffect(() => {
     if (!user) return;
-    void getAvailableEngines()
+    void getAvailableEngines({ data: { currency } })
       .then((result) => setEngines(result.engines))
       .catch(() => {});
-  }, [user]);
+  }, [user, currency]);
+
 
   // When the preview opens, verify the mesh is printable before approval.
   useEffect(() => {
