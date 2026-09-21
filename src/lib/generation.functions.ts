@@ -402,6 +402,15 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       });
       if (upload.error) throw new Error(upload.error.message);
 
+      // Separate print-ready copy + server-side printability verdict.
+      const printPath = `${userId}/${project.id}-print.glb`;
+      const printUpload = await supabase.storage.from("portrait-models").upload(printPath, glbBytes, {
+        contentType: "model/gltf-binary",
+        upsert: true,
+      });
+      const { safeInspect } = await import("./printability.server");
+      const report = safeInspect(glbBytes);
+
       const startedAt = project.generation_started_at ? Date.parse(project.generation_started_at) : NaN;
       const seconds = Number.isFinite(startedAt)
         ? Math.max(1, Math.min(1800, Math.round((Date.now() - startedAt) / 1000)))
@@ -417,9 +426,21 @@ export const advanceGeneration = createServerFn({ method: "POST" })
         generation_error: null,
         generation_seconds: seconds,
         generation_plan: await currentPlan(),
+        ...(printUpload.error ? {} : { print_ready_url: printPath }),
+        ...(report ? { printability: report as never } : {}),
+      } as Database["public"]["Tables"]["projects"]["Update"]);
+      await patchJob(supabase, jobId, {
+        master_model_path: storagePath,
+        ...(printUpload.error ? {} : { print_ready_path: printPath }),
+        ...(report ? { printability: report as never } : {}),
+        stage: "ready",
+        status: "ready",
+        progress: 100,
+        finished_at: new Date().toISOString(),
       });
 
       return { ...status("ready", 100, null), modelRef: storagePath, status: "ready", done: true, retryable: false };
+
       }
       throw new Error("Unknown 3D engine");
     } catch (cause) {
