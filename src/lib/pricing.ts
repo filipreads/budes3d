@@ -173,6 +173,10 @@ function pick<T extends { id: string }>(list: readonly T[], id: string, fallback
   return list.find((entry) => entry.id === id) ?? fallback;
 }
 
+function shapeLabel(shape: BaseShape): string {
+  return shape === "square" ? "square" : shape === "oval" ? "oval" : "round";
+}
+
 /**
  * Prices an admin can override at runtime (stored in `app_settings`), so the
  * plinth, engraving and hollowing rates are never hardcoded in components.
