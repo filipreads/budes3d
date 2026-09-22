@@ -173,9 +173,27 @@ function pick<T extends { id: string }>(list: readonly T[], id: string, fallback
   return list.find((entry) => entry.id === id) ?? fallback;
 }
 
-export function quote(config: StudioConfig, currency: Currency = "czk", extras: LineItem[] = []): Quote {
+/**
+ * Prices an admin can override at runtime (stored in `app_settings`), so the
+ * plinth, engraving and hollowing rates are never hardcoded in components.
+ */
+export type PricingOverrides = {
+  /** Plinth price per material id, in minor units of the quoted currency. */
+  baseCents?: Partial<Record<string, number>>;
+  engravingCents?: number;
+  /** Share of the sculpture price saved by hollowing, 0–0.5. */
+  hollowDiscount?: number;
+};
+
+export function quote(
+  config: StudioConfig,
+  currency: Currency = "czk",
+  extras: LineItem[] = [],
+  overrides: PricingOverrides = {},
+): Quote {
   const quantity = Math.min(Math.max(Math.round(config.quantity || 1), 1), 25);
   const lineItems: LineItem[] = [];
+  const spec = config.base ?? DEFAULT_BASE_SPEC;
 
   if (config.delivery === "digital") {
     lineItems.push({ label: "Digital 3D file (GLB + STL)", cents: amount(DIGITAL_PRICE, currency) });
@@ -190,17 +208,38 @@ export function quote(config: StudioConfig, currency: Currency = "czk", extras: 
       label: `${size.label} print · ${size.heightMm}mm · ${material.label} ${finish.label.toLowerCase()}`,
       cents: sculptureCents,
     });
-    const baseCents = amount(base.price, currency);
-    if (baseCents > 0) lineItems.push({ label: base.label, cents: baseCents });
+
+    // Hollowing saves material and machine time — passed on as a discount.
+    const hollow = config.hollow ?? DEFAULT_HOLLOW_SPEC;
+    if (hollow.enabled) {
+      const rate = Math.min(0.5, Math.max(0, overrides.hollowDiscount ?? HOLLOW_DISCOUNT));
+      const saving = Math.round(sculptureCents * rate);
+      if (saving > 0) lineItems.push({ label: `Hollowed (${hollow.wallMm} mm wall)`, cents: -saving });
+    }
+
+    const listedBase = overrides.baseCents?.[base.id] ?? amount(base.price, currency);
+    // Larger and thicker plinths cost more material; scaled off the default size.
+    const sizeFactor =
+      ((spec.widthMm || DEFAULT_BASE_SPEC.widthMm) / DEFAULT_BASE_SPEC.widthMm) ** 2 *
+      ((spec.heightMm || DEFAULT_BASE_SPEC.heightMm) / DEFAULT_BASE_SPEC.heightMm) ** 0.5;
+    const baseCents = Math.round(listedBase * Math.min(2.5, Math.max(0.5, sizeFactor)));
+    if (baseCents > 0) {
+      lineItems.push({ label: `${base.label} · ${shapeLabel(spec.shape)} ${Math.round(spec.widthMm)} mm`, cents: baseCents });
+    }
     lineItems.push({ label: "Digital 3D file included", cents: 0 });
   }
 
   if (config.engraving.trim().length > 0) {
+    const engraving = config.engravingSpec ?? DEFAULT_ENGRAVING_SPEC;
+    const listed = overrides.engravingCents ?? amount(ENGRAVING_PRICE, currency);
+    // Raised lettering needs more finishing work than a cut line.
+    const cents = Math.round(listed * (engraving.raised ? 1.3 : 1));
     lineItems.push({
-      label: `Engraving: "${config.engraving.trim().slice(0, 40)}"`,
-      cents: amount(ENGRAVING_PRICE, currency),
+      label: `${engraving.raised ? "Raised lettering" : "Engraving"}: "${config.engraving.trim().slice(0, 40)}"`,
+      cents,
     });
   }
+
 
   let unitCents = lineItems.reduce((sum, item) => sum + item.cents, 0);
   if (config.rush) {
