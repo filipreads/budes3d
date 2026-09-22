@@ -6,7 +6,7 @@ import type { Json } from "@/integrations/supabase/types";
 /** Signed URL for a stored model file, used by the 3D viewer. */
 export const getModelUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { storagePath: string }) => {
+  .inputValidator((input: { storagePath: string; optional?: boolean }) => {
     if (!input?.storagePath) throw new Error("storagePath required");
     return input;
   })
@@ -15,8 +15,12 @@ export const getModelUrl = createServerFn({ method: "POST" })
     const { data: signed, error } = await supabase.storage
       .from("portrait-models")
       .createSignedUrl(data.storagePath, 60 * 60);
-    if (error || !signed?.signedUrl) throw new Error("Could not open the model file");
-    return { url: signed.signedUrl };
+    if (error || !signed?.signedUrl) {
+      // Optional lookups (the simplified preview copy) simply may not exist.
+      if (data.optional) return { url: null as string | null };
+      throw new Error("Could not open the model file");
+    }
+    return { url: signed.signedUrl as string | null };
   });
 
 /**
