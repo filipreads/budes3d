@@ -127,6 +127,10 @@ export default function ModelStage({
   const [warmLight, setWarmLight] = useState(true);
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the model could not be shown — drives the message the customer reads. */
+  const [loadErrorKind, setLoadErrorKind] = useState<"missing" | "link" | "download">("download");
+  /** Which step of the load is running, so the wait never looks like a frozen screen. */
+  const [loadPhase, setLoadPhase] = useState<"link" | "download">("link");
   const [attempt, setAttempt] = useState(0);
   const [loadPercent, setLoadPercent] = useState(0);
   /** True while the fast, simplified copy is shown and the master still loads. */
