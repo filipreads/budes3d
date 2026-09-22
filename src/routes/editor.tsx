@@ -47,7 +47,8 @@ import {
   startGeneration,
   type EngineInfo,
 } from "@/lib/generation.functions";
-import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
+import { type MeshReport } from "@/lib/mesh-analysis";
+import { reportModel } from "@/lib/mesh-worker";
 import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
 import { SlicePreview } from "@/components/studio/SlicePreview";
 import { saveRepairedModel } from "@/lib/studio.functions";
