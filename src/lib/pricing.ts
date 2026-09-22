@@ -89,6 +89,46 @@ export const BASE_GEOMETRY: Record<string, { radius: number; height: number; col
   marble: { radius: 1.02, height: 0.28, color: "#cfc8ba" },
 };
 
+/** Plinth shape the customer can pick, independent of the material. */
+export type BaseShape = "round" | "square" | "oval";
+export const BASE_SHAPES: BaseShape[] = ["round", "square", "oval"];
+
+export type BaseSpec = {
+  shape: BaseShape;
+  /** Plinth thickness in millimetres. */
+  heightMm: number;
+  /** Plinth width / diameter in millimetres. */
+  widthMm: number;
+};
+
+export const DEFAULT_BASE_SPEC: BaseSpec = { shape: "round", heightMm: 18, widthMm: 90 };
+
+export type EngravingSpec = {
+  /** Cap height of the lettering in millimetres. */
+  sizeMm: number;
+  /** How deep it is cut (or how far it stands out), in millimetres. */
+  depthMm: number;
+  /** Raised lettering instead of engraved. */
+  raised: boolean;
+};
+
+export const DEFAULT_ENGRAVING_SPEC: EngravingSpec = { sizeMm: 8, depthMm: 0.8, raised: false };
+
+export type HollowSpec = {
+  enabled: boolean;
+  /** Wall thickness of the hollowed sculpture, in millimetres. */
+  wallMm: number;
+  /** Adds openings at the bottom so resin or powder can drain out. */
+  drainHoles: boolean;
+};
+
+export const DEFAULT_HOLLOW_SPEC: HollowSpec = { enabled: false, wallMm: 2.5, drainHoles: true };
+
+/** Smallest wall we are willing to print; thinner walls break in handling. */
+export const MIN_WALL_MM = 1.2;
+
+/** Share of the sculpture price saved by hollowing (less material, less time). */
+export const HOLLOW_DISCOUNT = 0.08;
 
 export type StudioConfig = {
   delivery: DeliveryType;
@@ -100,6 +140,9 @@ export type StudioConfig = {
   rush: boolean;
   quantity: number;
   placement: Placement;
+  base: BaseSpec;
+  engravingSpec: EngravingSpec;
+  hollow: HollowSpec;
 };
 
 export const DEFAULT_CONFIG: StudioConfig = {
@@ -112,6 +155,9 @@ export const DEFAULT_CONFIG: StudioConfig = {
   rush: false,
   quantity: 1,
   placement: DEFAULT_PLACEMENT,
+  base: DEFAULT_BASE_SPEC,
+  engravingSpec: DEFAULT_ENGRAVING_SPEC,
+  hollow: DEFAULT_HOLLOW_SPEC,
 };
 
 export type LineItem = { label: string; cents: number };
