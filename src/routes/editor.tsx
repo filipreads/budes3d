@@ -629,7 +629,7 @@ function EditorPage() {
         if (cancelled) return;
 
         if (!pending || !job || job.stage === "failed") {
-          const { job: active } = await findActiveGeneration({ data: {} });
+          const { job: active } = await findActiveGeneration();
           if (cancelled) return;
           if (active && (!job || job.stage === "failed")) {
             pending = active.projectId;
