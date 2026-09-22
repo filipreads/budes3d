@@ -569,11 +569,14 @@ function EditorPage() {
    */
   async function driveJob(projectId: string) {
     localStorage.setItem(JOB_KEY, projectId);
-    let guard = 0;
+    // Providers differ: some calls block for ~50s, others answer instantly.
+    // Bound the wait by wall-clock time and pace the quick ones, so a fast
+    // non-blocking status check cannot exhaust the loop within seconds.
+    const deadline = Date.now() + 40 * 60 * 1000;
     let job = await getGenerationStatus({ data: { projectId } });
-    while (!job.done && guard < 40) {
+    while (!job.done && Date.now() < deadline) {
       if (cancelRef.current) throw new Error(t("editor.cancelled"));
-      guard += 1;
+      const tick = Date.now();
       job = await advanceGeneration({ data: { projectId } });
       trackStage(job.stage as JobStage);
       setProgress(job.progress > 0 ? job.progress : null);
@@ -582,7 +585,11 @@ function EditorPage() {
       // so the model appears the moment it finishes saving.
       if (job.stage === "storing" || job.stage === "ready") setStep("preview");
       if (job.error && !job.retryable) break;
-
+      if (job.done) break;
+      const spent = Date.now() - tick;
+      if (spent < 4000) {
+        await new Promise((resolve) => setTimeout(resolve, 4000 - spent));
+      }
     }
 
     if (job.stage !== "ready" || !job.modelRef) {
