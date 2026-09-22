@@ -344,12 +344,16 @@ export default function ModelStage({
       // Fast path first — silently skipped when no simplified copy exists.
       if (!modelUrl && modelRef.endsWith(".glb")) {
         try {
-          const light = await getModelUrl({ data: { storagePath: modelRef.replace(/\.glb$/, "-preview.glb") } });
-          const gltf = await new GLTFLoader().loadAsync(light.url);
-          if (cancelled) return;
-          shade(gltf.scene);
-          setPreviewOnly(true);
-          setLoadedScene(gltf.scene);
+          const light = await getModelUrl({
+            data: { storagePath: modelRef.replace(/\.glb$/, "-preview.glb"), optional: true },
+          });
+          if (light.url) {
+            const gltf = await new GLTFLoader().loadAsync(light.url);
+            if (cancelled) return;
+            shade(gltf.scene);
+            setPreviewOnly(true);
+            setLoadedScene(gltf.scene);
+          }
         } catch {
           // No preview copy for this model — wait for the master instead.
         }
