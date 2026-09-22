@@ -40,7 +40,7 @@ export function parseGlb(bytes: Uint8Array): { json: Gltf; bin: Uint8Array<Array
   if (view.getUint32(0, true) !== 0x46546c67) throw new Error("Not a GLB file");
   let offset = 12;
   let json: Gltf | null = null;
-  let bin = new Uint8Array(0);
+  let bin: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
   while (offset + 8 <= bytes.byteLength) {
     const length = view.getUint32(offset, true);
     const type = view.getUint32(offset + 4, true);
