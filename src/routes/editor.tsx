@@ -39,7 +39,14 @@ import {
 } from "@/lib/pricing";
 import { getModelUrl, removeBackground } from "@/lib/studio.functions";
 import { EngineChoice } from "@/components/studio/EngineChoice";
-import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
+import {
+  advanceGeneration,
+  findActiveGeneration,
+  getAvailableEngines,
+  getGenerationStatus,
+  startGeneration,
+  type EngineInfo,
+} from "@/lib/generation.functions";
 import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
 import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
 import { SlicePreview } from "@/components/studio/SlicePreview";
