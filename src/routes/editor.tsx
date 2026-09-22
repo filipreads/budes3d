@@ -39,7 +39,14 @@ import {
 } from "@/lib/pricing";
 import { getModelUrl, removeBackground } from "@/lib/studio.functions";
 import { EngineChoice } from "@/components/studio/EngineChoice";
-import { advanceGeneration, getAvailableEngines, getGenerationStatus, startGeneration, type EngineInfo } from "@/lib/generation.functions";
+import {
+  advanceGeneration,
+  findActiveGeneration,
+  getAvailableEngines,
+  getGenerationStatus,
+  startGeneration,
+  type EngineInfo,
+} from "@/lib/generation.functions";
 import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
 import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
 import { SlicePreview } from "@/components/studio/SlicePreview";
@@ -607,16 +614,42 @@ function EditorPage() {
   }
 
   // Reopening the studio while a reconstruction is still queued or running:
-  // pick the job back up and keep showing its real state.
+  // pick the job back up and keep showing its real state. The project id in
+  // localStorage is only a shortcut — when it is missing (cleared storage,
+  // another device) the server is asked for the customer's latest run, so a
+  // paid premium job is never lost.
   useEffect(() => {
     if (!user) return;
-    const pending = localStorage.getItem(JOB_KEY);
-    if (!pending || busyRef.current) return;
+    if (busyRef.current) return;
     let cancelled = false;
     void (async () => {
       try {
-        const job = await getGenerationStatus({ data: { projectId: pending } });
+        let pending = localStorage.getItem(JOB_KEY);
+        let job = pending ? await getGenerationStatus({ data: { projectId: pending } }) : null;
         if (cancelled) return;
+
+        if (!pending || !job || job.stage === "failed") {
+          const { job: active } = await findActiveGeneration();
+          if (cancelled) return;
+          if (active && (!job || job.stage === "failed")) {
+            pending = active.projectId;
+            job = {
+              stage: active.stage,
+              progress: active.progress,
+              status: active.done ? "ready" : "generating",
+              error: active.error,
+              retryable: !active.done,
+              modelRef: active.modelRef,
+              done: active.done,
+            };
+            if (!active.done) localStorage.setItem(JOB_KEY, active.projectId);
+            if (active.engine === "trellis" || active.engine === "meshy" || active.engine === "tripo") {
+              setEngine(active.engine);
+            }
+          }
+        }
+        if (!pending || !job) return;
+
         if (job.stage === "ready" && job.modelRef) {
           localStorage.removeItem(JOB_KEY);
           trackStage("ready");

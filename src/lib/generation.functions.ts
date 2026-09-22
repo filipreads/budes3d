@@ -162,6 +162,62 @@ export const getGenerationStatus = createServerFn({ method: "POST" })
     };
   });
 
+export type ActiveGeneration = {
+  projectId: string;
+  engine: EngineId;
+  stage: JobStage;
+  progress: number;
+  error: string | null;
+  modelRef: string | null;
+  startedAt: string | null;
+  done: boolean;
+};
+
+/**
+ * Finds the customer's most recent generation run so the studio can pick it
+ * back up after a reload — even on a new device or with cleared browser
+ * storage. Paid premium runs keep going server-side; this is how the customer
+ * gets back to them (or straight to the finished model).
+ */
+export const findActiveGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ job: ActiveGeneration | null }> => {
+    const { supabase, userId } = context;
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select(
+        "id, generation_stage, generation_progress, generation_error, generation_engine, generation_started_at, model_url, updated_at",
+      )
+      .eq("user_id", userId)
+      .not("generation_stage", "is", null)
+      .neq("generation_stage", "failed")
+      .gte("updated_at", cutoff)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!project) return { job: null };
+
+    const stage = (project.generation_stage ?? "queued") as JobStage;
+    // A finished run only matters here when its model is actually available.
+    if (stage === "ready" && !project.model_url) return { job: null };
+
+    return {
+      job: {
+        projectId: project.id,
+        engine: ((project as { generation_engine?: string }).generation_engine ?? "trellis") as EngineId,
+        stage,
+        progress: project.generation_progress ?? 0,
+        error: project.generation_error,
+        modelRef: project.model_url,
+        startedAt: (project as { generation_started_at?: string | null }).generation_started_at ?? null,
+        done: stage === "ready",
+      },
+    };
+  });
+
 /**
  * Runs exactly one pipeline step and persists the result. Safe to call again
  * after a failure: the stage the project is parked on is re-executed.
