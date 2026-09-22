@@ -32,6 +32,7 @@ import {
   MoveVertical,
   MoveDiagonal,
   Palette,
+  Loader2,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -127,6 +128,10 @@ export default function ModelStage({
   const [warmLight, setWarmLight] = useState(true);
   const [loadedScene, setLoadedScene] = useState<THREE.Group | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the model could not be shown — drives the message the customer reads. */
+  const [loadErrorKind, setLoadErrorKind] = useState<"missing" | "link" | "download">("download");
+  /** Which step of the load is running, so the wait never looks like a frozen screen. */
+  const [loadPhase, setLoadPhase] = useState<"link" | "download">("link");
   const [attempt, setAttempt] = useState(0);
   const [loadPercent, setLoadPercent] = useState(0);
   /** True while the fast, simplified copy is shown and the master still loads. */
@@ -323,6 +328,7 @@ export default function ModelStage({
   useEffect(() => {
     if (!hasFile) {
       setLoadedScene(null);
+      setLoadErrorKind("missing");
       setLoadFailed(true);
       return;
     }
@@ -330,6 +336,7 @@ export default function ModelStage({
     setLoadedScene(null);
     setLoadFailed(false);
     setLoadPercent(0);
+    setLoadPhase("link");
     setPreviewOnly(false);
     void (async () => {
       const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
@@ -359,9 +366,23 @@ export default function ModelStage({
         }
       }
 
+      let url: string | null = modelUrl ?? null;
+      if (!url) {
+        try {
+          url = (await getModelUrl({ data: { storagePath: modelRef } })).url;
+        } catch {
+          url = null;
+        }
+        if (cancelled) return;
+        if (!url) {
+          setLoadErrorKind("link");
+          setLoadFailed(true);
+          return;
+        }
+      }
+
+      setLoadPhase("download");
       try {
-        const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
-        if (!url) throw new Error("no url");
         const gltf = await new GLTFLoader().loadAsync(url, (event) => {
           if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
         });
@@ -371,13 +392,17 @@ export default function ModelStage({
         setPreviewOnly(false);
         setLoadedScene(gltf.scene);
       } catch {
-        if (!cancelled) setLoadFailed(true);
+        if (!cancelled) {
+          setLoadErrorKind("download");
+          setLoadFailed(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [modelRef, modelUrl, hasFile, attempt]);
+
 
   // Free GPU memory when the viewer unmounts or swaps models — mobile browsers
   // drop the whole WebGL context once too many buffers pile up.
@@ -651,16 +676,26 @@ export default function ModelStage({
         >
           <AlertTriangle className="size-6 text-destructive" aria-hidden />
           <p className="font-display text-lg text-background">{t("viewer.errorTitle")}</p>
-          <p className="max-w-sm text-sm text-muted-foreground">{t("viewer.errorBody")}</p>
-          <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAttempt((n) => n + 1)}>
-            {t("viewer.retry")}
-          </Button>
+          <p className="max-w-sm text-sm text-muted-foreground">{t(`viewer.error.${loadErrorKind}`)}</p>
+          <p className="max-w-sm text-xs text-muted-foreground">{t("viewer.errorBody")}</p>
+          {loadErrorKind === "missing" ? null : (
+            <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAttempt((n) => n + 1)}>
+              {t("viewer.retry")}
+            </Button>
+          )}
         </div>
       ) : !loadedScene ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6">
-          <p className="text-sm text-muted-foreground">
-            {t("viewer.loading")} {loadPercent > 0 ? `${loadPercent}%` : ""}
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6 text-center"
+        >
+          <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
+          <p className="text-sm text-background">
+            {loadPhase === "link" ? t("viewer.loading.link") : t("viewer.loading.download")}
+            {loadPhase === "download" && loadPercent > 0 ? ` ${loadPercent}%` : ""}
           </p>
+          <p className="max-w-xs text-xs text-muted-foreground">{t("viewer.loadingHint")}</p>
           <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-300"
@@ -671,6 +706,9 @@ export default function ModelStage({
               aria-valuemax={100}
             />
           </div>
+          <Button size="sm" variant="ghost" className="mt-1" onClick={() => setAttempt((n) => n + 1)}>
+            {t("viewer.retry")}
+          </Button>
         </div>
       ) : previewOnly ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-14 flex justify-center">
