@@ -170,7 +170,7 @@ function EditorPage() {
     if (!modelRef.endsWith("-repaired.glb")) setOriginalRef((prev) => prev ?? modelRef);
     void getModelUrl({ data: { storagePath: modelRef } })
       .then(async ({ url }) => {
-        if (cancelled) return;
+        if (cancelled || !url) return;
         setModelFileUrl(url);
         // Runs in the mesh worker, so the editor stays interactive meanwhile.
         const report = await reportModel(url);
