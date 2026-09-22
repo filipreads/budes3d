@@ -74,14 +74,22 @@ export const getOrderDownloadUrl = createServerFn({ method: "POST" })
 
     // STL is a print file: it must come out at the physical height the customer
     // ordered, so the browser scales the mesh with this value (millimetres).
-    const snapshot = (order.config_snapshot ?? {}) as { sizeId?: string };
+    const { sanitizeConfig } = await import("./pricing");
+    const config = sanitizeConfig(order.config_snapshot ?? {});
     const heights: Record<string, number> = { s: 100, m: 150, l: 220, xl: 300 };
-    const heightMm = heights[String(snapshot.sizeId ?? "m")] ?? 150;
+    const heightMm = heights[config.sizeId] ?? 150;
 
     return {
       url: signed.signedUrl,
       format: row.file_format,
       filename: `${order.order_number}.${row.file_format}`,
       heightMm,
+      placement: config.placement,
+      // Plinth, lettering and hollowing are baked into print formats.
+      extras: {
+        base: config.baseId === "none" ? null : config.base,
+        engraving: config.engraving.trim() ? { text: config.engraving.trim(), ...config.engravingSpec } : null,
+        hollow: config.hollow,
+      },
     };
   });
