@@ -675,16 +675,26 @@ export default function ModelStage({
         >
           <AlertTriangle className="size-6 text-destructive" aria-hidden />
           <p className="font-display text-lg text-background">{t("viewer.errorTitle")}</p>
-          <p className="max-w-sm text-sm text-muted-foreground">{t("viewer.errorBody")}</p>
-          <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAttempt((n) => n + 1)}>
-            {t("viewer.retry")}
-          </Button>
+          <p className="max-w-sm text-sm text-muted-foreground">{t(`viewer.error.${loadErrorKind}`)}</p>
+          <p className="max-w-sm text-xs text-muted-foreground">{t("viewer.errorBody")}</p>
+          {loadErrorKind === "missing" ? null : (
+            <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAttempt((n) => n + 1)}>
+              {t("viewer.retry")}
+            </Button>
+          )}
         </div>
       ) : !loadedScene ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6">
-          <p className="text-sm text-muted-foreground">
-            {t("viewer.loading")} {loadPercent > 0 ? `${loadPercent}%` : ""}
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-stone-deep/80 px-6 text-center"
+        >
+          <Loader2 className="size-5 animate-spin text-primary" aria-hidden />
+          <p className="text-sm text-background">
+            {loadPhase === "link" ? t("viewer.loading.link") : t("viewer.loading.download")}
+            {loadPhase === "download" && loadPercent > 0 ? ` ${loadPercent}%` : ""}
           </p>
+          <p className="max-w-xs text-xs text-muted-foreground">{t("viewer.loadingHint")}</p>
           <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-primary transition-[width] duration-300"
@@ -695,6 +705,9 @@ export default function ModelStage({
               aria-valuemax={100}
             />
           </div>
+          <Button size="sm" variant="ghost" className="mt-1" onClick={() => setAttempt((n) => n + 1)}>
+            {t("viewer.retry")}
+          </Button>
         </div>
       ) : previewOnly ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-14 flex justify-center">
