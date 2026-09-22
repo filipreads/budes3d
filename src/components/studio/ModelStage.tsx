@@ -327,6 +327,7 @@ export default function ModelStage({
   useEffect(() => {
     if (!hasFile) {
       setLoadedScene(null);
+      setLoadErrorKind("missing");
       setLoadFailed(true);
       return;
     }
@@ -334,6 +335,7 @@ export default function ModelStage({
     setLoadedScene(null);
     setLoadFailed(false);
     setLoadPercent(0);
+    setLoadPhase("link");
     setPreviewOnly(false);
     void (async () => {
       const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
@@ -363,9 +365,23 @@ export default function ModelStage({
         }
       }
 
+      let url: string | null = modelUrl ?? null;
+      if (!url) {
+        try {
+          url = (await getModelUrl({ data: { storagePath: modelRef } })).url;
+        } catch {
+          url = null;
+        }
+        if (cancelled) return;
+        if (!url) {
+          setLoadErrorKind("link");
+          setLoadFailed(true);
+          return;
+        }
+      }
+
+      setLoadPhase("download");
       try {
-        const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
-        if (!url) throw new Error("no url");
         const gltf = await new GLTFLoader().loadAsync(url, (event) => {
           if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
         });
@@ -375,13 +391,17 @@ export default function ModelStage({
         setPreviewOnly(false);
         setLoadedScene(gltf.scene);
       } catch {
-        if (!cancelled) setLoadFailed(true);
+        if (!cancelled) {
+          setLoadErrorKind("download");
+          setLoadFailed(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [modelRef, modelUrl, hasFile, attempt]);
+
 
   // Free GPU memory when the viewer unmounts or swaps models — mobile browsers
   // drop the whole WebGL context once too many buffers pile up.
