@@ -35,7 +35,7 @@ type Gltf = {
 
 const COMPONENT_SIZE: Record<number, number> = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
 
-export function parseGlb(bytes: Uint8Array): { json: Gltf; bin: Uint8Array } {
+export function parseGlb(bytes: Uint8Array): { json: Gltf; bin: Uint8Array<ArrayBufferLike> } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(0, true) !== 0x46546c67) throw new Error("Not a GLB file");
   let offset = 12;
