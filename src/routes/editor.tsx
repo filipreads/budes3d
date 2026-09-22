@@ -1439,9 +1439,8 @@ function EditorPage() {
                             label={t("editor.hollowWall")}
                             unit=" mm"
                             value={config.hollow.wallMm}
-                            min={MIN_WALL_MM}
+                            min={Math.ceil(MIN_WALL_MM)}
                             max={8}
-                            step={0.1}
                             onChange={(wallMm) => setConfig({ ...config, hollow: { ...config.hollow, wallMm } })}
                           />
                           <div className="flex items-center justify-between gap-3">
@@ -1486,9 +1485,8 @@ function EditorPage() {
                         label={t("editor.engravingDepth")}
                         unit=" mm"
                         value={config.engravingSpec.depthMm}
-                        min={0.3}
+                        min={1}
                         max={3}
-                        step={0.1}
                         onChange={(depthMm) => setConfig({ ...config, engravingSpec: { ...config.engravingSpec, depthMm } })}
                       />
                       <div className="flex items-center justify-between gap-3">
