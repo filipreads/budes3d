@@ -466,6 +466,7 @@ export const advanceGeneration = createServerFn({ method: "POST" })
       });
       const { safeInspect } = await import("./printability.server");
       const report = safeInspect(glbBytes);
+      await storePreviewCopy(supabase, userId, project.id, glbBytes);
 
       const startedAt = project.generation_started_at ? Date.parse(project.generation_started_at) : NaN;
       const seconds = Number.isFinite(startedAt)
@@ -589,6 +590,7 @@ async function storeModelFromUrl(
   });
   const { safeInspect } = await import("./printability.server");
   const report = safeInspect(glbBytes);
+  await storePreviewCopy(supabase, userId, projectId, glbBytes);
 
   const startedAt = generationStartedAt ? Date.parse(generationStartedAt) : NaN;
   const seconds = Number.isFinite(startedAt)
