@@ -32,6 +32,8 @@ import {
   MATERIALS,
   SIZES,
   DEFAULT_PLACEMENT,
+  BASE_SHAPES,
+  MIN_WALL_MM,
   quote,
   sanitizeConfig,
   type Placement,
