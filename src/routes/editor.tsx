@@ -170,7 +170,8 @@ function EditorPage() {
       .then(async ({ url }) => {
         if (cancelled) return;
         setModelFileUrl(url);
-        const report = await analyzeModelUrl(url);
+        // Runs in the mesh worker, so the editor stays interactive meanwhile.
+        const report = await reportModel(url);
         if (!cancelled) setMeshReport(report);
       })
       .catch(() => {
