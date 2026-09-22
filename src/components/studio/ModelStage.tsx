@@ -361,6 +361,7 @@ export default function ModelStage({
 
       try {
         const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
+        if (!url) throw new Error("no url");
         const gltf = await new GLTFLoader().loadAsync(url, (event) => {
           if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
         });
