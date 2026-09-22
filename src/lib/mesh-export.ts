@@ -13,12 +13,20 @@ function saveBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Physical extras the customer configured, baked in at export time. */
+export type PrintExtras = {
+  base?: { shape: "round" | "square" | "oval"; heightMm: number; widthMm: number } | null;
+  engraving?: { text: string; sizeMm: number; depthMm: number; raised: boolean } | null;
+  hollow?: { enabled: boolean; wallMm: number; drainHoles: boolean } | null;
+};
+
 export async function downloadModelFile(
   signedUrl: string,
   format: string,
   filename: string,
   heightMm?: number,
   placement?: { yaw: number; tilt: number; scale: number; lift?: number; offsetX?: number; offsetZ?: number },
+  extras?: PrintExtras,
 ) {
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error("Could not fetch the model file");
@@ -51,6 +59,24 @@ export async function downloadModelFile(
       gltf.scene.updateMatrixWorld(true);
     }
   }
+
+  // Plinth, lettering and hollowing are real geometry in the delivered file —
+  // but only for print formats, which are already in millimetres.
+  if (extras && format !== "obj") {
+    const { attachPlinth, hollowScene } = await import("./print-geometry");
+    if (extras.hollow?.enabled) {
+      hollowScene(THREE, gltf.scene, extras.hollow);
+    }
+    if (extras.base) {
+      const engraving = extras.engraving ?? { text: "", sizeMm: 8, depthMm: 0.8, raised: false };
+      attachPlinth(THREE, gltf.scene, extras.base, {
+        text: engraving.text,
+        spec: { sizeMm: engraving.sizeMm, depthMm: engraving.depthMm, raised: engraving.raised },
+      });
+      gltf.scene.updateMatrixWorld(true);
+    }
+  }
+
 
   if (format === "stl") {
     const { STLExporter } = await import("three/examples/jsm/exporters/STLExporter.js");

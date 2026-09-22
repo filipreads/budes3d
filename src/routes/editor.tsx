@@ -32,6 +32,8 @@ import {
   MATERIALS,
   SIZES,
   DEFAULT_PLACEMENT,
+  BASE_SHAPES,
+  MIN_WALL_MM,
   quote,
   sanitizeConfig,
   type Placement,
@@ -47,7 +49,8 @@ import {
   startGeneration,
   type EngineInfo,
 } from "@/lib/generation.functions";
-import { analyzeModelUrl, type MeshReport } from "@/lib/mesh-analysis";
+import { type MeshReport } from "@/lib/mesh-analysis";
+import { reportModel } from "@/lib/mesh-worker";
 import { repairModelUrl, type RepairResult } from "@/lib/mesh-repair";
 import { SlicePreview } from "@/components/studio/SlicePreview";
 import { saveRepairedModel } from "@/lib/studio.functions";
@@ -169,7 +172,8 @@ function EditorPage() {
       .then(async ({ url }) => {
         if (cancelled) return;
         setModelFileUrl(url);
-        const report = await analyzeModelUrl(url);
+        // Runs in the mesh worker, so the editor stays interactive meanwhile.
+        const report = await reportModel(url);
         if (!cancelled) setMeshReport(report);
       })
       .catch(() => {
@@ -1384,6 +1388,73 @@ function EditorPage() {
                         value={config.baseId}
                         onChange={(id) => setConfig({ ...config, baseId: id as StudioConfig["baseId"] })}
                       />
+
+                      {config.baseId !== "none" ? (
+                        <>
+                          <ChoiceRow
+                            label={t("editor.baseShape")}
+                            options={BASE_SHAPES.map((shape) => ({
+                              id: shape,
+                              label: t(`editor.baseShape.${shape}`),
+                              delta: 0,
+                            }))}
+                            value={config.base.shape}
+                            onChange={(shape) =>
+                              setConfig({ ...config, base: { ...config.base, shape: shape as StudioConfig["base"]["shape"] } })
+                            }
+                          />
+                          <SliderRow
+                            label={t("editor.baseWidth")}
+                            unit=" mm"
+                            value={config.base.widthMm}
+                            min={40}
+                            max={220}
+                            onChange={(widthMm) => setConfig({ ...config, base: { ...config.base, widthMm } })}
+                          />
+                          <SliderRow
+                            label={t("editor.baseHeight")}
+                            unit=" mm"
+                            value={config.base.heightMm}
+                            min={6}
+                            max={60}
+                            onChange={(heightMm) => setConfig({ ...config, base: { ...config.base, heightMm } })}
+                          />
+                        </>
+                      ) : null}
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <Label htmlFor="hollow">{t("editor.hollow")}</Label>
+                          <p className="text-[11px] text-muted-foreground">{t("editor.hollowHint")}</p>
+                        </div>
+                        <Switch
+                          id="hollow"
+                          checked={config.hollow.enabled}
+                          onCheckedChange={(enabled) => setConfig({ ...config, hollow: { ...config.hollow, enabled } })}
+                        />
+                      </div>
+                      {config.hollow.enabled ? (
+                        <>
+                          <SliderRow
+                            label={t("editor.hollowWall")}
+                            unit=" mm"
+                            value={config.hollow.wallMm}
+                            min={Math.ceil(MIN_WALL_MM)}
+                            max={8}
+                            onChange={(wallMm) => setConfig({ ...config, hollow: { ...config.hollow, wallMm } })}
+                          />
+                          <div className="flex items-center justify-between gap-3">
+                            <Label htmlFor="drain">{t("editor.drainHoles")}</Label>
+                            <Switch
+                              id="drain"
+                              checked={config.hollow.drainHoles}
+                              onCheckedChange={(drainHoles) =>
+                                setConfig({ ...config, hollow: { ...config.hollow, drainHoles } })
+                              }
+                            />
+                          </div>
+                        </>
+                      ) : null}
                       <p className="text-[11px] text-muted-foreground">{t("editor.compare")}</p>
                     </>
                   ) : null}
@@ -1399,6 +1470,38 @@ function EditorPage() {
                       placeholder={t("editor.engravingPlaceholder")}
                     />
                   </div>
+
+                  {config.engraving.trim() ? (
+                    <div className="space-y-3 rounded-lg border border-border/60 p-3">
+                      <SliderRow
+                        label={t("editor.engravingSize")}
+                        unit=" mm"
+                        value={config.engravingSpec.sizeMm}
+                        min={3}
+                        max={20}
+                        onChange={(sizeMm) => setConfig({ ...config, engravingSpec: { ...config.engravingSpec, sizeMm } })}
+                      />
+                      <SliderRow
+                        label={t("editor.engravingDepth")}
+                        unit=" mm"
+                        value={config.engravingSpec.depthMm}
+                        min={1}
+                        max={3}
+                        onChange={(depthMm) => setConfig({ ...config, engravingSpec: { ...config.engravingSpec, depthMm } })}
+                      />
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="raised">{t("editor.engravingRaised")}</Label>
+                        <Switch
+                          id="raised"
+                          checked={config.engravingSpec.raised}
+                          onCheckedChange={(raised) =>
+                            setConfig({ ...config, engravingSpec: { ...config.engravingSpec, raised } })
+                          }
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
 
                   <div className="flex items-center justify-between">
                     <Label htmlFor="rush">{t("editor.rush")}</Label>

@@ -129,6 +129,8 @@ export default function ModelStage({
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [loadPercent, setLoadPercent] = useState(0);
+  /** True while the fast, simplified copy is shown and the master still loads. */
+  const [previewOnly, setPreviewOnly] = useState(false);
   const [quality, setQuality] = useState<ViewerQuality>("high");
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
@@ -315,6 +317,9 @@ export default function ModelStage({
   const hasFile = Boolean(modelUrl) || (Boolean(modelRef) && !modelRef.startsWith("sample://"));
 
   // Real TRELLIS output lives in private storage: resolve a signed URL, then load the GLB.
+  // A simplified copy (`…-preview.glb`) is stored next to the master, so the
+  // customer sees the sculpture almost immediately while the full-resolution
+  // file keeps downloading in the background.
   useEffect(() => {
     if (!hasFile) {
       setLoadedScene(null);
@@ -325,21 +330,40 @@ export default function ModelStage({
     setLoadedScene(null);
     setLoadFailed(false);
     setLoadPercent(0);
+    setPreviewOnly(false);
     void (async () => {
-      try {
-        const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
-        const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-        const gltf = await new GLTFLoader().loadAsync(url, (event) => {
-          if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
-        });
-        if (cancelled) return;
-        gltf.scene.traverse((child) => {
+      const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+      const shade = (scene: THREE.Object3D) =>
+        scene.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
           }
         });
+
+      // Fast path first — silently skipped when no simplified copy exists.
+      if (!modelUrl && modelRef.endsWith(".glb")) {
+        try {
+          const light = await getModelUrl({ data: { storagePath: modelRef.replace(/\.glb$/, "-preview.glb") } });
+          const gltf = await new GLTFLoader().loadAsync(light.url);
+          if (cancelled) return;
+          shade(gltf.scene);
+          setPreviewOnly(true);
+          setLoadedScene(gltf.scene);
+        } catch {
+          // No preview copy for this model — wait for the master instead.
+        }
+      }
+
+      try {
+        const url = modelUrl ?? (await getModelUrl({ data: { storagePath: modelRef } })).url;
+        const gltf = await new GLTFLoader().loadAsync(url, (event) => {
+          if (!cancelled && event.total) setLoadPercent(Math.round((event.loaded / event.total) * 100));
+        });
+        if (cancelled) return;
+        shade(gltf.scene);
         setLoadPercent(100);
+        setPreviewOnly(false);
         setLoadedScene(gltf.scene);
       } catch {
         if (!cancelled) setLoadFailed(true);
@@ -642,6 +666,12 @@ export default function ModelStage({
               aria-valuemax={100}
             />
           </div>
+        </div>
+      ) : previewOnly ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-14 flex justify-center">
+          <span className="rounded-full bg-stone-deep/80 px-3 py-1 text-xs text-muted-foreground">
+            {t("viewer.previewQuality")}
+          </span>
         </div>
       ) : null}
 

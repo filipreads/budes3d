@@ -89,6 +89,46 @@ export const BASE_GEOMETRY: Record<string, { radius: number; height: number; col
   marble: { radius: 1.02, height: 0.28, color: "#cfc8ba" },
 };
 
+/** Plinth shape the customer can pick, independent of the material. */
+export type BaseShape = "round" | "square" | "oval";
+export const BASE_SHAPES: BaseShape[] = ["round", "square", "oval"];
+
+export type BaseSpec = {
+  shape: BaseShape;
+  /** Plinth thickness in millimetres. */
+  heightMm: number;
+  /** Plinth width / diameter in millimetres. */
+  widthMm: number;
+};
+
+export const DEFAULT_BASE_SPEC: BaseSpec = { shape: "round", heightMm: 18, widthMm: 90 };
+
+export type EngravingSpec = {
+  /** Cap height of the lettering in millimetres. */
+  sizeMm: number;
+  /** How deep it is cut (or how far it stands out), in millimetres. */
+  depthMm: number;
+  /** Raised lettering instead of engraved. */
+  raised: boolean;
+};
+
+export const DEFAULT_ENGRAVING_SPEC: EngravingSpec = { sizeMm: 8, depthMm: 0.8, raised: false };
+
+export type HollowSpec = {
+  enabled: boolean;
+  /** Wall thickness of the hollowed sculpture, in millimetres. */
+  wallMm: number;
+  /** Adds openings at the bottom so resin or powder can drain out. */
+  drainHoles: boolean;
+};
+
+export const DEFAULT_HOLLOW_SPEC: HollowSpec = { enabled: false, wallMm: 2.5, drainHoles: true };
+
+/** Smallest wall we are willing to print; thinner walls break in handling. */
+export const MIN_WALL_MM = 1.2;
+
+/** Share of the sculpture price saved by hollowing (less material, less time). */
+export const HOLLOW_DISCOUNT = 0.08;
 
 export type StudioConfig = {
   delivery: DeliveryType;
@@ -100,6 +140,9 @@ export type StudioConfig = {
   rush: boolean;
   quantity: number;
   placement: Placement;
+  base: BaseSpec;
+  engravingSpec: EngravingSpec;
+  hollow: HollowSpec;
 };
 
 export const DEFAULT_CONFIG: StudioConfig = {
@@ -112,6 +155,9 @@ export const DEFAULT_CONFIG: StudioConfig = {
   rush: false,
   quantity: 1,
   placement: DEFAULT_PLACEMENT,
+  base: DEFAULT_BASE_SPEC,
+  engravingSpec: DEFAULT_ENGRAVING_SPEC,
+  hollow: DEFAULT_HOLLOW_SPEC,
 };
 
 export type LineItem = { label: string; cents: number };
@@ -127,9 +173,31 @@ function pick<T extends { id: string }>(list: readonly T[], id: string, fallback
   return list.find((entry) => entry.id === id) ?? fallback;
 }
 
-export function quote(config: StudioConfig, currency: Currency = "czk", extras: LineItem[] = []): Quote {
+function shapeLabel(shape: BaseShape): string {
+  return shape === "square" ? "square" : shape === "oval" ? "oval" : "round";
+}
+
+/**
+ * Prices an admin can override at runtime (stored in `app_settings`), so the
+ * plinth, engraving and hollowing rates are never hardcoded in components.
+ */
+export type PricingOverrides = {
+  /** Plinth price per material id, in minor units of the quoted currency. */
+  baseCents?: Partial<Record<string, number>>;
+  engravingCents?: number;
+  /** Share of the sculpture price saved by hollowing, 0–0.5. */
+  hollowDiscount?: number;
+};
+
+export function quote(
+  config: StudioConfig,
+  currency: Currency = "czk",
+  extras: LineItem[] = [],
+  overrides: PricingOverrides = {},
+): Quote {
   const quantity = Math.min(Math.max(Math.round(config.quantity || 1), 1), 25);
   const lineItems: LineItem[] = [];
+  const spec = config.base ?? DEFAULT_BASE_SPEC;
 
   if (config.delivery === "digital") {
     lineItems.push({ label: "Digital 3D file (GLB + STL)", cents: amount(DIGITAL_PRICE, currency) });
@@ -144,17 +212,38 @@ export function quote(config: StudioConfig, currency: Currency = "czk", extras: 
       label: `${size.label} print · ${size.heightMm}mm · ${material.label} ${finish.label.toLowerCase()}`,
       cents: sculptureCents,
     });
-    const baseCents = amount(base.price, currency);
-    if (baseCents > 0) lineItems.push({ label: base.label, cents: baseCents });
+
+    // Hollowing saves material and machine time — passed on as a discount.
+    const hollow = config.hollow ?? DEFAULT_HOLLOW_SPEC;
+    if (hollow.enabled) {
+      const rate = Math.min(0.5, Math.max(0, overrides.hollowDiscount ?? HOLLOW_DISCOUNT));
+      const saving = Math.round(sculptureCents * rate);
+      if (saving > 0) lineItems.push({ label: `Hollowed (${hollow.wallMm} mm wall)`, cents: -saving });
+    }
+
+    const listedBase = overrides.baseCents?.[base.id] ?? amount(base.price, currency);
+    // Larger and thicker plinths cost more material; scaled off the default size.
+    const sizeFactor =
+      ((spec.widthMm || DEFAULT_BASE_SPEC.widthMm) / DEFAULT_BASE_SPEC.widthMm) ** 2 *
+      ((spec.heightMm || DEFAULT_BASE_SPEC.heightMm) / DEFAULT_BASE_SPEC.heightMm) ** 0.5;
+    const baseCents = Math.round(listedBase * Math.min(2.5, Math.max(0.5, sizeFactor)));
+    if (baseCents > 0) {
+      lineItems.push({ label: `${base.label} · ${shapeLabel(spec.shape)} ${Math.round(spec.widthMm)} mm`, cents: baseCents });
+    }
     lineItems.push({ label: "Digital 3D file included", cents: 0 });
   }
 
   if (config.engraving.trim().length > 0) {
+    const engraving = config.engravingSpec ?? DEFAULT_ENGRAVING_SPEC;
+    const listed = overrides.engravingCents ?? amount(ENGRAVING_PRICE, currency);
+    // Raised lettering needs more finishing work than a cut line.
+    const cents = Math.round(listed * (engraving.raised ? 1.3 : 1));
     lineItems.push({
-      label: `Engraving: "${config.engraving.trim().slice(0, 40)}"`,
-      cents: amount(ENGRAVING_PRICE, currency),
+      label: `${engraving.raised ? "Raised lettering" : "Engraving"}: "${config.engraving.trim().slice(0, 40)}"`,
+      cents,
     });
   }
+
 
   let unitCents = lineItems.reduce((sum, item) => sum + item.cents, 0);
   if (config.rush) {
@@ -237,6 +326,33 @@ export function sanitizePlacement(input: unknown): Placement {
   };
 }
 
+export function sanitizeBaseSpec(input: unknown): BaseSpec {
+  const raw = (input ?? {}) as Partial<BaseSpec>;
+  return {
+    shape: BASE_SHAPES.includes(raw.shape as BaseShape) ? (raw.shape as BaseShape) : DEFAULT_BASE_SPEC.shape,
+    heightMm: clampNumber(raw.heightMm, 6, 60, DEFAULT_BASE_SPEC.heightMm),
+    widthMm: clampNumber(raw.widthMm, 40, 220, DEFAULT_BASE_SPEC.widthMm),
+  };
+}
+
+export function sanitizeEngravingSpec(input: unknown): EngravingSpec {
+  const raw = (input ?? {}) as Partial<EngravingSpec>;
+  return {
+    sizeMm: clampNumber(raw.sizeMm, 3, 20, DEFAULT_ENGRAVING_SPEC.sizeMm),
+    depthMm: clampNumber(raw.depthMm, 0.3, 3, DEFAULT_ENGRAVING_SPEC.depthMm),
+    raised: Boolean(raw.raised),
+  };
+}
+
+export function sanitizeHollowSpec(input: unknown): HollowSpec {
+  const raw = (input ?? {}) as Partial<HollowSpec>;
+  return {
+    enabled: Boolean(raw.enabled),
+    wallMm: clampNumber(raw.wallMm, MIN_WALL_MM, 8, DEFAULT_HOLLOW_SPEC.wallMm),
+    drainHoles: raw.drainHoles === undefined ? DEFAULT_HOLLOW_SPEC.drainHoles : Boolean(raw.drainHoles),
+  };
+}
+
 export function sanitizeConfig(input: unknown): StudioConfig {
   const raw = (input ?? {}) as Partial<StudioConfig>;
   return {
@@ -249,5 +365,8 @@ export function sanitizeConfig(input: unknown): StudioConfig {
     rush: Boolean(raw.rush),
     quantity: Math.min(Math.max(Math.round(Number(raw.quantity) || 1), 1), 25),
     placement: sanitizePlacement(raw.placement),
+    base: sanitizeBaseSpec(raw.base),
+    engravingSpec: sanitizeEngravingSpec(raw.engravingSpec),
+    hollow: sanitizeHollowSpec(raw.hollow),
   };
 }
