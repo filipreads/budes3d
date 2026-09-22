@@ -667,6 +667,12 @@ export default function ModelStage({
             />
           </div>
         </div>
+      ) : previewOnly ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-14 flex justify-center">
+          <span className="rounded-full bg-stone-deep/80 px-3 py-1 text-xs text-muted-foreground">
+            {t("viewer.previewQuality")}
+          </span>
+        </div>
       ) : null}
 
       {loadedScene ? (
