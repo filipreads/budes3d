@@ -555,6 +555,31 @@ type StoreSupabase = {
 };
 
 /**
+ * Stores a simplified, texture-less copy next to the master so the studio can
+ * show something within a moment. Best effort: a failure only means the viewer
+ * waits for the full file.
+ */
+async function storePreviewCopy(
+  supabase: StoreSupabase,
+  userId: string,
+  projectId: string,
+  glbBytes: Uint8Array,
+): Promise<void> {
+  try {
+    const { buildPreviewGlb } = await import("./preview-model.server");
+    const preview = buildPreviewGlb(glbBytes);
+    if (!preview) return;
+    await supabase.storage.from("portrait-models").upload(`${userId}/${projectId}-preview.glb`, preview, {
+      contentType: "model/gltf-binary",
+      upsert: true,
+    });
+  } catch {
+    // A missing preview is never fatal.
+  }
+}
+
+
+/**
  * Shared final step for every engine: download the produced GLB, persist it in
  * our private bucket and mark the project ready. The provider's copy is
  * temporary; ours backs paid downloads and the studio preview.
