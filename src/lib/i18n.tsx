@@ -317,6 +317,7 @@ const en = {
   "viewer.warm": "Warm light",
   "viewer.cool": "Cool light",
   "viewer.loading": "Loading 3D model…",
+  "viewer.previewQuality": "Quick preview — full detail still loading",
   "viewer.errorTitle": "The 3D model could not be loaded",
   "viewer.errorBody":
     "This file cannot be displayed, so please do not approve it. Try generating again or contact support.",
@@ -999,6 +1000,7 @@ const cs: Record<TranslationKey, string> = {
   "viewer.warm": "Teplé světlo",
   "viewer.cool": "Studené světlo",
   "viewer.loading": "Načítám 3D model…",
+  "viewer.previewQuality": "Rychlý náhled — plné detaily se ještě načítají",
   "viewer.errorTitle": "3D model se nepodařilo načíst",
   "viewer.errorBody":
     "Soubor nelze zobrazit, proto jej neschvalujte. Zkuste generování spustit znovu nebo nás kontaktujte.",
