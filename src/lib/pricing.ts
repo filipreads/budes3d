@@ -322,6 +322,33 @@ export function sanitizePlacement(input: unknown): Placement {
   };
 }
 
+export function sanitizeBaseSpec(input: unknown): BaseSpec {
+  const raw = (input ?? {}) as Partial<BaseSpec>;
+  return {
+    shape: BASE_SHAPES.includes(raw.shape as BaseShape) ? (raw.shape as BaseShape) : DEFAULT_BASE_SPEC.shape,
+    heightMm: clampNumber(raw.heightMm, 6, 60, DEFAULT_BASE_SPEC.heightMm),
+    widthMm: clampNumber(raw.widthMm, 40, 220, DEFAULT_BASE_SPEC.widthMm),
+  };
+}
+
+export function sanitizeEngravingSpec(input: unknown): EngravingSpec {
+  const raw = (input ?? {}) as Partial<EngravingSpec>;
+  return {
+    sizeMm: clampNumber(raw.sizeMm, 3, 20, DEFAULT_ENGRAVING_SPEC.sizeMm),
+    depthMm: clampNumber(raw.depthMm, 0.3, 3, DEFAULT_ENGRAVING_SPEC.depthMm),
+    raised: Boolean(raw.raised),
+  };
+}
+
+export function sanitizeHollowSpec(input: unknown): HollowSpec {
+  const raw = (input ?? {}) as Partial<HollowSpec>;
+  return {
+    enabled: Boolean(raw.enabled),
+    wallMm: clampNumber(raw.wallMm, MIN_WALL_MM, 8, DEFAULT_HOLLOW_SPEC.wallMm),
+    drainHoles: raw.drainHoles === undefined ? DEFAULT_HOLLOW_SPEC.drainHoles : Boolean(raw.drainHoles),
+  };
+}
+
 export function sanitizeConfig(input: unknown): StudioConfig {
   const raw = (input ?? {}) as Partial<StudioConfig>;
   return {
@@ -334,5 +361,8 @@ export function sanitizeConfig(input: unknown): StudioConfig {
     rush: Boolean(raw.rush),
     quantity: Math.min(Math.max(Math.round(Number(raw.quantity) || 1), 1), 25),
     placement: sanitizePlacement(raw.placement),
+    base: sanitizeBaseSpec(raw.base),
+    engravingSpec: sanitizeEngravingSpec(raw.engravingSpec),
+    hollow: sanitizeHollowSpec(raw.hollow),
   };
 }
