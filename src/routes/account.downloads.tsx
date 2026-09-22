@@ -52,7 +52,7 @@ function DownloadsTab() {
     try {
       const file = await getOrderDownloadUrl({ data: { downloadId } });
       const filename = file.filename.replace(/\.[^.]+$/, `.${format}`);
-      await downloadModelFile(file.url, format, filename, file.heightMm);
+      await downloadModelFile(file.url, format, filename, file.heightMm, file.placement, file.extras);
     } catch {
       toast.error(t("account.downloadFailed"));
     } finally {

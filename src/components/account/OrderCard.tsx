@@ -60,7 +60,7 @@ export function OrderCard({
     try {
       const file = await getOrderDownloadUrl({ data: { downloadId: entry.id } });
       const filename = file.filename.replace(/\.[a-z0-9]+$/i, `.${format}`);
-      await downloadModelFile(file.url, format, filename, file.heightMm);
+      await downloadModelFile(file.url, format, filename, file.heightMm, file.placement, file.extras);
     } catch {
       toast.error(t("account.downloadFailed"));
     } finally {
