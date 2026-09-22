@@ -129,6 +129,8 @@ export default function ModelStage({
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [loadPercent, setLoadPercent] = useState(0);
+  /** True while the fast, simplified copy is shown and the master still loads. */
+  const [previewOnly, setPreviewOnly] = useState(false);
   const [quality, setQuality] = useState<ViewerQuality>("high");
   const [autoRotate, setAutoRotate] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
