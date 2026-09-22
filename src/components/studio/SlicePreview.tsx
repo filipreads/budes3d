@@ -1,25 +1,27 @@
 /**
  * Pre-print slicing preview: draws the sliced layers of the approved model on a
  * canvas, with layer height, infill and support settings and the resulting
- * estimates. Slicing runs in the browser on the same GLB that gets exported.
+ * estimates.
  *
- * The model is parsed once; afterwards moving a slider only recomputes cheap
- * statistics and the outline of the single layer on screen, so the editor stays
- * responsive even while dragging.
+ * All parsing and slicing happens in a Web Worker. The main thread only draws,
+ * so dragging a slider never freezes the editor: settings changes are debounced,
+ * the previously drawn layer stays on screen while a new one is computed and a
+ * discreet "computing" hint shows that work is in flight.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, Layers } from "lucide-react";
+import { Play, Pause, Layers, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useI18n } from "@/lib/i18n";
 import {
   DEFAULT_SLICE,
+  buildSlicer,
   computeStats,
-  createSlicer,
+  fetchLayer,
   prepareModel,
-  type LayerSlicer,
-  type PreparedModel,
+  releaseModel,
+  type ModelBounds,
   type SliceSettings,
   type SliceStats,
 } from "@/lib/slicing";
@@ -34,17 +36,26 @@ type Props = {
   onStats?: (stats: SliceStats) => void;
 };
 
+type SlicerMeta = { layerCount: number; layerHeightMm: number; bounds: ModelBounds };
+
 export function SlicePreview({ modelUrl, heightMm, settings: external, onSettingsChange, onStats }: Props) {
   const { t } = useI18n();
   const [settings, setSettings] = useState<SliceSettings>(external ?? DEFAULT_SLICE);
-  const [model, setModel] = useState<PreparedModel | null>(null);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [working, setWorking] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [stats, setStats] = useState<SliceStats | null>(null);
+  const [slicer, setSlicer] = useState<SlicerMeta | null>(null);
   const [current, setCurrent] = useState(0);
   const [playing, setPlaying] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const statsRef = useRef(onStats);
   statsRef.current = onStats;
+  /** Layers already returned by the worker, so scrubbing back is instant. */
+  const layersRef = useRef(new Map<number, Float32Array>());
+  /** Bumped whenever the slicer is rebuilt, to drop stale worker answers. */
+  const genRef = useRef(0);
 
   const update = useCallback(
     (patch: Partial<SliceSettings>) => {
@@ -59,16 +70,22 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
 
   // A new model file (for example after a repair) invalidates the parse.
   useEffect(() => {
-    setModel(null);
+    setReady(false);
+    setSlicer(null);
+    setStats(null);
     setPlaying(false);
+    layersRef.current.clear();
   }, [modelUrl, heightMm]);
+
+  // Free the parsed model when the customer leaves the print check.
+  useEffect(() => () => void releaseModel().catch(() => {}), []);
 
   const run = useCallback(async () => {
     setBusy(true);
     setFailed(false);
     try {
-      const prepared = await prepareModel(modelUrl, heightMm);
-      setModel(prepared);
+      await prepareModel(modelUrl, heightMm);
+      setReady(true);
     } catch {
       setFailed(true);
     } finally {
@@ -76,30 +93,35 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
     }
   }, [modelUrl, heightMm]);
 
-  // Statistics are a single cheap pass — recompute them on every change.
-  const stats = useMemo(() => (model ? computeStats(model, settings) : null), [model, settings]);
+  // Statistics and the layer index are recomputed after the sliders settle.
   useEffect(() => {
-    if (stats) statsRef.current?.(stats);
-  }, [stats]);
-
-  // The bucket index only depends on the layer height, so it is rebuilt rarely.
-  const [slicer, setSlicer] = useState<LayerSlicer | null>(null);
-  useEffect(() => {
-    if (!model) {
-      setSlicer(null);
-      return;
-    }
+    if (!ready) return;
     let cancelled = false;
-    // Defer so a fast slider drag does not rebuild the index on every frame.
+    setWorking(true);
     const timer = setTimeout(() => {
-      if (cancelled) return;
-      setSlicer(createSlicer(model, settings));
-    }, 120);
+      void (async () => {
+        try {
+          const nextStats = await computeStats(settings);
+          if (cancelled) return;
+          setStats(nextStats);
+          statsRef.current?.(nextStats);
+          const meta = await buildSlicer(settings);
+          if (cancelled) return;
+          layersRef.current.clear();
+          genRef.current += 1;
+          setSlicer(meta);
+        } catch {
+          if (!cancelled) setFailed(true);
+        } finally {
+          if (!cancelled) setWorking(false);
+        }
+      })();
+    }, 180);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [model, settings.layerHeightMm]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, settings]);
 
   // Keep the scrub position valid when the layer count changes.
   useEffect(() => {
@@ -111,16 +133,15 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
     if (!playing || !slicer) return;
     const timer = setInterval(() => {
       setCurrent((index) => (index + 1) % slicer.layerCount);
-    }, 60);
+    }, 90);
     return () => clearInterval(timer);
   }, [playing, slicer]);
 
-  // Draw the active layer plus a few faded layers below for depth, on a frame.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !slicer) return;
-    let frame = 0;
-    frame = requestAnimationFrame(() => {
+  /** Draws the cached layers we have; missing ones are simply skipped. */
+  const draw = useCallback(
+    (index: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !slicer) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -140,7 +161,7 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
       const px = (x: number) => offsetX + x * scale;
       const py = (y: number) => offsetY - y * scale;
 
-      const draw = (segments: Float32Array, alpha: number, lineWidth: number) => {
+      const paint = (segments: Float32Array, alpha: number, lineWidth: number) => {
         ctx.globalAlpha = alpha;
         ctx.lineWidth = lineWidth;
         ctx.beginPath();
@@ -153,19 +174,55 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
 
       const styles = getComputedStyle(canvas);
       ctx.strokeStyle = styles.getPropertyValue("color") || "currentColor";
-      const index = Math.min(current, slicer.layerCount - 1);
       const gap = Math.max(1, Math.round(slicer.layerCount / 200));
       for (let back = 3; back >= 1; back--) {
-        const below = index - back * gap;
-        if (below >= 0) draw(slicer.layer(below).segments, 0.06 * (4 - back), 1);
+        const below = layersRef.current.get(index - back * gap);
+        if (below) paint(below, 0.06 * (4 - back), 1);
       }
-      draw(slicer.layer(index).segments, 1, 1.6);
+      const active = layersRef.current.get(index);
+      if (active) paint(active, 1, 1.6);
       ctx.globalAlpha = 1;
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [slicer, current]);
+    },
+    [slicer],
+  );
 
-  const layer = slicer ? slicer.layer(Math.min(current, slicer.layerCount - 1)) : null;
+  // Request the visible layer (and a couple below it) from the worker, then draw.
+  useEffect(() => {
+    if (!slicer) return;
+    const index = Math.min(current, slicer.layerCount - 1);
+    const generation = genRef.current;
+    let frame = requestAnimationFrame(() => draw(index));
+
+    const gap = Math.max(1, Math.round(slicer.layerCount / 200));
+    const wanted = [index, index - gap, index - 2 * gap, index - 3 * gap].filter(
+      (i) => i >= 0 && !layersRef.current.has(i),
+    );
+    if (wanted.length === 0) return () => cancelAnimationFrame(frame);
+
+    let cancelled = false;
+    void (async () => {
+      for (const want of wanted) {
+        try {
+          const layer = await fetchLayer(want);
+          if (cancelled || generation !== genRef.current) return;
+          if (layersRef.current.size > 400) layersRef.current.clear();
+          layersRef.current.set(layer.index, layer.segments);
+        } catch {
+          return;
+        }
+      }
+      if (cancelled) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => draw(index));
+    })();
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [slicer, current, draw]);
+
+  const layerZ = slicer ? (Math.min(current, slicer.layerCount - 1) + 0.5) * slicer.layerHeightMm : 0;
   const number = useMemo(() => new Intl.NumberFormat(), []);
 
   return (
@@ -175,14 +232,22 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
           <Layers className="size-4" aria-hidden />
           {t("editor.slice.title")}
         </p>
-        {slicer ? (
-          <Button size="sm" variant="ghost" onClick={() => setPlaying((p) => !p)}>
-            {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {working ? (
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" aria-hidden />
+              {t("editor.slice.working")}
+            </span>
+          ) : null}
+          {slicer ? (
+            <Button size="sm" variant="ghost" onClick={() => setPlaying((p) => !p)}>
+              {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      {!model ? (
+      {!ready ? (
         <>
           <p className="text-xs text-muted-foreground">{t("editor.slice.intro")}</p>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void run()}>
@@ -193,15 +258,16 @@ export function SlicePreview({ modelUrl, heightMm, settings: external, onSetting
 
       {failed ? <p className="text-xs text-destructive">{t("editor.slice.failed")}</p> : null}
 
-      {slicer && layer ? (
+      {slicer ? (
         <>
           <canvas ref={canvasRef} className="h-56 w-full rounded-md bg-muted text-primary" />
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>
-                {t("editor.slice.layer")} {number.format(layer.index + 1)} / {number.format(slicer.layerCount)}
+                {t("editor.slice.layer")} {number.format(Math.min(current, slicer.layerCount - 1) + 1)} /{" "}
+                {number.format(slicer.layerCount)}
               </span>
-              <span>{layer.zMm.toFixed(2)} mm</span>
+              <span>{layerZ.toFixed(2)} mm</span>
             </div>
             <Slider
               value={[Math.min(current, slicer.layerCount - 1)]}
