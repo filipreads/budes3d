@@ -193,6 +193,10 @@ export const findActiveGeneration = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .not("generation_stage", "is", null)
       .neq("generation_stage", "failed")
+      // Only genuinely in-progress runs are resumed server-side. A finished
+      // ("ready") project must never hijack a fresh studio visit — completed
+      // models stay available under My projects instead.
+      .neq("generation_stage", "ready")
       .gte("updated_at", cutoff)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -201,8 +205,6 @@ export const findActiveGeneration = createServerFn({ method: "POST" })
     if (!project) return { job: null };
 
     const stage = (project.generation_stage ?? "queued") as JobStage;
-    // A finished run only matters here when its model is actually available.
-    if (stage === "ready" && !project.model_url) return { job: null };
 
     return {
       job: {
