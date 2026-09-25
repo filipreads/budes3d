@@ -161,6 +161,8 @@ export const deleteProject = createServerFn({ method: "POST" })
 
 type OrderInput = {
   projectId: string;
+  /** Model the customer approved in the studio; must match the project's saved model. */
+  modelRef?: string;
   config: StudioConfig;
   contactEmail: string;
   locale?: "en" | "cs";
@@ -193,6 +195,9 @@ export const createOrder = createServerFn({ method: "POST" })
       .single();
     if (error || !project) throw new Error("Project not found");
     if (!project.model_url) throw new Error("Generate and approve a 3D preview first");
+    if (data.modelRef && data.modelRef !== project.model_url) {
+      throw new Error("The selected model no longer matches this project. Return to the studio and approve it again.");
+    }
 
     // Prices are always recomputed server-side from the sanitized config.
     const config = sanitizeConfig(data.config);

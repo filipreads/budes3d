@@ -1,3 +1,4 @@
+import { CHECKOUT_KEY, SESSION_KEY, checkBinding, parseBinding } from "@/lib/studio-session";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -73,11 +74,15 @@ function CheckoutPage() {
 
   async function pay() {
     if (!projectId) { toast.error(t("checkout.startFirst")); return; }
+    const binding = parseBinding(sessionStorage.getItem(CHECKOUT_KEY));
+    const bindingProblem = checkBinding({ binding, sessionId: sessionStorage.getItem(SESSION_KEY), projectId });
+    if (bindingProblem || !binding) { toast.error(t("editor.checkout.mismatch")); return; }
     setBusy(true);
     try {
       const order = await createOrder({
         data: {
           projectId,
+          modelRef: binding.modelRef,
           config,
           contactEmail: email,
           locale,
@@ -90,6 +95,7 @@ function CheckoutPage() {
         await refreshProfile();
       }
       sessionStorage.removeItem("relievo:project");
+      sessionStorage.removeItem(CHECKOUT_KEY);
       setOrderId(order.orderId);
       toast.success(t("checkout.confirmed", { number: order.orderNumber }));
     } catch (error) {
