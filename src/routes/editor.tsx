@@ -10,6 +10,25 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  CHECKOUT_KEY,
+  PROJECT_KEY,
+  SESSION_KEY,
+  checkBinding,
+  decideResume,
+  newSessionId,
+  type ResumeCandidate,
+} from "@/lib/studio-session";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -344,6 +363,14 @@ function EditorPage() {
   const deltaFor = (patch: Partial<StudioConfig>) => quote({ ...config, ...patch }, currency).totalCents - priced.totalCents;
 
 
+  // Every studio entry opens a fresh session: no project is carried over from
+  // an earlier visit, so checkout can never bind to an older project.
+  useEffect(() => {
+    sessionStorage.setItem(SESSION_KEY, newSessionId());
+    sessionStorage.removeItem(CHECKOUT_KEY);
+    if (!projectParam) sessionStorage.removeItem(PROJECT_KEY);
+  }, [projectParam]);
+
   // Reopening a saved project from "My studio projects".
   useEffect(() => {
     if (!projectParam || !user) return;
@@ -617,74 +644,43 @@ function EditorPage() {
     setStep("preview");
   }
 
-  // Reopening the studio while a reconstruction is still queued or running:
-  // pick the job back up and keep showing its real state. The project id in
-  // localStorage is only a shortcut — when it is missing (cleared storage,
-  // another device) the server is asked for the customer's latest run, so a
-  // paid premium job is never lost.
+  // A reconstruction found on entry (localStorage shortcut or the server's
+  // latest running job) is only offered — the customer confirms before the
+  // studio switches to it. Finished models are never restored here.
+  const [resumeOffer, setResumeOffer] = useState<
+    { projectId: string; stage: string; progress: number } | null
+  >(null);
+
   useEffect(() => {
-    if (!user) return;
+    if (!user || projectParam) return;
     if (busyRef.current) return;
     let cancelled = false;
     void (async () => {
       try {
-        let pending = localStorage.getItem(JOB_KEY);
-        let job = pending ? await getGenerationStatus({ data: { projectId: pending } }) : null;
-        if (cancelled) return;
-
-        if (!pending || !job || job.stage === "failed") {
+        const pending = localStorage.getItem(JOB_KEY);
+        let candidate: (ResumeCandidate & { progress: number; error: string | null; engine?: string }) | null = null;
+        if (pending) {
+          const job = await getGenerationStatus({ data: { projectId: pending } }).catch(() => null);
+          if (job) candidate = { projectId: pending, stage: job.stage, done: job.done, modelRef: job.modelRef, progress: job.progress, error: job.error };
+        }
+        if (!candidate || decideResume(candidate) !== "prompt") {
           const { job: active } = await findActiveGeneration();
-          if (cancelled) return;
-          if (active && (!job || job.stage === "failed")) {
-            pending = active.projectId;
-            job = {
-              stage: active.stage,
-              progress: active.progress,
-              status: active.done ? "ready" : "generating",
-              error: active.error,
-              retryable: !active.done,
-              modelRef: active.modelRef,
-              done: active.done,
-            };
-            if (!active.done) localStorage.setItem(JOB_KEY, active.projectId);
-            if (active.engine === "trellis" || active.engine === "meshy" || active.engine === "tripo") {
-              setEngine(active.engine);
-            }
+          if (active) {
+            candidate = { projectId: active.projectId, stage: active.stage, done: active.done, modelRef: active.modelRef, progress: active.progress, error: active.error, engine: active.engine };
           }
         }
-        if (!pending || !job) return;
-
-        if (job.stage === "ready" && job.modelRef) {
-          localStorage.removeItem(JOB_KEY);
-          trackStage("ready");
-          setModelRef(job.modelRef);
-          sessionStorage.setItem("relievo:project", pending);
-          setStep("preview");
-          return;
-        }
-        if (job.stage === "failed") {
-          localStorage.removeItem(JOB_KEY);
-          trackStage("failed");
-          setFailure(job.error ?? t("editor.toast.genFail"));
-          return;
-        }
-        cancelRef.current = false;
-        setStartedAt(Date.now());
-        trackStage(job.stage as JobStage);
-        setProgress(job.progress > 0 ? job.progress : null);
-        setBusy(STAGE_LABEL[job.stage] ?? t("editor.busy.generate"));
-        toast.info(t("editor.job.resumed"));
-        await driveJob(pending);
-      } catch (error) {
         if (cancelled) return;
-        trackStage("failed");
-        setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
-      } finally {
-        if (!cancelled) {
-          setBusy(null);
-          setProgress(null);
-          setStartedAt(null);
+        const decision = decideResume(candidate);
+        if (decision !== "prompt" || !candidate) {
+          localStorage.removeItem(JOB_KEY);
+          return;
         }
+        if (candidate.engine === "trellis" || candidate.engine === "meshy" || candidate.engine === "tripo") {
+          setEngine(candidate.engine);
+        }
+        setResumeOffer({ projectId: candidate.projectId, stage: candidate.stage, progress: candidate.progress });
+      } catch {
+        /* nothing to offer */
       }
     })();
     return () => {
@@ -693,10 +689,58 @@ function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  function declineResume() {
+    // The job keeps running server-side and stays under "My projects".
+    localStorage.removeItem(JOB_KEY);
+    setResumeOffer(null);
+  }
 
-  function goToCheckout() {
-    const projectId = sessionStorage.getItem("relievo:project");
-    if (!projectId) { toast.error(t("editor.toast.generateFirst")); return; }
+  async function acceptResume() {
+    const offer = resumeOffer;
+    setResumeOffer(null);
+    if (!offer) return;
+    sessionStorage.setItem(PROJECT_KEY, offer.projectId);
+    setModelRef(null);
+    setFailure(null);
+    cancelRef.current = false;
+    setStartedAt(Date.now());
+    trackStage(offer.stage as JobStage);
+    setProgress(offer.progress > 0 ? offer.progress : null);
+    setBusy(STAGE_LABEL[offer.stage] ?? t("editor.busy.generate"));
+    toast.info(t("editor.job.resumed"));
+    try {
+      await driveJob(offer.projectId);
+    } catch (error) {
+      trackStage("failed");
+      setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
+    } finally {
+      setBusy(null);
+      setProgress(null);
+      setStartedAt(null);
+    }
+  }
+
+  async function goToCheckout() {
+    const projectId = sessionStorage.getItem(PROJECT_KEY);
+    const sessionId = sessionStorage.getItem(SESSION_KEY);
+    if (!projectId || !modelRef) { toast.error(t("editor.toast.generateFirst")); return; }
+    // Confirm the model on screen is the one saved on this session's project.
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id, model_url")
+      .eq("id", projectId)
+      .maybeSingle();
+    const problem = checkBinding({
+      binding: sessionId ? { sessionId, projectId, modelRef } : null,
+      sessionId,
+      projectId: project?.id ?? null,
+      projectModelUrl: project?.model_url ?? null,
+    });
+    if (problem) {
+      toast.error(t("editor.checkout.mismatch"));
+      return;
+    }
+    sessionStorage.setItem(CHECKOUT_KEY, JSON.stringify({ sessionId, projectId, modelRef }));
     sessionStorage.setItem("relievo:config", JSON.stringify(config));
     void navigate({ to: "/checkout" });
   }
@@ -926,6 +970,20 @@ function EditorPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
+      <AlertDialog open={!!resumeOffer} onOpenChange={(open) => { if (!open) declineResume(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("editor.resume.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("editor.resume.body", { progress: String(resumeOffer?.progress ?? 0) })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={declineResume}>{t("editor.resume.new")}</AlertDialogCancel>
+            <AlertDialogAction onClick={acceptResume}>{t("editor.resume.continue")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-6 sm:px-5 sm:py-10 lg:pb-10">
         <h1 className="font-display text-2xl sm:text-3xl">{t("editor.title")}</h1>
 
