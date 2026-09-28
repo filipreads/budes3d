@@ -990,8 +990,8 @@ function EditorPage() {
         {resumable ? (
           <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-primary/50 bg-primary/10 p-3 sm:flex sm:justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-medium">{t("editor.jobResume.title")}</p>
-              <p className="truncate text-xs text-muted-foreground">{t("editor.jobResume.body")}</p>
+              <p className="text-sm font-medium">{t("editor.resume.title")}</p>
+              <p className="truncate text-xs text-muted-foreground">{t("editor.resume.body")}</p>
             </div>
             <div className="flex shrink-0 gap-2">
               <Button size="sm" onClick={restoreDraft}>
