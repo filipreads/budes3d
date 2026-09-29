@@ -96,6 +96,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify([
+          { "@context": "https://schema.org", "@type": "WebSite", name: "Relievo Studio" },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Relievo Studio",
+            description: "Photo-to-3D portrait studio: sculpted 3D models and printed busts from photographs.",
+          },
+        ]),
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,

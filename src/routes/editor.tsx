@@ -1794,7 +1794,7 @@ function SliderRow({
           })}
         </p>
       ) : null}
-      <Slider value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
+      <Slider aria-label={label} value={[value]} min={min} max={max} step={1} onValueChange={([next]) => onChange(next ?? value)} />
     </div>
   );
 }

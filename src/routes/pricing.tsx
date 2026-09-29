@@ -36,6 +36,25 @@ export const Route = createFileRoute("/pricing")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [{ rel: "canonical", href: "/pricing" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: "Relievo Studio 3D portrait",
+          description: "A sculpted 3D portrait model generated from your photograph, as a digital file or printed bust.",
+          brand: { "@type": "Brand", name: "Relievo Studio" },
+          offers: {
+            "@type": "Offer",
+            name: "Digital 3D file (GLB + STL)",
+            price: (DIGITAL_PRICE.czk / 100).toFixed(2),
+            priceCurrency: "CZK",
+            availability: "https://schema.org/InStock",
+          },
+        }),
+      },
+    ],
   }),
   component: PricingPage,
 });
