@@ -11,16 +11,17 @@ import { useI18n, type TranslationKey } from "@/lib/i18n";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Relievo Studio — Turn a portrait photo into a 3D sculpture" },
+      { title: "Relievo Studio — 3D Portraits & Sculptures from Your Photos" },
       {
         name: "description",
         content:
-          "Upload a portrait photograph, generate a sculpted 3D model in minutes, then download the file or order a hand-finished printed piece.",
+          "Turn a favourite portrait photo into a sculpted 3D model in minutes — preview it online, download the file, or order a hand-finished printed piece.",
       },
-      { property: "og:title", content: "Relievo Studio — Portrait photos into 3D sculpture" },
+      { property: "og:title", content: "Relievo Studio — 3D Portraits & Sculptures from Your Photos" },
       {
         property: "og:description",
-        content: "Photo-to-3D portrait studio: AI reconstruction, live preview, digital files and printed busts.",
+        content:
+          "Turn a favourite portrait photo into a sculpted 3D model in minutes — preview it online, download the file, or order a hand-finished printed piece.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
