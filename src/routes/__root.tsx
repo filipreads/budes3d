@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             "@context": "https://schema.org",
             "@type": "Organization",
             name: "Relievo Studio",
-            description: "Photo-to-3D portrait studio: sculpted 3D models and printed busts from photographs.",
+            description: "Turn a favourite portrait photo into a sculpted 3D model in minutes — preview it online, download the file, or order a hand-finished printed piece.",
           },
         ]),
       },
