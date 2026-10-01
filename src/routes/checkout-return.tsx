@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getOrderPaymentState } from "@/lib/payments.functions";
+import { useI18n } from "@/lib/i18n";
 import { formatPrice, sanitizeDisplayCurrency } from "@/lib/pricing";
 
 
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/checkout-return")({
 
 function CheckoutReturnPage() {
   const { order } = Route.useSearch();
+  const { t } = useI18n();
   const [state, setState] = useState<{ order_number: string; payment_status: string; total_cents: number; currency: string } | null>(null);
   const [tries, setTries] = useState(0);
 
@@ -65,7 +67,7 @@ function CheckoutReturnPage() {
               <Loader2 className="mx-auto size-10 animate-spin text-muted-foreground" />
             )}
             <h1 className="font-display text-2xl">
-              {paid ? "Payment received" : "Confirming your payment…"}
+              {paid ? t("checkoutReturn.paid") : t("checkoutReturn.pending")}
             </h1>
             {state ? (
               <p className="text-sm text-muted-foreground">
@@ -74,11 +76,11 @@ function CheckoutReturnPage() {
             ) : null}
             <p className="text-sm text-muted-foreground">
               {paid
-                ? "Your receipt is on its way and your downloads are unlocked in your account."
-                : "This can take a few seconds while your payment is verified."}
+                ? t("checkoutReturn.paidBody")
+                : t("checkoutReturn.pendingBody")}
             </p>
             <Link to="/account">
-              <Button className="mt-2">Go to my orders</Button>
+              <Button className="mt-2">{t("checkoutReturn.orders")}</Button>
             </Link>
           </CardContent>
         </Card>
