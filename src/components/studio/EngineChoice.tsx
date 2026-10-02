@@ -55,10 +55,11 @@ export function EngineChoice({ engines, value, onChange, disabled }: Props) {
                 {item.premium ? t("editor.engine.premiumBody") : t("editor.engine.basicBody")}
               </span>
               <span className="mt-3 block w-full border-t border-border pt-2 text-sm font-semibold">
-                {!item.configured ? t("editor.engine.unavailable") : item.premium && item.surchargeCents > 0
+                {item.premium && item.surchargeCents > 0
                   ? t("editor.engine.surcharge", { price: money(item.surchargeCents) })
                   : t("editor.engine.included")}
               </span>
+              {!item.configured ? <span className="mt-1 block w-full text-xs font-normal text-muted-foreground">{t("editor.engine.unavailable")}</span> : null}
             </Button>
           );
         })}
