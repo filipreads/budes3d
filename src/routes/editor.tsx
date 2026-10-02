@@ -150,7 +150,7 @@ function EditorPage() {
   /** 3D engine for the next generation run (basic TRELLIS or a premium engine). */
   const [engine, setEngine] = useState<EngineInfo["id"]>("trellis");
   const [engines, setEngines] = useState<EngineInfo[]>([
-    { id: "trellis", label: "TRELLIS.2", premium: false, provider: "microsoft-trellis-2", plan: "basic", surchargeCents: 0 },
+    { id: "trellis", label: "TRELLIS.2", premium: false, provider: "microsoft-trellis-2", plan: "basic", configured: true, surchargeCents: 0 },
   ]);
 
   /** Pre-approval print check of the generated mesh. */
@@ -172,13 +172,12 @@ function EditorPage() {
   const sliceStatsRef = useRef<SliceStats | null>(null);
   sliceStatsRef.current = sliceStats;
 
-  // Which engines can be offered — premium ones appear only when configured.
+  // The public catalog is available before sign-in; the paid option stays visible when unavailable.
   useEffect(() => {
-    if (!user) return;
     void getAvailableEngines({ data: { currency } })
       .then((result) => setEngines(result.engines))
       .catch(() => {});
-  }, [user, currency]);
+  }, [currency]);
 
 
   // When the preview opens, verify the mesh is printable before approval.
@@ -532,6 +531,10 @@ function EditorPage() {
 
   async function generate() {
     if (!photo) return;
+    if (!engines.some((item) => item.id === engine && item.configured)) {
+      toast.error(t("editor.engine.unavailable"));
+      return;
+    }
     if (!user) {
       void navigate({ to: "/auth", search: { redirect: "/editor" } });
       return;
@@ -1011,6 +1014,12 @@ function EditorPage() {
           </p>
         ) : null}
 
+        {step === "upload" || step === "retouch" ? (
+          <div className="mt-6 border-y border-border py-5">
+            <EngineChoice engines={engines} value={engine} onChange={setEngine} disabled={Boolean(busy)} />
+          </div>
+        ) : null}
+
         <div className="mt-5">
           <StudioProgress
             states={stageStates}
@@ -1192,7 +1201,6 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void clearBackground()}>
                     {t("editor.clearBackground")}
                   </Button>
-                  <EngineChoice engines={engines} value={engine} onChange={setEngine} disabled={Boolean(busy)} />
                   <Button className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     {busy ?? t("editor.generate")}
@@ -1214,7 +1222,6 @@ function EditorPage() {
                 <>
                   <h2 className="font-display text-xl">{t("editor.uploadHeading")}</h2>
                   <p className="text-sm text-muted-foreground">{t("editor.uploadHint")}</p>
-                  <EngineChoice engines={engines} value={engine} onChange={setEngine} />
                 </>
               ) : null}
 

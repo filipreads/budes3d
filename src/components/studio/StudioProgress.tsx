@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CircleDashed, Loader2, RotateCw, TriangleAlert } from "lucide-react";
+import { Check, CircleDashed, Loader2, RotateCw, Sparkles, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 
@@ -13,9 +13,6 @@ const STAGES: { id: StageId; labelKey: TranslationKey }[] = [
   { id: "preview", labelKey: "editor.step.preview" },
   { id: "configure", labelKey: "editor.step.configure" },
 ];
-
-/** A full TRELLIS run typically finishes in roughly this many seconds. */
-const TYPICAL_RUN_SECONDS = 180;
 
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
@@ -52,7 +49,8 @@ export function StudioProgress({
 
   const { t } = useI18n();
   const done = STAGES.filter((stage) => states[stage.id] === "done").length;
-  const pct = progress ?? Math.round((done / STAGES.length) * 100);
+  const pct = Math.round((done / STAGES.length) * 100);
+  const active = STAGES.find((stage) => states[stage.id] === "active" || states[stage.id] === "error");
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -63,23 +61,17 @@ export function StudioProgress({
   }, [startedAt]);
 
   const elapsed = startedAt ? (now - startedAt) / 1000 : null;
-  // Once real progress is reported, extrapolate from it; before that fall back
-  // to the typical run length so the wait never feels open-ended.
-  const remaining =
-    elapsed === null
-      ? null
-      : progress && progress > 5
-        ? Math.max(0, (elapsed / progress) * (100 - progress))
-        : Math.max(0, TYPICAL_RUN_SECONDS - elapsed);
-
-
   return (
-    <section aria-label={t("editor.title")} className="rounded-xl border border-border bg-card/60 p-4">
+    <section aria-label={t("editor.progressTitle")} className="border-y border-border py-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        <div>
+          <p className="text-xs font-semibold uppercase text-primary">{t("editor.progressTitle")}</p>
+          <p className="mt-1 font-display text-lg">{active ? t(active.labelKey) : t("editor.progressComplete")}</p>
+        </div>
+        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Sparkles className="size-4 text-primary" aria-hidden />
           {t("editor.progress", { done, total: STAGES.length })}
-        </p>
-        <span className="text-xs tabular-nums text-muted-foreground">{pct}%</span>
+        </span>
       </div>
 
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -97,9 +89,9 @@ export function StudioProgress({
         {STAGES.map((stage, index) => {
           const state = states[stage.id];
           return (
-            <li
+          <li
               key={stage.id}
-              className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+              className={`flex min-h-14 items-center gap-2.5 rounded-md border px-3 py-2 text-sm transition-colors ${
                 state === "active"
                   ? "border-primary/60 bg-primary/10 text-foreground"
                   : state === "done"
@@ -111,7 +103,7 @@ export function StudioProgress({
             >
               <StageIcon state={state} />
               <span className="min-w-0">
-                <span className="block truncate">
+                 <span className="block">
                   {index + 1}. {t(stage.labelKey)}
                 </span>
                 <span className="block text-[11px] text-muted-foreground">
@@ -135,7 +127,7 @@ export function StudioProgress({
           {elapsed !== null ? (
             <p className="text-xs tabular-nums">
               {t("editor.elapsed", { mm: formatDuration(elapsed) })}
-              {remaining !== null ? ` · ${t("editor.eta", { mm: formatDuration(remaining) })}` : ""}
+              {progress !== null && progress !== undefined ? ` · ${Math.round(progress)}%` : ""}
             </p>
           ) : null}
         </div>
