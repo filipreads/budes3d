@@ -36,6 +36,7 @@ export type EngineInfo = {
   premium: boolean;
   provider: string;
   plan: "basic" | "premium";
+  configured: boolean;
   /** Product surcharge in minor units of the requested currency (0 for basic). */
   surchargeCents: number;
 };
@@ -46,9 +47,8 @@ const PROVIDER_OF: Record<EngineId, string> = {
   tripo: "tripo3d",
 };
 
-/** Engines the studio may offer — premium engines appear only when configured. */
+/** Public engine catalog: exposes availability and price, never provider credentials. */
 export const getAvailableEngines = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ currency: z.enum(["czk", "eur"]).optional() }).parse(input ?? {}))
   .handler(async ({ data }): Promise<{ engines: EngineInfo[] }> => {
     const currency = data.currency ?? "czk";
@@ -57,14 +57,12 @@ export const getAvailableEngines = createServerFn({ method: "POST" })
     const { tripoAvailable } = await import("./tripo.server");
 
     const engines: EngineInfo[] = [
-      { id: "trellis", label: "TRELLIS.2", premium: false, provider: PROVIDER_OF.trellis, plan: "basic", surchargeCents: 0 },
+      { id: "trellis", label: "TRELLIS.2", premium: false, provider: PROVIDER_OF.trellis, plan: "basic", configured: true, surchargeCents: 0 },
     ];
     const surcharge = await premiumRateCents(currency);
-    if (meshyAvailable()) {
-      engines.push({ id: "meshy", label: "Meshy", premium: true, provider: PROVIDER_OF.meshy, plan: "premium", surchargeCents: surcharge });
-    }
+    engines.push({ id: "meshy", label: "Meshy", premium: true, provider: PROVIDER_OF.meshy, plan: "premium", configured: meshyAvailable(), surchargeCents: surcharge });
     if (tripoAvailable()) {
-      engines.push({ id: "tripo", label: "Tripo3D", premium: true, provider: PROVIDER_OF.tripo, plan: "premium", surchargeCents: surcharge });
+      engines.push({ id: "tripo", label: "Tripo3D", premium: true, provider: PROVIDER_OF.tripo, plan: "premium", configured: true, surchargeCents: surcharge });
     }
     return { engines };
   });
