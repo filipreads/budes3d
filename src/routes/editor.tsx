@@ -178,6 +178,18 @@ function EditorPage() {
       .then((result) => setEngines(result.engines))
       .catch(() => {});
   }, [currency]);
+  const selectedEngine = engines.find((item) => item.id === engine);
+
+  /** Turns raw engine errors into clear, actionable customer messages. */
+  function friendlyError(error: unknown): string {
+    const raw = error instanceof Error ? error.message : "";
+    if (/out of credits/i.test(raw)) return t("editor.err.credits");
+    if (/rejected our credentials/i.test(raw)) return t("editor.err.auth");
+    if (/rate-limited|unavailable right now|could not reach/i.test(raw)) return t("editor.err.busy");
+    if (/not configured/i.test(raw)) return t("editor.err.config");
+    if (/could not build|rejected the request/i.test(raw)) return t("editor.err.rejected");
+    return raw || t("editor.toast.genFail");
+  }
 
 
   // When the preview opens, verify the mesh is printable before approval.
@@ -591,7 +603,7 @@ function EditorPage() {
       await startGeneration({ data: { projectId: project.id, engine } });
       await driveJob(project.id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("editor.toast.genFail");
+      const message = friendlyError(error);
       setFailure(message);
       trackStage("failed");
       toast.error(message);
@@ -715,7 +727,7 @@ function EditorPage() {
       await driveJob(offer.projectId);
     } catch (error) {
       trackStage("failed");
-      setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
+      setFailure(friendlyError(error));
     } finally {
       setBusy(null);
       setProgress(null);
@@ -1023,7 +1035,7 @@ function EditorPage() {
         <div className="mt-5">
           <StudioProgress
             states={stageStates}
-            message={busy}
+            message={busy && selectedEngine ? `${busy} · ${t("editor.engineActive", { name: selectedEngine.label })}` : busy}
             progress={progress}
             error={failure}
             startedAt={startedAt}
@@ -1201,9 +1213,12 @@ function EditorPage() {
                   <Button variant="outline" className="w-full" disabled={Boolean(busy)} onClick={() => void clearBackground()}>
                     {t("editor.clearBackground")}
                   </Button>
-                  <Button className="w-full" disabled={Boolean(busy)} onClick={() => void generate()}>
+                  <Button className="h-auto min-h-10 w-full whitespace-normal" disabled={Boolean(busy)} onClick={() => void generate()}>
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                    {busy ?? t("editor.generate")}
+                    {busy ??
+                      (selectedEngine?.premium
+                        ? t("editor.generatePremium", { price: money(selectedEngine.surchargeCents) })
+                        : t("editor.generateBasic"))}
                   </Button>
                   {busy ? (
                     <Button variant="ghost" className="w-full" onClick={() => (cancelRef.current = true)}>
@@ -1211,9 +1226,16 @@ function EditorPage() {
                     </Button>
                   ) : null}
                   {failure && !busy ? (
-                    <Button variant="outline" className="w-full" onClick={() => void generate()}>
-                      {t("editor.retry")}
-                    </Button>
+                    <div className="grid gap-2">
+                      <Button variant="outline" className="w-full" onClick={() => void generate()}>
+                        {t("editor.retry")}
+                      </Button>
+                      {engine !== "trellis" ? (
+                        <Button variant="ghost" className="w-full" onClick={() => { setEngine("trellis"); setFailure(null); }}>
+                          {t("editor.switchBasic")}
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </>
               ) : null}
