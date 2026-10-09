@@ -727,7 +727,7 @@ function EditorPage() {
       await driveJob(offer.projectId);
     } catch (error) {
       trackStage("failed");
-      setFailure(error instanceof Error ? error.message : t("editor.toast.genFail"));
+      setFailure(friendlyError(error));
     } finally {
       setBusy(null);
       setProgress(null);
