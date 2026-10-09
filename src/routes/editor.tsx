@@ -1217,7 +1217,7 @@ function EditorPage() {
                     {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                     {busy ??
                       (selectedEngine?.premium
-                        ? t("editor.generatePremium", { price: money(selectedEngine.surchargeCents) })
+                        ? t("editor.generatePremium", { engine: selectedEngine.label, price: money(selectedEngine.surchargeCents) })
                         : t("editor.generateBasic"))}
                   </Button>
                   {busy ? (
