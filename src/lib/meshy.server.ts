@@ -267,10 +267,16 @@ export const meshyAdapter: PhotoTaskAdapter = {
 
   async createJob(input) {
     const profile = await readProfile();
+    const creditsBefore = await readBalance();
     const providerJobId = await createTask(input.imageUrl, profile);
     return {
       providerJobId,
-      metadata: { profile, created_at: new Date().toISOString(), api_base: meshyBase() },
+      metadata: {
+        profile,
+        created_at: new Date().toISOString(),
+        api_base: meshyBase(),
+        credits_balance_before: creditsBefore,
+      },
     };
   },
 
