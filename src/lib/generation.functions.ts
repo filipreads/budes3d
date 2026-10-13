@@ -314,7 +314,24 @@ export const advanceGeneration = createServerFn({ method: "POST" })
 
         await patch({ generation_stage: "extracting", generation_progress: 88 });
         const outputs = await adapter.fetchOutputs(project.provider_job_id);
-        await patchJob(supabase, jobId, { provider_metadata: outputs.metadata as never });
+        let previousMeta: Record<string, unknown> = {};
+        if (jobId) {
+          const { data: prevJob } = await supabase
+            .from("generation_jobs")
+            .select("provider_metadata")
+            .eq("id", jobId)
+            .maybeSingle();
+          if (prevJob?.provider_metadata && typeof prevJob.provider_metadata === "object") {
+            previousMeta = prevJob.provider_metadata as Record<string, unknown>;
+          }
+        }
+        const mergedMeta: Record<string, unknown> = { ...previousMeta, ...outputs.metadata };
+        const before = Number(previousMeta["credits_balance_before"]);
+        const after = Number(mergedMeta["credits_balance_after"]);
+        if (Number.isFinite(before) && Number.isFinite(after) && before >= after) {
+          mergedMeta["credits_consumed"] = before - after;
+        }
+        await patchJob(supabase, jobId, { provider_metadata: mergedMeta as never });
         await patch({ generation_stage: "storing", generation_progress: 92 });
         const stored = await storeModelFromUrl(
           supabase,
