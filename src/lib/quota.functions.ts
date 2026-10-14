@@ -124,3 +124,58 @@ export const setZeroGpuPlan = createServerFn({ method: "POST" })
 
     return { plan: data.plan, requeued };
   });
+
+export type MeshyUsageRow = {
+  id: string;
+  projectTitle: string;
+  status: string;
+  createdAt: string;
+  finishedAt: string | null;
+  creditsBefore: number | null;
+  creditsAfter: number | null;
+  creditsConsumed: number | null;
+};
+
+export type MeshyUsageOverview = {
+  balance: number | null;
+  totalConsumed: number;
+  rows: MeshyUsageRow[];
+};
+
+function num(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
+}
+
+export const getMeshyUsage = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MeshyUsageOverview> => {
+    await assertAdmin(context);
+    const { readBalance, meshyAvailable } = await import("./meshy.server");
+    const balance = meshyAvailable() ? await readBalance() : null;
+    const { data: jobs } = await context.supabase
+      .from("generation_jobs")
+      .select("id, project_id, status, created_at, finished_at, provider_metadata")
+      .eq("provider", "meshy")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const ids = [...new Set((jobs ?? []).map((j) => j.project_id))];
+    const { data: projects } = ids.length
+      ? await context.supabase.from("projects").select("id, title").in("id", ids)
+      : { data: [] as { id: string; title: string | null }[] };
+    const titles = new Map((projects ?? []).map((p) => [p.id, p.title ?? ""]));
+    const rows = (jobs ?? []).map((j) => {
+      const m = (j.provider_metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: j.id,
+        projectTitle: titles.get(j.project_id) || j.project_id.slice(0, 8),
+        status: j.status,
+        createdAt: j.created_at,
+        finishedAt: j.finished_at,
+        creditsBefore: num(m["credits_balance_before"]),
+        creditsAfter: num(m["credits_balance_after"]),
+        creditsConsumed: num(m["credits_consumed"]),
+      };
+    });
+    return { balance, totalConsumed: rows.reduce((s, r) => s + (r.creditsConsumed ?? 0), 0), rows };
+  });

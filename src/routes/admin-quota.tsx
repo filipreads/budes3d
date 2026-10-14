@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
-import { getQuotaOverview, setZeroGpuPlan, type QuotaOverview } from "@/lib/quota.functions";
+import { getQuotaOverview, setZeroGpuPlan, getMeshyUsage, type QuotaOverview, type MeshyUsageOverview } from "@/lib/quota.functions";
 
 export const Route = createFileRoute("/admin-quota")({
   head: () => ({
@@ -38,12 +38,14 @@ function QuotaPage() {
   const [data, setData] = useState<QuotaOverview | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "denied">("loading");
   const [busy, setBusy] = useState(false);
+  const [meshy, setMeshy] = useState<MeshyUsageOverview | null>(null);
 
   const load = useCallback(async () => {
     try {
       const result = await getQuotaOverview();
       setData(result);
       setState("ready");
+      getMeshyUsage().then(setMeshy).catch(() => setMeshy(null));
     } catch {
       setState("denied");
     }
@@ -166,6 +168,40 @@ function QuotaPage() {
                   </p>
                 </CardContent>
               </Card>
+            </div>
+
+            <h2 className="mt-10 font-display text-2xl">{t("meshy.title")}</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Card><CardContent className="p-5">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("meshy.balance")}</p>
+                <p className="mt-2 font-display text-3xl tabular-nums">{meshy?.balance ?? "—"}</p>
+              </CardContent></Card>
+              <Card><CardContent className="p-5">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("meshy.consumed")}</p>
+                <p className="mt-2 font-display text-3xl tabular-nums">{meshy?.totalConsumed ?? "—"}</p>
+              </CardContent></Card>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">{t("meshy.note")}</p>
+            <div className="mt-4 space-y-2">
+              {!meshy || meshy.rows.length === 0 ? (
+                <p className="text-muted-foreground">{t("meshy.empty")}</p>
+              ) : (
+                meshy.rows.map((row) => (
+                  <Card key={row.id}>
+                    <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{row.projectTitle}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(row.createdAt).toLocaleString()} · {row.status}</p>
+                      </div>
+                      <div className="flex gap-4 text-sm tabular-nums">
+                        <span><span className="text-muted-foreground">{t("meshy.before")}: </span>{row.creditsBefore ?? "—"}</span>
+                        <span><span className="text-muted-foreground">{t("meshy.after")}: </span>{row.creditsAfter ?? "—"}</span>
+                        <span className="font-medium"><span className="text-muted-foreground">{t("meshy.used")}: </span>{row.creditsConsumed ?? "—"}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
 
             <h2 className="mt-10 font-display text-2xl">{t("quota.history")}</h2>
